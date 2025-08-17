@@ -1,4 +1,4 @@
-import { MapPin, RefreshCw, Navigation2, Search } from 'lucide-react';
+import { MapPin, RefreshCw, Navigation2, Search, Star, MessageCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { 
   Button, 
@@ -15,6 +15,7 @@ import { initDataState, useSignal } from '@telegram-apps/sdk-react';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { InteractiveMap } from '@/components/Map/InteractiveMap';
 import { Page } from '@/components/Page';
+import { LocationDetailModal } from '@/components/LocationDetailModal';
 
 /**
  * Represents a location in the system
@@ -75,6 +76,9 @@ export function LocationPage() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
+  const [showLocationDetail, setShowLocationDetail] = useState(false);
+  const [locationRatings, setLocationRatings] = useState<Record<number, { average: number; count: number }>>({});
   
   const initDataState_ = useSignal(initDataState);
   const telegramUser = initDataState_?.user;
@@ -156,10 +160,50 @@ export function LocationPage() {
       if (response.ok) {
         const data = await response.json();
         setLocations(data);
+        // Load ratings for each location
+        loadLocationRatings(data);
       }
     } catch (error) {
       console.error('Error loading locations:', error);
     }
+  };
+
+  const loadLocationRatings = async (locationList: Location[]) => {
+    try {
+      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+      const ratingsPromises = locationList.map(async (loc) => {
+        try {
+          const response = await fetch(`${BACKEND_URL}/api/ratings?location_id=${loc.id}`);
+          if (response.ok) {
+            const data = await response.json();
+            return { locationId: loc.id, rating: { average: data.average, count: data.count } };
+          }
+        } catch (error) {
+          console.error(`Error loading rating for location ${loc.id}:`, error);
+        }
+        return { locationId: loc.id, rating: { average: 0, count: 0 } };
+      });
+
+      const ratingsData = await Promise.all(ratingsPromises);
+      const ratingsMap = ratingsData.reduce((acc, { locationId, rating }) => {
+        acc[locationId] = rating;
+        return acc;
+      }, {} as Record<number, { average: number; count: number }>);
+      
+      setLocationRatings(ratingsMap);
+    } catch (error) {
+      console.error('Error loading location ratings:', error);
+    }
+  };
+
+  const handleLocationSelect = (location: Location) => {
+    setSelectedLocation(location);
+    setShowLocationDetail(true);
+  };
+
+  const handleLocationDetailClose = () => {
+    setShowLocationDetail(false);
+    setSelectedLocation(null);
   };
 
   const loadUserProfile = async () => {
@@ -211,12 +255,41 @@ export function LocationPage() {
   };
 
   const handleAddLocation = async () => {
-    if (!clickedLocation || !newLocationName.trim() || !userProfile) return;
+    if (!clickedLocation || !newLocationName.trim()) return;
     
     setIsLoading(true);
     setApiError(null);
     
     try {
+      // Ensure we have a valid user profile first
+      let validUserId = null;
+      if (userProfile && userProfile.id > 0) {
+        validUserId = userProfile.id;
+      } else if (telegramUser) {
+        // Try to create/get user first
+        try {
+          const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+          const userResponse = await fetch(`${BACKEND_URL}/api/users`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              telegramId: telegramUser.id.toString(),
+              nickname: telegramUser.first_name + (telegramUser.last_name ? ` ${telegramUser.last_name}` : ''),
+              avatarUrl: null
+            })
+          });
+          
+          if (userResponse.ok) {
+            const newUser = await userResponse.json();
+            validUserId = newUser.id;
+            setUserProfile(newUser);
+          }
+        } catch (userError) {
+          console.error('Error creating user:', userError);
+          // Continue with null userId
+        }
+      }
+
       const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
       const response = await fetch(`${BACKEND_URL}/api/locations`, {
         method: 'POST',
@@ -229,7 +302,7 @@ export function LocationPage() {
           latitude: clickedLocation.lat,
           longitude: clickedLocation.lng,
           category: newLocationCategory,
-          userId: userProfile.id
+          userId: validUserId  // This can be null now
         })
       });
       
@@ -239,7 +312,7 @@ export function LocationPage() {
         setNewLocationDescription('');
         setNewLocationCategory('other');
         setClickedLocation(null);
-        await loadLocations(); // Refresh locations
+        await loadLocations(); // Refresh locations and ratings
       } else {
         const errorData = await response.json();
         setApiError(errorData.error || 'Failed to add location');
@@ -640,49 +713,114 @@ export function LocationPage() {
         {/* Recent Locations List */}
         {locations.length > 0 && (
           <List>
-            <Section header="📍 Recent Locations">
-              {locations.slice(0, 8).map((loc) => (
-                <Cell
-                  key={loc.id}
-                  Component="button"
-                  before={
-                    <div style={{
-                      background: getCategoryColor(loc.category),
-                      borderRadius: '8px',
-                      padding: '6px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}>
-                      {getCategoryIcon(loc.category)}
+            <Section header={`📍 All Locations (${locations.length})`}>
+              {locations.map((loc) => {
+                const rating = locationRatings[loc.id] || { average: 0, count: 0 };
+                return (
+                  <Cell
+                    key={loc.id}
+                    Component="button"
+                    before={
+                      <div style={{
+                        background: getCategoryColor(loc.category),
+                        borderRadius: '12px',
+                        padding: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '18px'
+                      }}>
+                        {getCategoryIcon(loc.category)}
+                      </div>
+                    }
+                    onClick={() => handleLocationSelect(loc)}
+                    after={
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {rating.count > 0 && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Star size={12} style={{ color: '#F59E0B', fill: '#F59E0B' }} />
+                            <span style={{ 
+                              fontSize: '12px', 
+                              color: 'var(--tg-theme-text-color)',
+                              fontWeight: '500'
+                            }}>
+                              {rating.average.toFixed(1)}
+                            </span>
+                            <span style={{ 
+                              fontSize: '10px', 
+                              color: 'var(--tg-theme-hint-color)'
+                            }}>
+                              ({rating.count})
+                            </span>
+                          </div>
+                        )}
+                        <Button size="s" mode="plain" onClick={(e) => {
+                          e.stopPropagation();
+                          setMapCenter({ lat: loc.latitude, lng: loc.longitude });
+                        }}>
+                          📍
+                        </Button>
+                      </div>
+                    }
+                  >
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '4px', width: '100%' }}>
+                      <div style={{ 
+                        fontWeight: '600',
+                        fontSize: '16px',
+                        color: 'var(--tg-theme-text-color)'
+                      }}>
+                        {loc.name}
+                      </div>
+                      <div style={{ 
+                        fontSize: '13px',
+                        color: 'var(--tg-theme-hint-color)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        <span>{formatCategory(loc.category)}</span>
+                        <span>•</span>
+                        <span>{formatDate(loc.created_at)}</span>
+                        {rating.count > 0 && (
+                          <>
+                            <span>•</span>
+                            <MessageCircle size={12} />
+                            <span>Reviews</span>
+                          </>
+                        )}
+                      </div>
+                      {loc.description && (
+                        <div style={{ 
+                          fontSize: '12px',
+                          color: 'var(--tg-theme-text-color)',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          width: '100%',
+                          maxWidth: '200px'
+                        }}>
+                          {loc.description}
+                        </div>
+                      )}
                     </div>
-                  }
-                  subtitle={`${formatCategory(loc.category)} • ${formatDate(loc.created_at)}`}
-                  onClick={() => {
-                    setMapCenter({ lat: loc.latitude, lng: loc.longitude });
-                  }}
-                  after={
-                    <div style={{ 
-                      fontSize: '11px', 
-                      color: 'var(--tg-theme-hint-color)',
-                      textAlign: 'right'
-                    }}>
-                      <div>{loc.latitude.toFixed(4)}</div>
-                      <div>{loc.longitude.toFixed(4)}</div>
-                    </div>
-                  }
-                >
-                  <div style={{ 
-                    overflow: 'hidden', 
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
-                  }}>
-                    {loc.name}
-                  </div>
-                </Cell>
-              ))}
+                  </Cell>
+                );
+              })}
             </Section>
           </List>
+        )}
+
+        {/* Location Detail Modal */}
+        {selectedLocation && (
+          <LocationDetailModal
+            location={selectedLocation}
+            isOpen={showLocationDetail}
+            onClose={handleLocationDetailClose}
+            onLocationClick={(lat, lng) => {
+              setMapCenter({ lat, lng });
+              handleLocationDetailClose();
+            }}
+          />
         )}
       </Page>
     );

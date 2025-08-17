@@ -47,18 +47,44 @@ export function ProfilePage() {
           throw new Error('User not found');
         }
       } catch (error) {
+        console.error('Error loading user profile:', error);
         // Create new user if not found
-        const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
-        const createResponse = await fetch(`${BACKEND_URL}/api/users`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            telegramId: telegramUser.id.toString(),
+        try {
+          const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+          const createResponse = await fetch(`${BACKEND_URL}/api/users`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              telegramId: telegramUser.id.toString(),
+              nickname: telegramUser.username || `${telegramUser.first_name} ${telegramUser.last_name || ''}`.trim(),
+              avatarUrl: null
+            })
+          });
+          if (createResponse.ok) {
+            profileData = await createResponse.json();
+          } else {
+            // If user creation also fails, create a fallback profile
+            profileData = {
+              id: 0,
+              telegram_id: telegramUser.id.toString(),
+              nickname: telegramUser.username || `${telegramUser.first_name} ${telegramUser.last_name || ''}`.trim(),
+              avatar_url: null,
+              role: 'user',
+              created_at: new Date().toISOString()
+            };
+          }
+        } catch (createError) {
+          console.error('Error creating user profile:', createError);
+          // Fallback profile when both load and create fail
+          profileData = {
+            id: 0,
+            telegram_id: telegramUser.id.toString(),
             nickname: telegramUser.username || `${telegramUser.first_name} ${telegramUser.last_name || ''}`.trim(),
-            avatarUrl: null
-          })
-        });
-        profileData = await createResponse.json();
+            avatar_url: null,
+            role: 'user',
+            created_at: new Date().toISOString()
+          };
+        }
       }
 
       setProfile(profileData);
@@ -78,6 +104,18 @@ export function ProfilePage() {
 
     setIsSaving(true);
     try {
+      // If profile has id 0 (fallback profile), just update local state
+      if (profile.id === 0) {
+        const updatedProfile = {
+          ...profile,
+          nickname: editData.nickname,
+          avatar_url: editData.avatar_url || null
+        };
+        setProfile(updatedProfile);
+        setIsEditing(false);
+        return;
+      }
+
       const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
       const response = await fetch(`${BACKEND_URL}/api/users/update/${profile.id}`, {
         method: 'PUT',
@@ -97,7 +135,15 @@ export function ProfilePage() {
       setIsEditing(false);
     } catch (error) {
       console.error('Error updating profile:', error);
-      alert('Failed to update profile. Please try again.');
+      // For fallback profiles or API errors, just update locally
+      const updatedProfile = {
+        ...profile,
+        nickname: editData.nickname,
+        avatar_url: editData.avatar_url || null
+      };
+      setProfile(updatedProfile);
+      setIsEditing(false);
+      alert('Profile updated locally. Changes may not be saved to server.');
     } finally {
       setIsSaving(false);
     }
