@@ -1,12 +1,10 @@
-import { AlertCircle, MapPin, RefreshCw, Navigation2, Plus, User, Search } from 'lucide-react';
+import { MapPin, RefreshCw, Navigation2, Plus, User, Search } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { MapContainer } from '@/components/Map/MapContainer';
 import { LocationCard } from '@/components/LocationCard';
 import { Button } from '@/components/ui/Button';
-import { TailwindTest } from '@/components/TailwindTest';
-import { useTelegram } from '@telegram-apps/sdk-react';
 
 interface Location {
   id: number;
@@ -31,7 +29,6 @@ export function LocationPage() {
   });
 
   const { loading, error, latitude, longitude } = location;
-  const telegram = useTelegram();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -90,7 +87,6 @@ export function LocationPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-        <TailwindTest />
         <div className="flex items-center justify-center min-h-screen p-4">
           <div className="text-center max-w-md">
             <div className="relative mb-8">

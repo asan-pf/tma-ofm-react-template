@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Camera, Save, X, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { useTelegram } from '@telegram-apps/sdk-react';
+import { retrieveLaunchParams } from '@telegram-apps/sdk-react';
 
 interface UserProfile {
   id: number;
@@ -23,9 +23,9 @@ export function ProfilePage() {
     avatar_url: ''
   });
 
-  const telegram = useTelegram();
   const navigate = useNavigate();
-  const telegramUser = telegram?.initDataUnsafe?.user;
+  const launchParams = retrieveLaunchParams();
+  const telegramUser = (launchParams?.initDataUnsafe as any)?.user;
 
   useEffect(() => {
     if (telegramUser) {
@@ -184,7 +184,7 @@ export function ProfilePage() {
                 <div className="w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/40 dark:to-purple-900/40 flex items-center justify-center">
                   {(editData.avatar_url || profile.avatar_url) ? (
                     <img
-                      src={editData.avatar_url || profile.avatar_url}
+                      src={editData.avatar_url || profile.avatar_url!}
                       alt="Profile"
                       className="w-full h-full object-cover"
                       onError={(e) => {

@@ -4,7 +4,7 @@ import { MapContainer as LeafletMapContainer, TileLayer, Marker, Popup, useMapEv
 import { MapPin, Plus, X, Search, Navigation2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useGeolocation } from '@/hooks/useGeolocation';
-import { useTelegram } from '@telegram-apps/sdk-react';
+import { retrieveLaunchParams } from '@telegram-apps/sdk-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -56,7 +56,6 @@ export function AddLocationPage() {
     maximumAge: 60000,
   });
 
-  const telegram = useTelegram();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -97,7 +96,8 @@ export function AddLocationPage() {
 
     setIsSubmitting(true);
     try {
-      const telegramUser = telegram?.initDataUnsafe?.user;
+      const launchParams = retrieveLaunchParams();
+      const telegramUser = (launchParams?.initDataUnsafe as any)?.user;
       if (!telegramUser) {
         throw new Error('Telegram user data not available');
       }
