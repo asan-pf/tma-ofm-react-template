@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Camera, Save, X, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { useTelegram } from '@telegram-apps/sdk-react';
+import { initDataState, useSignal } from '@telegram-apps/sdk-react';
 
 interface UserProfile {
   id: number;
@@ -23,9 +23,9 @@ export function ProfilePage() {
     avatar_url: ''
   });
 
-  const telegram = useTelegram();
   const navigate = useNavigate();
-  const telegramUser = telegram?.initDataUnsafe?.user;
+  const initData = useSignal(initDataState);
+  const telegramUser = initData?.user;
 
   useEffect(() => {
     if (telegramUser) {
@@ -37,10 +37,9 @@ export function ProfilePage() {
     if (!telegramUser) return;
 
     try {
-      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
-      
       let profileData;
       try {
+        const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
         const response = await fetch(`${BACKEND_URL}/api/users/${telegramUser.id}`);
         if (response.ok) {
           profileData = await response.json();
@@ -48,17 +47,44 @@ export function ProfilePage() {
           throw new Error('User not found');
         }
       } catch (error) {
+        console.error('Error loading user profile:', error);
         // Create new user if not found
-        const createResponse = await fetch(`${BACKEND_URL}/api/users`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            telegramId: telegramUser.id.toString(),
+        try {
+          const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+          const createResponse = await fetch(`${BACKEND_URL}/api/users`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              telegramId: telegramUser.id.toString(),
+              nickname: telegramUser.username || `${telegramUser.first_name} ${telegramUser.last_name || ''}`.trim(),
+              avatarUrl: null
+            })
+          });
+          if (createResponse.ok) {
+            profileData = await createResponse.json();
+          } else {
+            // If user creation also fails, create a fallback profile
+            profileData = {
+              id: 0,
+              telegram_id: telegramUser.id.toString(),
+              nickname: telegramUser.username || `${telegramUser.first_name} ${telegramUser.last_name || ''}`.trim(),
+              avatar_url: null,
+              role: 'user',
+              created_at: new Date().toISOString()
+            };
+          }
+        } catch (createError) {
+          console.error('Error creating user profile:', createError);
+          // Fallback profile when both load and create fail
+          profileData = {
+            id: 0,
+            telegram_id: telegramUser.id.toString(),
             nickname: telegramUser.username || `${telegramUser.first_name} ${telegramUser.last_name || ''}`.trim(),
-            avatarUrl: null
-          })
-        });
-        profileData = await createResponse.json();
+            avatar_url: null,
+            role: 'user',
+            created_at: new Date().toISOString()
+          };
+        }
       }
 
       setProfile(profileData);
@@ -78,14 +104,25 @@ export function ProfilePage() {
 
     setIsSaving(true);
     try {
+      // If profile has id 0 (fallback profile), just update local state
+      if (profile.id === 0) {
+        const updatedProfile = {
+          ...profile,
+          nickname: editData.nickname,
+          avatar_url: editData.avatar_url || null
+        };
+        setProfile(updatedProfile);
+        setIsEditing(false);
+        return;
+      }
+
       const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
-      
       const response = await fetch(`${BACKEND_URL}/api/users/update/${profile.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           nickname: editData.nickname,
-          avatarUrl: editData.avatar_url || null
+          avatarUrl: editData.avatar_url || undefined
         })
       });
 
@@ -98,7 +135,15 @@ export function ProfilePage() {
       setIsEditing(false);
     } catch (error) {
       console.error('Error updating profile:', error);
-      alert('Failed to update profile. Please try again.');
+      // For fallback profiles or API errors, just update locally
+      const updatedProfile = {
+        ...profile,
+        nickname: editData.nickname,
+        avatar_url: editData.avatar_url || null
+      };
+      setProfile(updatedProfile);
+      setIsEditing(false);
+      alert('Profile updated locally. Changes may not be saved to server.');
     } finally {
       setIsSaving(false);
     }
@@ -184,7 +229,7 @@ export function ProfilePage() {
                 <div className="w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/40 dark:to-purple-900/40 flex items-center justify-center">
                   {(editData.avatar_url || profile.avatar_url) ? (
                     <img
-                      src={editData.avatar_url || profile.avatar_url}
+                      src={editData.avatar_url || profile.avatar_url || undefined}
                       alt="Profile"
                       className="w-full h-full object-cover"
                       onError={(e) => {

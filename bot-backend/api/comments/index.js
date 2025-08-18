@@ -1,7 +1,7 @@
 import { supabase } from '../../lib/supabase.js';
 
 export default async function handler(req, res) {
-  // Enable CORS - allow frontend origins
+  // Enable CORS
   const allowedOrigins = [
     'https://openfreemap-frontend.vercel.app',
     'https://tma-ofm-react-template.vercel.app',
@@ -24,9 +24,19 @@ export default async function handler(req, res) {
 
   if (req.method === 'GET') {
     try {
+      const { location_id } = req.query;
+      
       const { data, error } = await supabase
-        .from('locations')
-        .select('*')
+        .from('comments')
+        .select(`
+          *,
+          users (
+            id,
+            nickname,
+            avatar_url
+          )
+        `)
+        .eq('location_id', location_id)
         .eq('is_approved', true)
         .order('created_at', { ascending: false });
 
@@ -34,33 +44,36 @@ export default async function handler(req, res) {
 
       res.json(data);
     } catch (error) {
-      console.error('Error fetching locations:', error);
+      console.error('Error fetching comments:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   } else if (req.method === 'POST') {
     try {
-      const { name, description, latitude, longitude, category, userId } = req.body;
+      const { location_id, user_id, content } = req.body;
       
       const { data, error } = await supabase
-        .from('locations')
+        .from('comments')
         .insert([{
-          name,
-          description,
-          latitude,
-          longitude,
-          category,
-          user_id: userId,
-          type: 'permanent',
-          is_approved: false
+          location_id,
+          user_id: user_id || null,
+          content,
+          is_approved: true
         }])
-        .select()
+        .select(`
+          *,
+          users (
+            id,
+            nickname,
+            avatar_url
+          )
+        `)
         .single();
 
       if (error) throw error;
 
       res.status(201).json(data);
     } catch (error) {
-      console.error('Error creating location:', error);
+      console.error('Error creating comment:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   } else {
