@@ -1,7 +1,7 @@
 import { supabase } from '../../lib/supabase.js';
 
 export default async function handler(req, res) {
-  // Enable CORS - allow frontend origins
+  // Enable CORS
   const allowedOrigins = [
     'https://openfreemap-frontend.vercel.app',
     'https://tma-ofm-react-template.vercel.app',
@@ -24,35 +24,40 @@ export default async function handler(req, res) {
 
   if (req.method === 'GET') {
     try {
+      const { location_id } = req.query;
+      
       const { data, error } = await supabase
-        .from('locations')
+        .from('ratings')
         .select('*')
-        .eq('is_approved', true)
-        .order('created_at', { ascending: false });
+        .eq('location_id', location_id);
 
       if (error) throw error;
 
-      res.json(data);
+      // Calculate average rating
+      const average = data.length > 0 
+        ? data.reduce((sum, rating) => sum + rating.stars, 0) / data.length 
+        : 0;
+
+      res.json({
+        ratings: data,
+        average: Math.round(average * 10) / 10,
+        count: data.length
+      });
     } catch (error) {
-      console.error('Error fetching locations:', error);
+      console.error('Error fetching ratings:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   } else if (req.method === 'POST') {
     try {
-      const { name, description, latitude, longitude, category, userId } = req.body;
+      const { location_id, user_id, stars } = req.body;
       
+      // Upsert rating (update if exists, insert if not)
       const { data, error } = await supabase
-        .from('locations')
-        .insert([{
-          name,
-          description,
-          latitude,
-          longitude,
-          category,
-          user_id: userId,
-          type: 'permanent',
-          is_approved: false
-        }])
+        .from('ratings')
+        .upsert(
+          { location_id, user_id: user_id || null, stars },
+          { onConflict: 'user_id,location_id' }
+        )
         .select()
         .single();
 
@@ -60,7 +65,7 @@ export default async function handler(req, res) {
 
       res.status(201).json(data);
     } catch (error) {
-      console.error('Error creating location:', error);
+      console.error('Error creating/updating rating:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   } else {

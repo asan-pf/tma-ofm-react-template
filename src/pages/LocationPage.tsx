@@ -1,190 +1,459 @@
-import { AlertCircle, MapPin, RefreshCw, Navigation2, Plus, User, Search } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useGeolocation } from '@/hooks/useGeolocation';
-import { MapContainer } from '@/components/Map/MapContainer';
-import { LocationCard } from '@/components/LocationCard';
-import { Button } from '@/components/ui/Button';
-import { TailwindTest } from '@/components/TailwindTest';
-import { useTelegram } from '@telegram-apps/sdk-react';
+import {
+  MapPin,
+  RefreshCw,
+  Navigation2,
+  Search,
+  Star,
+  MessageCircle,
+  Filter,
+  Grid3X3,
+} from "lucide-react";
+import { useState, useEffect } from "react";
+import {
+  Button,
+  Cell,
+  Section,
+  List,
+  Modal,
+  Banner,
+  Input,
+  Avatar,
+  IconButton,
+} from "@telegram-apps/telegram-ui";
+import { initDataState, useSignal } from "@telegram-apps/sdk-react";
+import { useGeolocation } from "@/hooks/useGeolocation";
+import { EnhancedMap } from "@/components/Map/EnhancedMap";
+import { DatabaseLocationSearch } from "@/components/DatabaseLocationSearch";
+import { UserService } from "@/utils/userService";
+import { LocationAddedModal } from "@/components/LocationAddedModal";
+import { Page } from "@/components/Page";
+import { LocationDetailModal } from "@/components/LocationDetailModal";
 
+/**
+ * Represents a location in the system
+ */
 interface Location {
   id: number;
   name: string;
   description: string;
   latitude: number;
   longitude: number;
-  category: string;
+  category: "grocery" | "restaurant-bar" | "other";
+  created_at: string;
+  user_id?: number;
+  is_approved?: boolean;
+}
+
+/**
+ * User profile data from Telegram
+ */
+interface UserProfile {
+  id: number;
+  telegram_id: string;
+  nickname: string;
+  avatar_url: string | null;
+  role: string;
   created_at: string;
 }
 
+/**
+ * Map center coordinates
+ */
+interface MapCenter {
+  lat: number;
+  lng: number;
+}
+
+/**
+ * Main location page component that displays an interactive map and location management UI
+ * Features:
+ * - Interactive map with pan/zoom capabilities
+ * - Location search functionality
+ * - Add new locations by clicking on map
+ * - View and navigate to existing locations
+ * - User profile management
+ */
 export function LocationPage() {
   const [locations, setLocations] = useState<Location[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
-  const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(null);
-  
+  const [filteredLocations, setFilteredLocations] = useState<Location[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<"map" | "list">("map");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [mapCenter, setMapCenter] = useState<MapCenter | null>(null);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [clickedLocation, setClickedLocation] = useState<MapCenter | null>(
+    null
+  );
+  const [showAddLocationModal, setShowAddLocationModal] = useState(false);
+  const [newLocationName, setNewLocationName] = useState("");
+  const [newLocationDescription, setNewLocationDescription] = useState("");
+  const [newLocationCategory, setNewLocationCategory] = useState<
+    "grocery" | "restaurant-bar" | "other"
+  >("other");
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<Location | null>(
+    null
+  );
+  const [showLocationDetail, setShowLocationDetail] = useState(false);
+  const [locationRatings, setLocationRatings] = useState<
+    Record<number, { average: number; count: number }>
+  >({});
+  const [showLocationAddedModal, setShowLocationAddedModal] = useState(false);
+  const [newlyAddedLocation, setNewlyAddedLocation] = useState<Location | null>(
+    null
+  );
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showFiltersModal, setShowFiltersModal] = useState(false);
+
+  const initDataState_ = useSignal(initDataState);
+  const telegramUser = initDataState_?.user;
+
   const location = useGeolocation({
-    enableHighAccuracy: true,
-    timeout: 15000,
-    maximumAge: 60000,
+    enableHighAccuracy: false,
+    timeout: 5000, // Much shorter timeout
+    maximumAge: 300000,
   });
 
   const { loading, error, latitude, longitude } = location;
-  const telegram = useTelegram();
-  const navigate = useNavigate();
+
+  const getUserInitials = () => {
+    if (telegramUser?.first_name) {
+      return telegramUser.first_name.charAt(0).toUpperCase();
+    }
+    return "U";
+  };
+
+  // Helper functions for UI
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case "grocery":
+        return "#34D399";
+      case "restaurant-bar":
+        return "#F59E0B";
+      default:
+        return "#8B5CF6";
+    }
+  };
+
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case "grocery":
+        return "🛒";
+      case "restaurant-bar":
+        return "🍽️";
+      default:
+        return "🏪";
+    }
+  };
+
+  const formatCategory = (category: string) => {
+    return category.replace("-", " ").replace(/\b\w/g, (l) => l.toUpperCase());
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+  };
 
   useEffect(() => {
     loadLocations();
-  }, []);
+    if (telegramUser) {
+      loadUserProfile();
+    }
+  }, [telegramUser]);
+
+  // Filter locations based on search and category
+  useEffect(() => {
+    let filtered = locations;
+
+    // Apply category filter
+    if (categoryFilter !== "all") {
+      filtered = filtered.filter((loc) => loc.category === categoryFilter);
+    }
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (loc) =>
+          loc.name.toLowerCase().includes(query) ||
+          loc.description.toLowerCase().includes(query)
+      );
+    }
+
+    setFilteredLocations(filtered);
+  }, [locations, categoryFilter, searchQuery]);
 
   useEffect(() => {
     if (latitude && longitude && !mapCenter) {
       setMapCenter({ lat: latitude, lng: longitude });
+    } else if (error && !mapCenter) {
+      // Fallback to a default location (London) if geolocation fails
+      setMapCenter({ lat: 51.5074, lng: -0.1278 });
     }
-  }, [latitude, longitude, mapCenter]);
+  }, [latitude, longitude, mapCenter, error]);
+
+  // Force fallback after 8 seconds if still loading
+  useEffect(() => {
+    const fallbackTimer = setTimeout(() => {
+      if (loading && !mapCenter) {
+        setMapCenter({ lat: 51.5074, lng: -0.1278 });
+      }
+    }, 8000);
+
+    return () => clearTimeout(fallbackTimer);
+  }, [loading, mapCenter]);
 
   const loadLocations = async () => {
     try {
-      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+      const BACKEND_URL =
+        import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
       const response = await fetch(`${BACKEND_URL}/api/locations`);
       if (response.ok) {
         const data = await response.json();
         setLocations(data);
+        // Load ratings for each location
+        loadLocationRatings(data);
       }
     } catch (error) {
-      console.error('Error loading locations:', error);
+      console.error("Error loading locations:", error);
     }
   };
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
-    
-    setIsSearching(true);
+  const loadLocationRatings = async (locationList: Location[]) => {
     try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1`
-      );
-      const results = await response.json();
-      
-      if (results && results[0]) {
-        const { lat, lon } = results[0];
-        setMapCenter({ lat: parseFloat(lat), lng: parseFloat(lon) });
-      }
+      const BACKEND_URL =
+        import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+      const ratingsPromises = locationList.map(async (loc) => {
+        try {
+          const response = await fetch(
+            `${BACKEND_URL}/api/ratings?location_id=${loc.id}`
+          );
+          if (response.ok) {
+            const data = await response.json();
+            return {
+              locationId: loc.id,
+              rating: { average: data.average, count: data.count },
+            };
+          }
+        } catch (error) {
+          console.error(`Error loading rating for location ${loc.id}:`, error);
+        }
+        return { locationId: loc.id, rating: { average: 0, count: 0 } };
+      });
+
+      const ratingsData = await Promise.all(ratingsPromises);
+      const ratingsMap = ratingsData.reduce((acc, { locationId, rating }) => {
+        acc[locationId] = rating;
+        return acc;
+      }, {} as Record<number, { average: number; count: number }>);
+
+      setLocationRatings(ratingsMap);
     } catch (error) {
-      console.error('Search error:', error);
-    } finally {
-      setIsSearching(false);
+      console.error("Error loading location ratings:", error);
     }
   };
 
-  const openAddLocation = () => {
-    navigate('/add-location');
+  const handleLocationSelect = (location: Location) => {
+    setSelectedLocation(location);
+    setShowLocationDetail(true);
   };
 
-  const openProfile = () => {
-    navigate('/profile');
+  const handleLocationDetailClose = () => {
+    setShowLocationDetail(false);
+    setSelectedLocation(null);
+  };
+
+  const loadUserProfile = async () => {
+    if (!telegramUser) return;
+
+    const user = await UserService.getOrCreateUser(telegramUser);
+    if (user) {
+      setUserProfile(user);
+      setAvatarUrl(user.avatar_url || "");
+    }
+  };
+
+  // const createUser = async () => {
+  //   if (!telegramUser) return;
+
+  //   const user = await UserService.getOrCreateUser(telegramUser);
+  //   if (user) {
+  //     setUserProfile(user);
+  //   }
+  // };
+
+  const handleMapClick = (lat: number, lng: number) => {
+    setClickedLocation({ lat, lng });
+    setShowAddLocationModal(true);
+  };
+
+  const handleAddLocation = async () => {
+    if (!clickedLocation || !newLocationName.trim()) return;
+
+    setIsLoading(true);
+    setApiError(null);
+
+    try {
+      // Ensure we have a valid user profile first
+      let validUserId = null;
+      if (userProfile && userProfile.id > 0) {
+        validUserId = userProfile.id;
+      } else if (telegramUser) {
+        // Try to create/get user first
+        const user = await UserService.getOrCreateUser(telegramUser);
+        if (user) {
+          validUserId = user.id;
+          setUserProfile(user);
+        }
+      }
+
+      const BACKEND_URL =
+        import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+      const response = await fetch(`${BACKEND_URL}/api/locations`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: newLocationName,
+          description: newLocationDescription,
+          latitude: clickedLocation.lat,
+          longitude: clickedLocation.lng,
+          category: newLocationCategory,
+          userId: validUserId, // This can be null now
+        }),
+      });
+
+      if (response.ok) {
+        const newLocation = await response.json();
+        setShowAddLocationModal(false);
+        setNewLocationName("");
+        setNewLocationDescription("");
+        setNewLocationCategory("other");
+        setClickedLocation(null);
+
+        // Show success modal
+        setNewlyAddedLocation(newLocation);
+        setShowLocationAddedModal(true);
+
+        await loadLocations(); // Refresh locations and ratings
+      } else {
+        const errorData = await response.json();
+        setApiError(errorData.error || "Failed to add location");
+      }
+    } catch (error) {
+      setApiError("Network error. Please check your connection.");
+      console.error("Error adding location:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updateUserProfile = async () => {
+    if (!userProfile) return;
+
+    const success = await UserService.updateUser(userProfile.id, {
+      avatar_url: avatarUrl,
+    });
+    if (success) {
+      setShowProfileModal(false);
+      loadUserProfile(); // Refresh user profile
+    }
+  };
+
+  // const handleLocationSearchSelect = (lat: number, lng: number) => {
+  //   setMapCenter({ lat, lng });
+  //   setShowSearchModal(false);
+  // };
+
+  const handleDatabaseLocationSelect = (location: Location) => {
+    setMapCenter({ lat: location.latitude, lng: location.longitude });
+    setSelectedLocation(location);
+    setShowLocationDetail(true);
+    setShowSearchModal(false);
+  };
+
+  const handleMarkerClick = (location: Location) => {
+    setSelectedLocation(location);
+    setShowLocationDetail(true);
+  };
+
+  const handleViewLocationOnMap = (location: Location) => {
+    setMapCenter({ lat: location.latitude, lng: location.longitude });
+    setViewMode("map");
+    setShowLocationAddedModal(false);
   };
 
   // Loading state
-  if (loading) {
+  if (loading && !mapCenter) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-        <TailwindTest />
-        <div className="flex items-center justify-center min-h-screen p-4">
-          <div className="text-center max-w-md">
-            <div className="relative mb-8">
-              <div className="w-24 h-24 mx-auto bg-blue-100 dark:bg-blue-900/40 rounded-full flex items-center justify-center">
-                <Navigation2 className="h-12 w-12 text-blue-600 dark:text-blue-400 animate-pulse" />
-              </div>
-              <div className="absolute inset-0 w-24 h-24 mx-auto border-4 border-blue-200 dark:border-blue-800 rounded-full animate-ping"></div>
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
-              Finding Your Location
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
-              Please allow location access when prompted by your browser
-            </p>
-            <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
-              <Navigation2 className="h-4 w-4" />
-              <span>GPS signal scanning...</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <Page>
+        <Banner
+          header="Finding Your Location"
+          subheader="Please allow location access when prompted by your browser"
+        />
+        <List>
+          <Section>
+            <Cell
+              before={<Navigation2 size={24} />}
+              subtitle="GPS signal scanning..."
+            >
+              Getting location
+            </Cell>
+            <Cell
+              Component="button"
+              onClick={() => setMapCenter({ lat: 51.5074, lng: -0.1278 })}
+              before={<MapPin size={20} />}
+            >
+              Skip - Use London as default
+            </Cell>
+          </Section>
+        </List>
+      </Page>
     );
   }
 
   // Error state - show search instead
   if (error && !mapCenter) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-        {/* Header */}
-        <div className="sticky top-0 z-10 backdrop-blur-lg bg-white/80 dark:bg-gray-900/80 border-b border-white/20 dark:border-gray-800/20">
-          <div className="max-w-4xl mx-auto p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-xl">
-                  <Search className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                    OpenFreeMap
-                  </h1>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Search for places to explore
-                  </p>
-                </div>
-              </div>
-              <Button onClick={openProfile} variant="outline" size="sm">
-                <User className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
+      <Page>
+        <Banner
+          header="Search for a Location"
+          subheader="Location access is disabled. Search for a place to get started."
+        />
 
-        <div className="flex items-center justify-center min-h-screen p-4">
-          <div className="text-center max-w-md">
-            <div className="w-24 h-24 mx-auto bg-blue-100 dark:bg-blue-900/40 rounded-full flex items-center justify-center mb-6">
-              <Search className="h-12 w-12 text-blue-600 dark:text-blue-400" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
-              Search for a Location
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Location access is disabled. Search for a place to get started.
-            </p>
-            <div className="space-y-4">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                  placeholder="Search for a city or place..."
-                  className="flex-1 px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                />
-                <Button onClick={handleSearch} disabled={isSearching} size="lg">
-                  {isSearching ? (
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <Search className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
+        <List>
+          <Section>
+            <Cell>
               <Button
-                onClick={() => window.location.reload()}
-                variant="outline"
-                className="w-full"
-                size="lg"
+                size="l"
+                mode="filled"
+                onClick={() => setShowSearchModal(true)}
+                style={{ width: "100%" }}
               >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Try Location Again
+                <Search size={16} style={{ marginRight: "8px" }} />
+                Search for a place
               </Button>
-            </div>
-          </div>
-        </div>
-      </div>
+            </Cell>
+          </Section>
+
+          <Section>
+            <Cell
+              Component="button"
+              onClick={() => window.location.reload()}
+              before={<RefreshCw size={20} />}
+            >
+              Try Location Again
+            </Cell>
+          </Section>
+        </List>
+      </Page>
     );
   }
 
@@ -192,162 +461,663 @@ export function LocationPage() {
   if ((latitude && longitude) || mapCenter) {
     const displayLat = mapCenter?.lat || latitude!;
     const displayLng = mapCenter?.lng || longitude!;
-    
+
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-        {/* Header */}
-        <div className="sticky top-0 z-10 backdrop-blur-lg bg-white/80 dark:bg-gray-900/80 border-b border-white/20 dark:border-gray-800/20">
-          <div className="max-w-4xl mx-auto p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-xl">
-                  <MapPin className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                    OpenFreeMap
-                  </h1>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Discover and share places
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button onClick={openProfile} variant="outline" size="sm">
-                  <User className="h-4 w-4" />
-                </Button>
-                {latitude && longitude && (
-                  <div className="flex items-center gap-1 px-3 py-1 bg-green-100 dark:bg-green-900/40 rounded-full">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                    <span className="text-xs font-medium text-green-700 dark:text-green-300">GPS</span>
-                  </div>
-                )}
-              </div>
+      <Page>
+        {/* Profile Modal */}
+        {showProfileModal && (
+          <Modal
+            header="Profile Settings"
+            trigger={undefined}
+            open={showProfileModal}
+            onOpenChange={setShowProfileModal}
+          >
+            <List>
+              <Section>
+                <Cell>
+                  <Input
+                    header="Avatar URL"
+                    value={avatarUrl}
+                    onChange={(e) => setAvatarUrl(e.target.value)}
+                    placeholder="https://example.com/avatar.jpg"
+                  />
+                </Cell>
+              </Section>
+            </List>
+            <div style={{ padding: "16px", display: "flex", gap: "8px" }}>
+              <Button size="l" stretched onClick={updateUserProfile}>
+                Save
+              </Button>
+              <Button
+                size="l"
+                stretched
+                mode="plain"
+                onClick={() => setShowProfileModal(false)}
+              >
+                Cancel
+              </Button>
             </div>
-          </div>
-        </div>
+          </Modal>
+        )}
 
-        {/* Search Bar */}
-        <div className="max-w-4xl mx-auto p-4">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-              placeholder="Search for places..."
-              className="flex-1 px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm text-gray-900 dark:text-white"
-            />
-            <Button onClick={handleSearch} disabled={isSearching}>
-              {isSearching ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <Search className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="max-w-4xl mx-auto p-4 space-y-6">
-          {/* Location Info Card - only show for GPS location */}
-          {latitude && longitude && <LocationCard location={location} />}
-          
-          {/* Map Section */}
-          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/20 dark:border-gray-700/30 overflow-hidden">
-            <div className="p-6 border-b border-gray-100 dark:border-gray-700/50">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-purple-100 dark:bg-purple-900/40 rounded-xl">
-                    <Navigation2 className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                  </div>
+        {/* Add Location Modal */}
+        {showAddLocationModal && clickedLocation && (
+          <Modal
+            header="Add Location"
+            trigger={undefined}
+            open={showAddLocationModal}
+            onOpenChange={setShowAddLocationModal}
+          >
+            <List>
+              <Section>
+                <Cell>
+                  <Input
+                    header="Location Name"
+                    value={newLocationName}
+                    onChange={(e) => setNewLocationName(e.target.value)}
+                    placeholder="Enter location name"
+                  />
+                </Cell>
+                <Cell>
+                  <Input
+                    header="Description"
+                    value={newLocationDescription}
+                    onChange={(e) => setNewLocationDescription(e.target.value)}
+                    placeholder="Optional description"
+                  />
+                </Cell>
+                <Cell>
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                      Interactive Map
-                    </h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {latitude && longitude ? 'Your current position' : 'Explore locations'}
-                    </p>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "14px",
+                        fontWeight: "500",
+                        marginBottom: "8px",
+                      }}
+                    >
+                      Category
+                    </label>
+                    <select
+                      value={newLocationCategory}
+                      onChange={(e) =>
+                        setNewLocationCategory(
+                          e.target.value as
+                            | "grocery"
+                            | "restaurant-bar"
+                            | "other"
+                        )
+                      }
+                      style={{
+                        width: "100%",
+                        padding: "12px",
+                        borderRadius: "8px",
+                        border:
+                          "1px solid var(--tg-theme-section-separator-color, #ccc)",
+                        fontSize: "16px",
+                        background: "var(--tg-theme-bg-color, white)",
+                        color: "var(--tg-theme-text-color, #000)",
+                      }}
+                    >
+                      <option value="other">🏪 Other</option>
+                      <option value="grocery">🛒 Grocery Store</option>
+                      <option value="restaurant-bar">🍽️ Restaurant/Bar</option>
+                    </select>
                   </div>
-                </div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">
-                  {locations.length} places
-                </div>
+                </Cell>
+                <Cell
+                  before={<MapPin size={20} />}
+                  subtitle={`Lat: ${clickedLocation.lat.toFixed(
+                    6
+                  )}, Lng: ${clickedLocation.lng.toFixed(6)}`}
+                >
+                  Selected Location
+                </Cell>
+              </Section>
+            </List>
+            {apiError && (
+              <div
+                style={{
+                  padding: "12px",
+                  margin: "0 16px",
+                  background: "var(--tg-theme-destructive-text-color, #ff3b3b)",
+                  color: "white",
+                  borderRadius: "8px",
+                  fontSize: "14px",
+                  textAlign: "center",
+                }}
+              >
+                {apiError}
               </div>
+            )}
+            <div style={{ padding: "16px", display: "flex", gap: "8px" }}>
+              <Button
+                size="l"
+                stretched
+                onClick={handleAddLocation}
+                disabled={!newLocationName.trim() || isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <RefreshCw
+                      size={16}
+                      className="animate-spin"
+                      style={{ marginRight: "8px" }}
+                    />
+                    Adding...
+                  </>
+                ) : (
+                  "Add Location"
+                )}
+              </Button>
+              <Button
+                size="l"
+                stretched
+                mode="plain"
+                onClick={() => {
+                  setShowAddLocationModal(false);
+                  setNewLocationName("");
+                  setNewLocationDescription("");
+                  setNewLocationCategory("other");
+                  setClickedLocation(null);
+                }}
+              >
+                Cancel
+              </Button>
             </div>
-            
-            <div className="p-6">
-              <MapContainer
-                latitude={displayLat}
-                longitude={displayLng}
-                zoom={mapCenter ? 13 : 16}
-                height="500px"
-                markerText={latitude && longitude ? "📍 You are here!" : "📍 Search location"}
-                className="rounded-2xl overflow-hidden shadow-lg"
-              />
-            </div>
-          </div>
+          </Modal>
+        )}
 
-          {/* Floating Action Button */}
-          <div className="fixed bottom-6 right-6 z-20">
-            <Button
-              onClick={openAddLocation}
-              size="lg"
-              className="w-14 h-14 rounded-full shadow-2xl bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+        {/* Header with User Profile */}
+        <List>
+          <Section>
+            <Cell
+              before={
+                <div
+                  style={{
+                    background: "var(--tg-theme-button-color, #0088cc)",
+                    borderRadius: "12px",
+                    padding: "8px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <MapPin size={20} style={{ color: "white" }} />
+                </div>
+              }
+              after={
+                telegramUser && (
+                  <IconButton
+                    size="s"
+                    onClick={() => setShowProfileModal(true)}
+                  >
+                    <Avatar
+                      size={24}
+                      src={userProfile?.avatar_url || undefined}
+                      fallbackIcon={getUserInitials()}
+                    />
+                  </IconButton>
+                )
+              }
+              subtitle={`${locations.length} locations available`}
             >
-              <Plus className="h-6 w-6" />
-            </Button>
-          </div>
+              <span style={{ fontSize: "18px", fontWeight: "600" }}>
+                OpenFreeMap
+              </span>
+            </Cell>
+          </Section>
+        </List>
 
-          {/* Locations List */}
-          {locations.length > 0 && (
-            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/20 dark:border-gray-700/30 p-6">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
-                Recent Locations
-              </h3>
-              <div className="space-y-3">
-                {locations.slice(0, 5).map((loc) => (
-                  <div key={loc.id} className="flex items-center gap-3 p-3 bg-white/50 dark:bg-gray-700/50 rounded-xl">
-                    <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-lg">
-                      <MapPin className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-medium text-gray-900 dark:text-white">{loc.name}</div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400 capitalize">{loc.category.replace('-', ' ')}</div>
-                    </div>
-                    <div className="text-xs text-gray-400">
-                      {new Date(loc.created_at).toLocaleDateString()}
-                    </div>
-                  </div>
-                ))}
-              </div>
+        {/* Search and View Controls */}
+        <List>
+          <Section>
+            <div
+              style={{
+                display: "flex",
+                gap: "12px",
+                padding: "16px",
+                background: "var(--tg-theme-secondary-bg-color)",
+                borderRadius: "16px",
+                margin: "0 16px",
+              }}
+            >
+              <Button
+                size="m"
+                mode="filled"
+                onClick={() => setShowSearchModal(true)}
+                style={{ flex: 1 }}
+              >
+                <Search size={16} style={{ marginRight: "8px" }} />
+                Search places...
+              </Button>
+              <Button
+                size="m"
+                mode={viewMode === "map" ? "filled" : "plain"}
+                onClick={() => setViewMode("map")}
+              >
+                <MapPin size={16} />
+              </Button>
+              <Button
+                size="m"
+                mode={viewMode === "list" ? "filled" : "plain"}
+                onClick={() => setViewMode("list")}
+              >
+                <Grid3X3 size={16} />
+              </Button>
+              <Button
+                size="m"
+                mode="plain"
+                onClick={() => setShowFiltersModal(true)}
+              >
+                <Filter size={16} />
+              </Button>
             </div>
-          )}
-        </div>
-      </div>
+          </Section>
+        </List>
+
+        {/* Map Section */}
+        {viewMode === "map" && (
+          <List>
+            <Section
+              header={`🗺️ Interactive Map (${filteredLocations.length} locations)`}
+            >
+              <Cell
+                subtitle="Tap anywhere on the map to add a location, or tap a marker to view details"
+                multiline
+              >
+                <div
+                  style={{
+                    width: "100%",
+                    height: "450px",
+                    marginTop: "12px",
+                    borderRadius: "16px",
+                    overflow: "hidden",
+                  }}
+                >
+                  <EnhancedMap
+                    latitude={displayLat}
+                    longitude={displayLng}
+                    zoom={mapCenter ? 13 : 16}
+                    height="450px"
+                    onMapClick={handleMapClick}
+                    onMarkerClick={handleMarkerClick}
+                    locations={filteredLocations}
+                    selectedLocationId={selectedLocation?.id}
+                  />
+                </div>
+              </Cell>
+            </Section>
+          </List>
+        )}
+
+        {/* Current Location Info */}
+        {latitude && longitude && (
+          <List>
+            <Section header="📍 Your Location">
+              <Cell
+                before={
+                  <div
+                    style={{
+                      background: "var(--tg-theme-accent-text-color, #0088cc)",
+                      borderRadius: "8px",
+                      padding: "6px",
+                    }}
+                  >
+                    <Navigation2 size={16} style={{ color: "white" }} />
+                  </div>
+                }
+                subtitle={`${displayLat.toFixed(6)}, ${displayLng.toFixed(6)}`}
+                after={
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      color: "var(--tg-theme-hint-color)",
+                      background: "var(--tg-theme-secondary-bg-color)",
+                      padding: "4px 8px",
+                      borderRadius: "12px",
+                    }}
+                  >
+                    GPS
+                  </span>
+                }
+              >
+                Current Position
+              </Cell>
+            </Section>
+          </List>
+        )}
+
+        {/* Locations List View */}
+        {viewMode === "list" && (
+          <List>
+            <Section
+              header={`📍 ${
+                categoryFilter === "all"
+                  ? "All"
+                  : formatCategory(categoryFilter)
+              } Locations (${filteredLocations.length})`}
+            >
+              {filteredLocations.length === 0 ? (
+                <Cell>
+                  <div
+                    style={{
+                      textAlign: "center",
+                      color: "var(--tg-theme-hint-color)",
+                      padding: "40px 20px",
+                    }}
+                  >
+                    {searchQuery
+                      ? `No locations found for "${searchQuery}"`
+                      : "No locations found"}
+                  </div>
+                </Cell>
+              ) : (
+                filteredLocations.map((loc) => {
+                  const rating = locationRatings[loc.id] || {
+                    average: 0,
+                    count: 0,
+                  };
+                  return (
+                    <Cell
+                      key={loc.id}
+                      Component="button"
+                      before={
+                        <div
+                          style={{
+                            background: getCategoryColor(loc.category),
+                            borderRadius: "12px",
+                            padding: "10px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: "20px",
+                          }}
+                        >
+                          {getCategoryIcon(loc.category)}
+                        </div>
+                      }
+                      onClick={() => handleLocationSelect(loc)}
+                      after={
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                          }}
+                        >
+                          {rating.count > 0 && (
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "4px",
+                              }}
+                            >
+                              <Star
+                                size={14}
+                                style={{ color: "#F59E0B", fill: "#F59E0B" }}
+                              />
+                              <span
+                                style={{
+                                  fontSize: "13px",
+                                  color: "var(--tg-theme-text-color)",
+                                  fontWeight: "500",
+                                }}
+                              >
+                                {rating.average.toFixed(1)}
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: "11px",
+                                  color: "var(--tg-theme-hint-color)",
+                                }}
+                              >
+                                ({rating.count})
+                              </span>
+                            </div>
+                          )}
+                          <Button
+                            size="s"
+                            mode="plain"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMapCenter({
+                                lat: loc.latitude,
+                                lng: loc.longitude,
+                              });
+                              setViewMode("map");
+                            }}
+                          >
+                            <MapPin size={14} />
+                          </Button>
+                        </div>
+                      }
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "flex-start",
+                          gap: "6px",
+                          width: "100%",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontWeight: "600",
+                            fontSize: "17px",
+                            color: "var(--tg-theme-text-color)",
+                          }}
+                        >
+                          {loc.name}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "14px",
+                            color: "var(--tg-theme-hint-color)",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                          }}
+                        >
+                          <span>{formatCategory(loc.category)}</span>
+                          <span>•</span>
+                          <span>{formatDate(loc.created_at)}</span>
+                          {rating.count > 0 && (
+                            <>
+                              <span>•</span>
+                              <MessageCircle size={12} />
+                              <span>
+                                {rating.count} review
+                                {rating.count !== 1 ? "s" : ""}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                        {loc.description && (
+                          <div
+                            style={{
+                              fontSize: "13px",
+                              color: "var(--tg-theme-text-color)",
+                              lineHeight: "1.4",
+                              marginTop: "2px",
+                            }}
+                          >
+                            {loc.description}
+                          </div>
+                        )}
+                      </div>
+                    </Cell>
+                  );
+                })
+              )}
+            </Section>
+          </List>
+        )}
+
+        {/* Search Modal */}
+        <Modal
+          header="🔍 Search Locations"
+          open={showSearchModal}
+          onOpenChange={setShowSearchModal}
+        >
+          <div style={{ padding: "16px" }}>
+            <DatabaseLocationSearch
+              onLocationSelect={handleDatabaseLocationSelect}
+              currentLocation={
+                latitude && longitude ? { lat: latitude, lng: longitude } : null
+              }
+              placeholder="Search saved locations..."
+            />
+          </div>
+        </Modal>
+
+        {/* Filters Modal */}
+        <Modal
+          header="🎯 Filter Locations"
+          open={showFiltersModal}
+          onOpenChange={setShowFiltersModal}
+        >
+          <List>
+            <Section header="Category">
+              {[
+                {
+                  value: "all",
+                  label: "🌟 All Categories",
+                  count: locations.length,
+                },
+                {
+                  value: "grocery",
+                  label: "🛒 Grocery Stores",
+                  count: locations.filter((l) => l.category === "grocery")
+                    .length,
+                },
+                {
+                  value: "restaurant-bar",
+                  label: "🍽️ Restaurants & Bars",
+                  count: locations.filter(
+                    (l) => l.category === "restaurant-bar"
+                  ).length,
+                },
+                {
+                  value: "other",
+                  label: "🏪 Other Places",
+                  count: locations.filter((l) => l.category === "other").length,
+                },
+              ].map((category) => (
+                <Cell
+                  key={category.value}
+                  Component="button"
+                  onClick={() => {
+                    setCategoryFilter(category.value);
+                    setShowFiltersModal(false);
+                  }}
+                  after={
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                      }}
+                    >
+                      <span
+                        style={{
+                          background:
+                            categoryFilter === category.value
+                              ? "var(--tg-theme-button-color)"
+                              : "var(--tg-theme-secondary-bg-color)",
+                          color:
+                            categoryFilter === category.value
+                              ? "white"
+                              : "var(--tg-theme-hint-color)",
+                          padding: "4px 8px",
+                          borderRadius: "12px",
+                          fontSize: "12px",
+                          fontWeight: "500",
+                        }}
+                      >
+                        {category.count}
+                      </span>
+                      {categoryFilter === category.value && (
+                        <div
+                          style={{
+                            width: "8px",
+                            height: "8px",
+                            background: "var(--tg-theme-button-color)",
+                            borderRadius: "50%",
+                          }}
+                        />
+                      )}
+                    </div>
+                  }
+                >
+                  {category.label}
+                </Cell>
+              ))}
+            </Section>
+
+            <Section header="Search in Results">
+              <Cell>
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Filter by name or description..."
+                  header=""
+                />
+              </Cell>
+            </Section>
+          </List>
+        </Modal>
+
+        {/* Location Added Success Modal */}
+        {newlyAddedLocation && (
+          <LocationAddedModal
+            location={newlyAddedLocation}
+            isOpen={showLocationAddedModal}
+            onClose={() => {
+              setShowLocationAddedModal(false);
+              setNewlyAddedLocation(null);
+            }}
+            onViewLocation={handleViewLocationOnMap}
+          />
+        )}
+
+        {/* Location Detail Modal */}
+        {selectedLocation && (
+          <LocationDetailModal
+            location={selectedLocation}
+            isOpen={showLocationDetail}
+            onClose={handleLocationDetailClose}
+            onLocationClick={(lat, lng) => {
+              setMapCenter({ lat, lng });
+              setViewMode("map");
+              handleLocationDetailClose();
+            }}
+          />
+        )}
+      </Page>
     );
   }
 
   // Fallback state
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-      <div className="flex items-center justify-center min-h-screen p-4">
-        <div className="text-center max-w-md">
-          <div className="w-24 h-24 mx-auto bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-6">
-            <MapPin className="h-12 w-12 text-gray-400" />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
-            No Location Data
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
-            Unable to retrieve location information from your device
-          </p>
-          <Button onClick={() => window.location.reload()} variant="outline">
-            <RefreshCw className="h-4 w-4 mr-2" />
+    <Page>
+      <Banner
+        header="No Location Data"
+        subheader="Unable to retrieve location information from your device"
+      />
+      <List>
+        <Section>
+          <Cell
+            Component="button"
+            onClick={() => window.location.reload()}
+            before={<RefreshCw size={20} />}
+          >
             Refresh Page
-          </Button>
-        </div>
-      </div>
-    </div>
+          </Cell>
+        </Section>
+      </List>
+    </Page>
   );
 }
