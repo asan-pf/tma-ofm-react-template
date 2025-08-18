@@ -91,7 +91,6 @@ app.get('/api/locations', async (req, res) => {
     const { data, error } = await supabase
       .from('locations')
       .select('*')
-      .eq('is_approved', true)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -117,7 +116,7 @@ app.post('/api/locations', async (req, res) => {
         category,
         user_id: userId,
         type: 'permanent',
-        is_approved: false
+        is_approved: true // Auto-approve all locations
       }])
       .select()
       .single();
@@ -127,6 +126,156 @@ app.post('/api/locations', async (req, res) => {
     res.status(201).json(data);
   } catch (error) {
     console.error('Error creating location:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Comments API
+app.get('/api/comments', async (req, res) => {
+  try {
+    const { location_id } = req.query;
+    
+    const { data, error } = await supabase
+      .from('comments')
+      .select(`
+        *,
+        users (
+          id,
+          nickname,
+          avatar_url
+        )
+      `)
+      .eq('location_id', location_id)
+      .eq('is_approved', true)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching comments:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/comments', async (req, res) => {
+  try {
+    const { location_id, user_id, content } = req.body;
+    
+    const { data, error } = await supabase
+      .from('comments')
+      .insert([{
+        location_id,
+        user_id: user_id || null,
+        content,
+        is_approved: true
+      }])
+      .select(`
+        *,
+        users (
+          id,
+          nickname,
+          avatar_url
+        )
+      `)
+      .single();
+
+    if (error) throw error;
+
+    res.status(201).json(data);
+  } catch (error) {
+    console.error('Error creating comment:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Ratings API
+app.get('/api/ratings', async (req, res) => {
+  try {
+    const { location_id } = req.query;
+    
+    const { data, error } = await supabase
+      .from('ratings')
+      .select('stars')
+      .eq('location_id', location_id);
+
+    if (error) throw error;
+
+    // Calculate average rating
+    const ratings = data;
+    const average = ratings.length > 0 
+      ? ratings.reduce((sum, rating) => sum + rating.stars, 0) / ratings.length 
+      : 0;
+    const count = ratings.length;
+
+    res.json({ average: Number(average.toFixed(1)), count });
+  } catch (error) {
+    console.error('Error fetching ratings:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/ratings', async (req, res) => {
+  try {
+    const { location_id, user_id, stars } = req.body;
+    
+    // Check if user already rated this location
+    const { data: existingRating } = await supabase
+      .from('ratings')
+      .select('id')
+      .eq('location_id', location_id)
+      .eq('user_id', user_id)
+      .single();
+
+    if (existingRating) {
+      // Update existing rating
+      const { data, error } = await supabase
+        .from('ratings')
+        .update({ stars })
+        .eq('id', existingRating.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      res.json(data);
+    } else {
+      // Create new rating
+      const { data, error } = await supabase
+        .from('ratings')
+        .insert([{
+          location_id,
+          user_id,
+          stars
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      res.status(201).json(data);
+    }
+  } catch (error) {
+    console.error('Error creating/updating rating:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update user profile route
+app.put('/api/users/update/:id', async (req, res) => {
+  try {
+    const { avatar_url } = req.body;
+
+    const { data, error } = await supabase
+      .from('users')
+      .update({ avatar_url })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json(data);
+  } catch (error) {
+    console.error('Error updating user profile:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

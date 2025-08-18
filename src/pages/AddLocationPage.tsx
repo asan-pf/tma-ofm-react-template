@@ -4,6 +4,9 @@ import { MapContainer as LeafletMapContainer, TileLayer, Marker, Popup, useMapEv
 import { MapPin, Plus, X, Search, Navigation2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useGeolocation } from '@/hooks/useGeolocation';
+import { LocationAddedModal } from '@/components/LocationAddedModal';
+import { LocationSearch } from '@/components/LocationSearch';
+import { UserService } from '@/utils/userService';
 import { initDataState, useSignal } from '@telegram-apps/sdk-react';
 import L from 'leaflet';
 
@@ -38,8 +41,6 @@ function MapClickHandler({ onLocationSelect }: MapClickHandlerProps) {
 
 export function AddLocationPage() {
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(null);
   const [locationData, setLocationData] = useState<Partial<LocationData>>({
     name: '',
@@ -47,6 +48,9 @@ export function AddLocationPage() {
     category: 'other'
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showLocationAddedModal, setShowLocationAddedModal] = useState(false);
+  const [newlyAddedLocation, setNewlyAddedLocation] = useState<any>(null);
+  const [showSearchModal, setShowSearchModal] = useState(false);
   
   const { latitude, longitude, error: geoError } = useGeolocation({
     enableHighAccuracy: true,
@@ -63,26 +67,6 @@ export function AddLocationPage() {
     }
   }, [latitude, longitude, mapCenter]);
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
-    
-    setIsSearching(true);
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1`
-      );
-      const results = await response.json();
-      
-      if (results && results[0]) {
-        const { lat, lon } = results[0];
-        setMapCenter({ lat: parseFloat(lat), lng: parseFloat(lon) });
-      }
-    } catch (error) {
-      console.error('Search error:', error);
-    } finally {
-      setIsSearching(false);
-    }
-  };
 
   const handleLocationSelect = (lat: number, lng: number) => {
     setSelectedLocation({ lat, lng });
@@ -100,28 +84,8 @@ export function AddLocationPage() {
       }
 
       // Get or create user
-      let user;
-      try {
-        const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
-        const userResponse = await fetch(`${BACKEND_URL}/api/users/${telegramUser.id}`);
-        if (userResponse.ok) {
-          user = await userResponse.json();
-        } else {
-          // Create new user
-          const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
-          const createUserResponse = await fetch(`${BACKEND_URL}/api/users`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              telegramId: telegramUser.id.toString(),
-              nickname: telegramUser.username || `${telegramUser.first_name} ${telegramUser.last_name || ''}`.trim(),
-              avatarUrl: null
-            })
-          });
-          user = await createUserResponse.json();
-        }
-      } catch (error) {
-        console.error('User error:', error);
+      const user = await UserService.getOrCreateUser(telegramUser);
+      if (!user) {
         throw new Error('Failed to get user data');
       }
 
@@ -144,8 +108,10 @@ export function AddLocationPage() {
         throw new Error('Failed to create location');
       }
 
-      // Success - navigate back to main page
-      navigate('/');
+      // Success - show success modal instead of navigating
+      const addedLocation = await locationResponse.json();
+      setNewlyAddedLocation(addedLocation);
+      setShowLocationAddedModal(true);
       
     } catch (error) {
       console.error('Submit error:', error);
@@ -172,16 +138,13 @@ export function AddLocationPage() {
                   Location access is disabled. Search for a place to get started.
                 </p>
                 <div className="flex gap-2 mb-4">
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                    placeholder="Search for a city or place..."
-                    className="flex-1 px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                  />
-                  <Button onClick={handleSearch} disabled={isSearching} size="lg">
-                    <Search className="h-4 w-4" />
+                  <Button 
+                    onClick={() => setShowSearchModal(true)} 
+                    size="lg"
+                    className="flex-1"
+                  >
+                    <Search className="h-4 w-4 mr-2" />
+                    Search for a place...
                   </Button>
                 </div>
               </>
@@ -378,6 +341,51 @@ export function AddLocationPage() {
           </div>
         )}
       </div>
+      
+      {/* Search Modal */}
+      {showSearchModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                Search Location
+              </h3>
+              <button
+                onClick={() => setShowSearchModal(false)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl"
+              >
+                <X size={20} className="text-gray-500" />
+              </button>
+            </div>
+            
+            <LocationSearch
+              onLocationSelect={(lat, lng) => {
+                setMapCenter({ lat, lng });
+                setShowSearchModal(false);
+              }}
+              placeholder="Search for places, addresses..."
+              showCurrentLocation={false}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Location Added Success Modal */}
+      {newlyAddedLocation && (
+        <LocationAddedModal
+          location={newlyAddedLocation}
+          isOpen={showLocationAddedModal}
+          onClose={() => {
+            setShowLocationAddedModal(false);
+            setNewlyAddedLocation(null);
+            navigate('/'); // Navigate back after closing success modal
+          }}
+          onViewLocation={(location) => {
+            // Navigate back with location data
+            navigate('/', { state: { viewLocation: location } });
+          }}
+        />
+      )}
     </div>
   );
 }

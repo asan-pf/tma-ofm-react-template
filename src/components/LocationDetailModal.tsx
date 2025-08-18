@@ -11,6 +11,7 @@ import {
 import { MapPin, MessageCircle, Star, Calendar, User, Send } from 'lucide-react';
 import { StarRating } from './StarRating';
 import { initDataState, useSignal } from '@telegram-apps/sdk-react';
+import { UserService } from '@/utils/userService';
 
 interface Location {
   id: number;
@@ -125,21 +126,10 @@ export function LocationDetailModal({
       setIsSubmitting(true);
       const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
       
-      // First create/get user
-      const userResponse = await fetch(`${BACKEND_URL}/api/users`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          telegramId: telegramUser.id.toString(),
-          nickname: telegramUser.first_name + (telegramUser.last_name ? ` ${telegramUser.last_name}` : ''),
-          avatarUrl: null
-        })
-      });
-      
-      let userId = null;
-      if (userResponse.ok) {
-        const userData = await userResponse.json();
-        userId = userData.id;
+      // Get or create user
+      const user = await UserService.getOrCreateUser(telegramUser);
+      if (!user) {
+        throw new Error('Failed to get user');
       }
 
       const response = await fetch(`${BACKEND_URL}/api/comments`, {
@@ -147,7 +137,7 @@ export function LocationDetailModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           location_id: location.id,
-          user_id: userId,
+          user_id: user.id,
           content: newComment
         })
       });
@@ -169,21 +159,10 @@ export function LocationDetailModal({
     try {
       const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
       
-      // First create/get user
-      const userResponse = await fetch(`${BACKEND_URL}/api/users`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          telegramId: telegramUser.id.toString(),
-          nickname: telegramUser.first_name + (telegramUser.last_name ? ` ${telegramUser.last_name}` : ''),
-          avatarUrl: null
-        })
-      });
-      
-      let userId = null;
-      if (userResponse.ok) {
-        const userData = await userResponse.json();
-        userId = userData.id;
+      // Get or create user
+      const user = await UserService.getOrCreateUser(telegramUser);
+      if (!user) {
+        throw new Error('Failed to get user');
       }
 
       const response = await fetch(`${BACKEND_URL}/api/ratings`, {
@@ -191,7 +170,7 @@ export function LocationDetailModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           location_id: location.id,
-          user_id: userId,
+          user_id: user.id,
           stars
         })
       });

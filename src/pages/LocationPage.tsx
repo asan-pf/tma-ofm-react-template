@@ -1,4 +1,4 @@
-import { MapPin, RefreshCw, Navigation2, Search, Star, MessageCircle } from 'lucide-react';
+import { MapPin, RefreshCw, Navigation2, Search, Star, MessageCircle, Filter, Grid3X3 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { 
   Button, 
@@ -13,7 +13,11 @@ import {
 } from '@telegram-apps/telegram-ui';
 import { initDataState, useSignal } from '@telegram-apps/sdk-react';
 import { useGeolocation } from '@/hooks/useGeolocation';
-import { InteractiveMap } from '@/components/Map/InteractiveMap';
+import { EnhancedMap } from '@/components/Map/EnhancedMap';
+import { LocationSearch } from '@/components/LocationSearch';
+import { DatabaseLocationSearch } from '@/components/DatabaseLocationSearch';
+import { UserService } from '@/utils/userService';
+import { LocationAddedModal } from '@/components/LocationAddedModal';
 import { Page } from '@/components/Page';
 import { LocationDetailModal } from '@/components/LocationDetailModal';
 
@@ -63,8 +67,10 @@ interface MapCenter {
  */
 export function LocationPage() {
   const [locations, setLocations] = useState<Location[]>([]);
+  const [filteredLocations, setFilteredLocations] = useState<Location[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
+  const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [mapCenter, setMapCenter] = useState<MapCenter | null>(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [clickedLocation, setClickedLocation] = useState<MapCenter | null>(null);
@@ -79,6 +85,10 @@ export function LocationPage() {
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [showLocationDetail, setShowLocationDetail] = useState(false);
   const [locationRatings, setLocationRatings] = useState<Record<number, { average: number; count: number }>>({});
+  const [showLocationAddedModal, setShowLocationAddedModal] = useState(false);
+  const [newlyAddedLocation, setNewlyAddedLocation] = useState<Location | null>(null);
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showFiltersModal, setShowFiltersModal] = useState(false);
   
   const initDataState_ = useSignal(initDataState);
   const telegramUser = initDataState_?.user;
@@ -132,6 +142,27 @@ export function LocationPage() {
       loadUserProfile();
     }
   }, [telegramUser]);
+
+  // Filter locations based on search and category
+  useEffect(() => {
+    let filtered = locations;
+    
+    // Apply category filter
+    if (categoryFilter !== 'all') {
+      filtered = filtered.filter(loc => loc.category === categoryFilter);
+    }
+    
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(loc => 
+        loc.name.toLowerCase().includes(query) ||
+        loc.description.toLowerCase().includes(query)
+      );
+    }
+    
+    setFilteredLocations(filtered);
+  }, [locations, categoryFilter, searchQuery]);
 
   useEffect(() => {
     if (latitude && longitude && !mapCenter) {
@@ -207,45 +238,21 @@ export function LocationPage() {
   };
 
   const loadUserProfile = async () => {
-    try {
-      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
-      const response = await fetch(`${BACKEND_URL}/api/users/${telegramUser?.id}`);
-      if (response.ok) {
-        const data = await response.json();
-        setUserProfile(data);
-        setAvatarUrl(data.avatar_url || '');
-      } else if (response.status === 404) {
-        // Create user if not exists
-        await createUser();
-      }
-    } catch (error) {
-      console.error('Error loading user profile:', error);
+    if (!telegramUser) return;
+    
+    const user = await UserService.getOrCreateUser(telegramUser);
+    if (user) {
+      setUserProfile(user);
+      setAvatarUrl(user.avatar_url || '');
     }
   };
 
   const createUser = async () => {
     if (!telegramUser) return;
     
-    try {
-      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
-      const response = await fetch(`${BACKEND_URL}/api/users`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          telegramId: telegramUser?.id?.toString(),
-          nickname: telegramUser?.first_name + (telegramUser?.last_name ? ` ${telegramUser.last_name}` : ''),
-          avatarUrl: null
-        })
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setUserProfile(data);
-      }
-    } catch (error) {
-      console.error('Error creating user:', error);
+    const user = await UserService.getOrCreateUser(telegramUser);
+    if (user) {
+      setUserProfile(user);
     }
   };
 
@@ -267,26 +274,10 @@ export function LocationPage() {
         validUserId = userProfile.id;
       } else if (telegramUser) {
         // Try to create/get user first
-        try {
-          const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
-          const userResponse = await fetch(`${BACKEND_URL}/api/users`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              telegramId: telegramUser.id.toString(),
-              nickname: telegramUser.first_name + (telegramUser.last_name ? ` ${telegramUser.last_name}` : ''),
-              avatarUrl: null
-            })
-          });
-          
-          if (userResponse.ok) {
-            const newUser = await userResponse.json();
-            validUserId = newUser.id;
-            setUserProfile(newUser);
-          }
-        } catch (userError) {
-          console.error('Error creating user:', userError);
-          // Continue with null userId
+        const user = await UserService.getOrCreateUser(telegramUser);
+        if (user) {
+          validUserId = user.id;
+          setUserProfile(user);
         }
       }
 
@@ -307,11 +298,17 @@ export function LocationPage() {
       });
       
       if (response.ok) {
+        const newLocation = await response.json();
         setShowAddLocationModal(false);
         setNewLocationName('');
         setNewLocationDescription('');
         setNewLocationCategory('other');
         setClickedLocation(null);
+        
+        // Show success modal
+        setNewlyAddedLocation(newLocation);
+        setShowLocationAddedModal(true);
+        
         await loadLocations(); // Refresh locations and ratings
       } else {
         const errorData = await response.json();
@@ -328,46 +325,34 @@ export function LocationPage() {
   const updateUserProfile = async () => {
     if (!userProfile) return;
     
-    try {
-      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
-      const response = await fetch(`${BACKEND_URL}/api/users/update/${userProfile.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          avatar_url: avatarUrl
-        })
-      });
-      
-      if (response.ok) {
-        setShowProfileModal(false);
-        loadUserProfile(); // Refresh user profile
-      }
-    } catch (error) {
-      console.error('Error updating profile:', error);
+    const success = await UserService.updateUser(userProfile.id, { avatar_url: avatarUrl });
+    if (success) {
+      setShowProfileModal(false);
+      loadUserProfile(); // Refresh user profile
     }
   };
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
-    
-    setIsSearching(true);
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1`
-      );
-      const results = await response.json();
-      
-      if (results && results[0]) {
-        const { lat, lon } = results[0];
-        setMapCenter({ lat: parseFloat(lat), lng: parseFloat(lon) });
-      }
-    } catch (error) {
-      console.error('Search error:', error);
-    } finally {
-      setIsSearching(false);
-    }
+  const handleLocationSearchSelect = (lat: number, lng: number) => {
+    setMapCenter({ lat, lng });
+    setShowSearchModal(false);
+  };
+
+  const handleDatabaseLocationSelect = (location: Location) => {
+    setMapCenter({ lat: location.latitude, lng: location.longitude });
+    setSelectedLocation(location);
+    setShowLocationDetail(true);
+    setShowSearchModal(false);
+  };
+
+  const handleMarkerClick = (location: Location) => {
+    setSelectedLocation(location);
+    setShowLocationDetail(true);
+  };
+
+  const handleViewLocationOnMap = (location: Location) => {
+    setMapCenter({ lat: location.latitude, lng: location.longitude });
+    setViewMode('map');
+    setShowLocationAddedModal(false);
   };
 
 
@@ -412,25 +397,19 @@ export function LocationPage() {
         <List>
           <Section>
             <Cell>
-              <Input
-                header="Search location"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                placeholder="Search for a city or place..."
-              />
+              <Button
+                size="l"
+                mode="filled"
+                onClick={() => setShowSearchModal(true)}
+                style={{ width: '100%' }}
+              >
+                <Search size={16} style={{ marginRight: '8px' }} />
+                Search for a place
+              </Button>
             </Cell>
           </Section>
           
           <Section>
-            <Cell
-              Component="button"
-              onClick={handleSearch}
-              disabled={isSearching}
-              before={isSearching ? <RefreshCw size={20} className="animate-spin" /> : <Search size={20} />}
-            >
-              {isSearching ? 'Searching...' : 'Search'}
-            </Cell>
             <Cell
               Component="button"
               onClick={() => window.location.reload()}
@@ -520,9 +499,10 @@ export function LocationPage() {
                         width: '100%',
                         padding: '12px',
                         borderRadius: '8px',
-                        border: '1px solid #ccc',
+                        border: '1px solid var(--tg-theme-section-separator-color, #ccc)',
                         fontSize: '16px',
-                        background: 'white'
+                        background: 'var(--tg-theme-bg-color, white)',
+                        color: 'var(--tg-theme-text-color, #000)'
                       }}
                     >
                       <option value="other">🏪 Other</option>
@@ -620,62 +600,81 @@ export function LocationPage() {
           </Section>
         </List>
 
-        {/* Search Input */}
+        {/* Search and View Controls */}
         <List>
-          <Section header="🔍 Search Location">
-            <Cell
-              Component="label"
-              multiline
-            >
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', width: '100%' }}>
-                <div style={{ flex: 1 }}>
-                  <Input
-                    header=""
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                    placeholder="Search for places..."
-                  />
-                </div>
-                <Button
-                  mode={isSearching ? 'plain' : 'filled'}
-                  size="m"
-                  onClick={handleSearch}
-                  disabled={isSearching || !searchQuery.trim()}
-                >
-                  {isSearching ? <RefreshCw size={16} className="animate-spin" /> : <Search size={16} />}
-                </Button>
-              </div>
-            </Cell>
+          <Section>
+            <div style={{ 
+              display: 'flex', 
+              gap: '12px', 
+              padding: '16px',
+              background: 'var(--tg-theme-secondary-bg-color)',
+              borderRadius: '16px',
+              margin: '0 16px'
+            }}>
+              <Button
+                size="m"
+                mode="filled"
+                onClick={() => setShowSearchModal(true)}
+                style={{ flex: 1 }}
+              >
+                <Search size={16} style={{ marginRight: '8px' }} />
+                Search places...
+              </Button>
+              <Button
+                size="m"
+                mode={viewMode === 'map' ? 'filled' : 'plain'}
+                onClick={() => setViewMode('map')}
+              >
+                <MapPin size={16} />
+              </Button>
+              <Button
+                size="m"
+                mode={viewMode === 'list' ? 'filled' : 'plain'}
+                onClick={() => setViewMode('list')}
+              >
+                <Grid3X3 size={16} />
+              </Button>
+              <Button
+                size="m"
+                mode="plain"
+                onClick={() => setShowFiltersModal(true)}
+              >
+                <Filter size={16} />
+              </Button>
+            </div>
           </Section>
         </List>
         
         {/* Map Section */}
-        <List>
-          <Section header="🗺️ Interactive Map">
-            <Cell
-              subtitle="Tap anywhere on the map to add a new location"
-              multiline
-            >
-              <div style={{ 
-                width: '100%', 
-                height: '350px',
-                marginTop: '8px',
-                borderRadius: '12px',
-                overflow: 'hidden',
-                border: '1px solid var(--tg-theme-section-separator-color)'
-              }}>
-                <InteractiveMap
-                  latitude={displayLat}
-                  longitude={displayLng}
-                  zoom={mapCenter ? 13 : 16}
-                  height="350px"
-                  onMapClick={handleMapClick}
-                />
-              </div>
-            </Cell>
-          </Section>
-        </List>
+        {viewMode === 'map' && (
+          <List>
+            <Section header={`🗺️ Interactive Map (${filteredLocations.length} locations)`}>
+              <Cell
+                subtitle="Tap anywhere on the map to add a location, or tap a marker to view details"
+                multiline
+              >
+                <div style={{ 
+                  width: '100%', 
+                  height: '450px',
+                  marginTop: '12px',
+                  borderRadius: '16px',
+                  overflow: 'hidden'
+                }}>
+                  <EnhancedMap
+                    latitude={displayLat}
+                    longitude={displayLng}
+                    zoom={mapCenter ? 13 : 16}
+                    height="450px"
+                    onMapClick={handleMapClick}
+                    onMarkerClick={handleMarkerClick}
+                    locations={filteredLocations}
+                    selectedLocationId={selectedLocation?.id}
+                  />
+                </div>
+              </Cell>
+            </Section>
+          </List>
+        )}
 
         {/* Current Location Info */}
         {latitude && longitude && (
@@ -710,104 +709,204 @@ export function LocationPage() {
           </List>
         )}
 
-        {/* Recent Locations List */}
-        {locations.length > 0 && (
+        {/* Locations List View */}
+        {viewMode === 'list' && (
           <List>
-            <Section header={`📍 All Locations (${locations.length})`}>
-              {locations.map((loc) => {
-                const rating = locationRatings[loc.id] || { average: 0, count: 0 };
-                return (
-                  <Cell
-                    key={loc.id}
-                    Component="button"
-                    before={
-                      <div style={{
-                        background: getCategoryColor(loc.category),
-                        borderRadius: '12px',
-                        padding: '8px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '18px'
-                      }}>
-                        {getCategoryIcon(loc.category)}
-                      </div>
-                    }
-                    onClick={() => handleLocationSelect(loc)}
-                    after={
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {rating.count > 0 && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <Star size={12} style={{ color: '#F59E0B', fill: '#F59E0B' }} />
-                            <span style={{ 
-                              fontSize: '12px', 
-                              color: 'var(--tg-theme-text-color)',
-                              fontWeight: '500'
-                            }}>
-                              {rating.average.toFixed(1)}
-                            </span>
-                            <span style={{ 
-                              fontSize: '10px', 
-                              color: 'var(--tg-theme-hint-color)'
-                            }}>
-                              ({rating.count})
-                            </span>
+            <Section header={`📍 ${categoryFilter === 'all' ? 'All' : formatCategory(categoryFilter)} Locations (${filteredLocations.length})`}>
+              {filteredLocations.length === 0 ? (
+                <Cell>
+                  <div style={{ 
+                    textAlign: 'center', 
+                    color: 'var(--tg-theme-hint-color)', 
+                    padding: '40px 20px' 
+                  }}>
+                    {searchQuery ? `No locations found for "${searchQuery}"` : 'No locations found'}
+                  </div>
+                </Cell>
+              ) : (
+                filteredLocations.map((loc) => {
+                  const rating = locationRatings[loc.id] || { average: 0, count: 0 };
+                  return (
+                    <Cell
+                      key={loc.id}
+                      Component="button"
+                      before={
+                        <div style={{
+                          background: getCategoryColor(loc.category),
+                          borderRadius: '12px',
+                          padding: '10px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '20px'
+                        }}>
+                          {getCategoryIcon(loc.category)}
+                        </div>
+                      }
+                      onClick={() => handleLocationSelect(loc)}
+                      after={
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {rating.count > 0 && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <Star size={14} style={{ color: '#F59E0B', fill: '#F59E0B' }} />
+                              <span style={{ 
+                                fontSize: '13px', 
+                                color: 'var(--tg-theme-text-color)',
+                                fontWeight: '500'
+                              }}>
+                                {rating.average.toFixed(1)}
+                              </span>
+                              <span style={{ 
+                                fontSize: '11px', 
+                                color: 'var(--tg-theme-hint-color)'
+                              }}>
+                                ({rating.count})
+                              </span>
+                            </div>
+                          )}
+                          <Button size="s" mode="plain" onClick={(e) => {
+                            e.stopPropagation();
+                            setMapCenter({ lat: loc.latitude, lng: loc.longitude });
+                            setViewMode('map');
+                          }}>
+                            <MapPin size={14} />
+                          </Button>
+                        </div>
+                      }
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '6px', width: '100%' }}>
+                        <div style={{ 
+                          fontWeight: '600',
+                          fontSize: '17px',
+                          color: 'var(--tg-theme-text-color)'
+                        }}>
+                          {loc.name}
+                        </div>
+                        <div style={{ 
+                          fontSize: '14px',
+                          color: 'var(--tg-theme-hint-color)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}>
+                          <span>{formatCategory(loc.category)}</span>
+                          <span>•</span>
+                          <span>{formatDate(loc.created_at)}</span>
+                          {rating.count > 0 && (
+                            <>
+                              <span>•</span>
+                              <MessageCircle size={12} />
+                              <span>{rating.count} review{rating.count !== 1 ? 's' : ''}</span>
+                            </>
+                          )}
+                        </div>
+                        {loc.description && (
+                          <div style={{ 
+                            fontSize: '13px',
+                            color: 'var(--tg-theme-text-color)',
+                            lineHeight: '1.4',
+                            marginTop: '2px'
+                          }}>
+                            {loc.description}
                           </div>
                         )}
-                        <Button size="s" mode="plain" onClick={(e) => {
-                          e.stopPropagation();
-                          setMapCenter({ lat: loc.latitude, lng: loc.longitude });
-                        }}>
-                          📍
-                        </Button>
                       </div>
-                    }
-                  >
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '4px', width: '100%' }}>
-                      <div style={{ 
-                        fontWeight: '600',
-                        fontSize: '16px',
-                        color: 'var(--tg-theme-text-color)'
-                      }}>
-                        {loc.name}
-                      </div>
-                      <div style={{ 
-                        fontSize: '13px',
-                        color: 'var(--tg-theme-hint-color)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px'
-                      }}>
-                        <span>{formatCategory(loc.category)}</span>
-                        <span>•</span>
-                        <span>{formatDate(loc.created_at)}</span>
-                        {rating.count > 0 && (
-                          <>
-                            <span>•</span>
-                            <MessageCircle size={12} />
-                            <span>Reviews</span>
-                          </>
-                        )}
-                      </div>
-                      {loc.description && (
-                        <div style={{ 
-                          fontSize: '12px',
-                          color: 'var(--tg-theme-text-color)',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          width: '100%',
-                          maxWidth: '200px'
-                        }}>
-                          {loc.description}
-                        </div>
-                      )}
-                    </div>
-                  </Cell>
-                );
-              })}
+                    </Cell>
+                  );
+                })
+              )}
             </Section>
           </List>
+        )}
+
+        {/* Search Modal */}
+        <Modal
+          header="🔍 Search Locations"
+          open={showSearchModal}
+          onOpenChange={setShowSearchModal}
+        >
+          <div style={{ padding: '16px' }}>
+            <DatabaseLocationSearch
+              onLocationSelect={handleDatabaseLocationSelect}
+              currentLocation={latitude && longitude ? { lat: latitude, lng: longitude } : null}
+              placeholder="Search saved locations..."
+            />
+          </div>
+        </Modal>
+
+        {/* Filters Modal */}
+        <Modal
+          header="🎯 Filter Locations"
+          open={showFiltersModal}
+          onOpenChange={setShowFiltersModal}
+        >
+          <List>
+            <Section header="Category">
+              {[
+                { value: 'all', label: '🌟 All Categories', count: locations.length },
+                { value: 'grocery', label: '🛒 Grocery Stores', count: locations.filter(l => l.category === 'grocery').length },
+                { value: 'restaurant-bar', label: '🍽️ Restaurants & Bars', count: locations.filter(l => l.category === 'restaurant-bar').length },
+                { value: 'other', label: '🏪 Other Places', count: locations.filter(l => l.category === 'other').length }
+              ].map((category) => (
+                <Cell
+                  key={category.value}
+                  Component="button"
+                  onClick={() => {
+                    setCategoryFilter(category.value);
+                    setShowFiltersModal(false);
+                  }}
+                  after={
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ 
+                        background: categoryFilter === category.value ? 'var(--tg-theme-button-color)' : 'var(--tg-theme-secondary-bg-color)',
+                        color: categoryFilter === category.value ? 'white' : 'var(--tg-theme-hint-color)',
+                        padding: '4px 8px',
+                        borderRadius: '12px',
+                        fontSize: '12px',
+                        fontWeight: '500'
+                      }}>
+                        {category.count}
+                      </span>
+                      {categoryFilter === category.value && (
+                        <div style={{
+                          width: '8px',
+                          height: '8px',
+                          background: 'var(--tg-theme-button-color)',
+                          borderRadius: '50%'
+                        }} />
+                      )}
+                    </div>
+                  }
+                >
+                  {category.label}
+                </Cell>
+              ))}
+            </Section>
+            
+            <Section header="Search in Results">
+              <Cell>
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Filter by name or description..."
+                  header=""
+                />
+              </Cell>
+            </Section>
+          </List>
+        </Modal>
+
+        {/* Location Added Success Modal */}
+        {newlyAddedLocation && (
+          <LocationAddedModal
+            location={newlyAddedLocation}
+            isOpen={showLocationAddedModal}
+            onClose={() => {
+              setShowLocationAddedModal(false);
+              setNewlyAddedLocation(null);
+            }}
+            onViewLocation={handleViewLocationOnMap}
+          />
         )}
 
         {/* Location Detail Modal */}
@@ -818,6 +917,7 @@ export function LocationPage() {
             onClose={handleLocationDetailClose}
             onLocationClick={(lat, lng) => {
               setMapCenter({ lat, lng });
+              setViewMode('map');
               handleLocationDetailClose();
             }}
           />
