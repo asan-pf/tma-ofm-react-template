@@ -1,25 +1,33 @@
-import { MapPin, RefreshCw, Navigation2, Search, Star, MessageCircle, Filter, Grid3X3 } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { 
-  Button, 
-  Cell, 
-  Section, 
-  List, 
-  Modal, 
-  Banner, 
+import {
+  MapPin,
+  RefreshCw,
+  Navigation2,
+  Search,
+  Star,
+  MessageCircle,
+  Filter,
+  Grid3X3,
+} from "lucide-react";
+import { useState, useEffect } from "react";
+import {
+  Button,
+  Cell,
+  Section,
+  List,
+  Modal,
+  Banner,
   Input,
   Avatar,
-  IconButton
-} from '@telegram-apps/telegram-ui';
-import { initDataState, useSignal } from '@telegram-apps/sdk-react';
-import { useGeolocation } from '@/hooks/useGeolocation';
-import { EnhancedMap } from '@/components/Map/EnhancedMap';
-import { LocationSearch } from '@/components/LocationSearch';
-import { DatabaseLocationSearch } from '@/components/DatabaseLocationSearch';
-import { UserService } from '@/utils/userService';
-import { LocationAddedModal } from '@/components/LocationAddedModal';
-import { Page } from '@/components/Page';
-import { LocationDetailModal } from '@/components/LocationDetailModal';
+  IconButton,
+} from "@telegram-apps/telegram-ui";
+import { initDataState, useSignal } from "@telegram-apps/sdk-react";
+import { useGeolocation } from "@/hooks/useGeolocation";
+import { EnhancedMap } from "@/components/Map/EnhancedMap";
+import { DatabaseLocationSearch } from "@/components/DatabaseLocationSearch";
+import { UserService } from "@/utils/userService";
+import { LocationAddedModal } from "@/components/LocationAddedModal";
+import { Page } from "@/components/Page";
+import { LocationDetailModal } from "@/components/LocationDetailModal";
 
 /**
  * Represents a location in the system
@@ -30,7 +38,7 @@ interface Location {
   description: string;
   latitude: number;
   longitude: number;
-  category: 'grocery' | 'restaurant-bar' | 'other';
+  category: "grocery" | "restaurant-bar" | "other";
   created_at: string;
   user_id?: number;
   is_approved?: boolean;
@@ -68,31 +76,41 @@ interface MapCenter {
 export function LocationPage() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [filteredLocations, setFilteredLocations] = useState<Location[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<"map" | "list">("map");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [mapCenter, setMapCenter] = useState<MapCenter | null>(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [clickedLocation, setClickedLocation] = useState<MapCenter | null>(null);
+  const [clickedLocation, setClickedLocation] = useState<MapCenter | null>(
+    null
+  );
   const [showAddLocationModal, setShowAddLocationModal] = useState(false);
-  const [newLocationName, setNewLocationName] = useState('');
-  const [newLocationDescription, setNewLocationDescription] = useState('');
-  const [newLocationCategory, setNewLocationCategory] = useState<'grocery' | 'restaurant-bar' | 'other'>('other');
-  const [avatarUrl, setAvatarUrl] = useState('');
+  const [newLocationName, setNewLocationName] = useState("");
+  const [newLocationDescription, setNewLocationDescription] = useState("");
+  const [newLocationCategory, setNewLocationCategory] = useState<
+    "grocery" | "restaurant-bar" | "other"
+  >("other");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<Location | null>(
+    null
+  );
   const [showLocationDetail, setShowLocationDetail] = useState(false);
-  const [locationRatings, setLocationRatings] = useState<Record<number, { average: number; count: number }>>({});
+  const [locationRatings, setLocationRatings] = useState<
+    Record<number, { average: number; count: number }>
+  >({});
   const [showLocationAddedModal, setShowLocationAddedModal] = useState(false);
-  const [newlyAddedLocation, setNewlyAddedLocation] = useState<Location | null>(null);
+  const [newlyAddedLocation, setNewlyAddedLocation] = useState<Location | null>(
+    null
+  );
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showFiltersModal, setShowFiltersModal] = useState(false);
-  
+
   const initDataState_ = useSignal(initDataState);
   const telegramUser = initDataState_?.user;
-  
+
   const location = useGeolocation({
     enableHighAccuracy: false,
     timeout: 5000, // Much shorter timeout
@@ -100,39 +118,45 @@ export function LocationPage() {
   });
 
   const { loading, error, latitude, longitude } = location;
-  
+
   const getUserInitials = () => {
     if (telegramUser?.first_name) {
       return telegramUser.first_name.charAt(0).toUpperCase();
     }
-    return 'U';
+    return "U";
   };
 
   // Helper functions for UI
   const getCategoryColor = (category: string) => {
     switch (category) {
-      case 'grocery': return '#34D399';
-      case 'restaurant-bar': return '#F59E0B'; 
-      default: return '#8B5CF6';
+      case "grocery":
+        return "#34D399";
+      case "restaurant-bar":
+        return "#F59E0B";
+      default:
+        return "#8B5CF6";
     }
   };
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
-      case 'grocery': return '🛒';
-      case 'restaurant-bar': return '🍽️';
-      default: return '🏪';
+      case "grocery":
+        return "🛒";
+      case "restaurant-bar":
+        return "🍽️";
+      default:
+        return "🏪";
     }
   };
 
   const formatCategory = (category: string) => {
-    return category.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase());
+    return category.replace("-", " ").replace(/\b\w/g, (l) => l.toUpperCase());
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric'
+    return new Date(dateString).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
     });
   };
 
@@ -146,21 +170,22 @@ export function LocationPage() {
   // Filter locations based on search and category
   useEffect(() => {
     let filtered = locations;
-    
+
     // Apply category filter
-    if (categoryFilter !== 'all') {
-      filtered = filtered.filter(loc => loc.category === categoryFilter);
+    if (categoryFilter !== "all") {
+      filtered = filtered.filter((loc) => loc.category === categoryFilter);
     }
-    
+
     // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(loc => 
-        loc.name.toLowerCase().includes(query) ||
-        loc.description.toLowerCase().includes(query)
+      filtered = filtered.filter(
+        (loc) =>
+          loc.name.toLowerCase().includes(query) ||
+          loc.description.toLowerCase().includes(query)
       );
     }
-    
+
     setFilteredLocations(filtered);
   }, [locations, categoryFilter, searchQuery]);
 
@@ -186,7 +211,8 @@ export function LocationPage() {
 
   const loadLocations = async () => {
     try {
-      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+      const BACKEND_URL =
+        import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
       const response = await fetch(`${BACKEND_URL}/api/locations`);
       if (response.ok) {
         const data = await response.json();
@@ -195,19 +221,25 @@ export function LocationPage() {
         loadLocationRatings(data);
       }
     } catch (error) {
-      console.error('Error loading locations:', error);
+      console.error("Error loading locations:", error);
     }
   };
 
   const loadLocationRatings = async (locationList: Location[]) => {
     try {
-      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+      const BACKEND_URL =
+        import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
       const ratingsPromises = locationList.map(async (loc) => {
         try {
-          const response = await fetch(`${BACKEND_URL}/api/ratings?location_id=${loc.id}`);
+          const response = await fetch(
+            `${BACKEND_URL}/api/ratings?location_id=${loc.id}`
+          );
           if (response.ok) {
             const data = await response.json();
-            return { locationId: loc.id, rating: { average: data.average, count: data.count } };
+            return {
+              locationId: loc.id,
+              rating: { average: data.average, count: data.count },
+            };
           }
         } catch (error) {
           console.error(`Error loading rating for location ${loc.id}:`, error);
@@ -220,10 +252,10 @@ export function LocationPage() {
         acc[locationId] = rating;
         return acc;
       }, {} as Record<number, { average: number; count: number }>);
-      
+
       setLocationRatings(ratingsMap);
     } catch (error) {
-      console.error('Error loading location ratings:', error);
+      console.error("Error loading location ratings:", error);
     }
   };
 
@@ -239,22 +271,22 @@ export function LocationPage() {
 
   const loadUserProfile = async () => {
     if (!telegramUser) return;
-    
+
     const user = await UserService.getOrCreateUser(telegramUser);
     if (user) {
       setUserProfile(user);
-      setAvatarUrl(user.avatar_url || '');
+      setAvatarUrl(user.avatar_url || "");
     }
   };
 
-  const createUser = async () => {
-    if (!telegramUser) return;
-    
-    const user = await UserService.getOrCreateUser(telegramUser);
-    if (user) {
-      setUserProfile(user);
-    }
-  };
+  // const createUser = async () => {
+  //   if (!telegramUser) return;
+
+  //   const user = await UserService.getOrCreateUser(telegramUser);
+  //   if (user) {
+  //     setUserProfile(user);
+  //   }
+  // };
 
   const handleMapClick = (lat: number, lng: number) => {
     setClickedLocation({ lat, lng });
@@ -263,10 +295,10 @@ export function LocationPage() {
 
   const handleAddLocation = async () => {
     if (!clickedLocation || !newLocationName.trim()) return;
-    
+
     setIsLoading(true);
     setApiError(null);
-    
+
     try {
       // Ensure we have a valid user profile first
       let validUserId = null;
@@ -281,11 +313,12 @@ export function LocationPage() {
         }
       }
 
-      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+      const BACKEND_URL =
+        import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
       const response = await fetch(`${BACKEND_URL}/api/locations`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           name: newLocationName,
@@ -293,30 +326,30 @@ export function LocationPage() {
           latitude: clickedLocation.lat,
           longitude: clickedLocation.lng,
           category: newLocationCategory,
-          userId: validUserId  // This can be null now
-        })
+          userId: validUserId, // This can be null now
+        }),
       });
-      
+
       if (response.ok) {
         const newLocation = await response.json();
         setShowAddLocationModal(false);
-        setNewLocationName('');
-        setNewLocationDescription('');
-        setNewLocationCategory('other');
+        setNewLocationName("");
+        setNewLocationDescription("");
+        setNewLocationCategory("other");
         setClickedLocation(null);
-        
+
         // Show success modal
         setNewlyAddedLocation(newLocation);
         setShowLocationAddedModal(true);
-        
+
         await loadLocations(); // Refresh locations and ratings
       } else {
         const errorData = await response.json();
-        setApiError(errorData.error || 'Failed to add location');
+        setApiError(errorData.error || "Failed to add location");
       }
     } catch (error) {
-      setApiError('Network error. Please check your connection.');
-      console.error('Error adding location:', error);
+      setApiError("Network error. Please check your connection.");
+      console.error("Error adding location:", error);
     } finally {
       setIsLoading(false);
     }
@@ -324,18 +357,20 @@ export function LocationPage() {
 
   const updateUserProfile = async () => {
     if (!userProfile) return;
-    
-    const success = await UserService.updateUser(userProfile.id, { avatar_url: avatarUrl });
+
+    const success = await UserService.updateUser(userProfile.id, {
+      avatar_url: avatarUrl,
+    });
     if (success) {
       setShowProfileModal(false);
       loadUserProfile(); // Refresh user profile
     }
   };
 
-  const handleLocationSearchSelect = (lat: number, lng: number) => {
-    setMapCenter({ lat, lng });
-    setShowSearchModal(false);
-  };
+  // const handleLocationSearchSelect = (lat: number, lng: number) => {
+  //   setMapCenter({ lat, lng });
+  //   setShowSearchModal(false);
+  // };
 
   const handleDatabaseLocationSelect = (location: Location) => {
     setMapCenter({ lat: location.latitude, lng: location.longitude });
@@ -351,10 +386,9 @@ export function LocationPage() {
 
   const handleViewLocationOnMap = (location: Location) => {
     setMapCenter({ lat: location.latitude, lng: location.longitude });
-    setViewMode('map');
+    setViewMode("map");
     setShowLocationAddedModal(false);
   };
-
 
   // Loading state
   if (loading && !mapCenter) {
@@ -393,7 +427,7 @@ export function LocationPage() {
           header="Search for a Location"
           subheader="Location access is disabled. Search for a place to get started."
         />
-        
+
         <List>
           <Section>
             <Cell>
@@ -401,14 +435,14 @@ export function LocationPage() {
                 size="l"
                 mode="filled"
                 onClick={() => setShowSearchModal(true)}
-                style={{ width: '100%' }}
+                style={{ width: "100%" }}
               >
-                <Search size={16} style={{ marginRight: '8px' }} />
+                <Search size={16} style={{ marginRight: "8px" }} />
                 Search for a place
               </Button>
             </Cell>
           </Section>
-          
+
           <Section>
             <Cell
               Component="button"
@@ -427,7 +461,7 @@ export function LocationPage() {
   if ((latitude && longitude) || mapCenter) {
     const displayLat = mapCenter?.lat || latitude!;
     const displayLng = mapCenter?.lng || longitude!;
-    
+
     return (
       <Page>
         {/* Profile Modal */}
@@ -450,11 +484,16 @@ export function LocationPage() {
                 </Cell>
               </Section>
             </List>
-            <div style={{ padding: '16px', display: 'flex', gap: '8px' }}>
+            <div style={{ padding: "16px", display: "flex", gap: "8px" }}>
               <Button size="l" stretched onClick={updateUserProfile}>
                 Save
               </Button>
-              <Button size="l" stretched mode="plain" onClick={() => setShowProfileModal(false)}>
+              <Button
+                size="l"
+                stretched
+                mode="plain"
+                onClick={() => setShowProfileModal(false)}
+              >
                 Cancel
               </Button>
             </div>
@@ -489,20 +528,35 @@ export function LocationPage() {
                 </Cell>
                 <Cell>
                   <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '8px' }}>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "14px",
+                        fontWeight: "500",
+                        marginBottom: "8px",
+                      }}
+                    >
                       Category
                     </label>
                     <select
                       value={newLocationCategory}
-                      onChange={(e) => setNewLocationCategory(e.target.value as 'grocery' | 'restaurant-bar' | 'other')}
+                      onChange={(e) =>
+                        setNewLocationCategory(
+                          e.target.value as
+                            | "grocery"
+                            | "restaurant-bar"
+                            | "other"
+                        )
+                      }
                       style={{
-                        width: '100%',
-                        padding: '12px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--tg-theme-section-separator-color, #ccc)',
-                        fontSize: '16px',
-                        background: 'var(--tg-theme-bg-color, white)',
-                        color: 'var(--tg-theme-text-color, #000)'
+                        width: "100%",
+                        padding: "12px",
+                        borderRadius: "8px",
+                        border:
+                          "1px solid var(--tg-theme-section-separator-color, #ccc)",
+                        fontSize: "16px",
+                        background: "var(--tg-theme-bg-color, white)",
+                        color: "var(--tg-theme-text-color, #000)",
                       }}
                     >
                       <option value="other">🏪 Other</option>
@@ -513,48 +567,61 @@ export function LocationPage() {
                 </Cell>
                 <Cell
                   before={<MapPin size={20} />}
-                  subtitle={`Lat: ${clickedLocation.lat.toFixed(6)}, Lng: ${clickedLocation.lng.toFixed(6)}`}
+                  subtitle={`Lat: ${clickedLocation.lat.toFixed(
+                    6
+                  )}, Lng: ${clickedLocation.lng.toFixed(6)}`}
                 >
                   Selected Location
                 </Cell>
               </Section>
             </List>
             {apiError && (
-              <div style={{
-                padding: '12px',
-                margin: '0 16px',
-                background: 'var(--tg-theme-destructive-text-color, #ff3b3b)',
-                color: 'white',
-                borderRadius: '8px',
-                fontSize: '14px',
-                textAlign: 'center'
-              }}>
+              <div
+                style={{
+                  padding: "12px",
+                  margin: "0 16px",
+                  background: "var(--tg-theme-destructive-text-color, #ff3b3b)",
+                  color: "white",
+                  borderRadius: "8px",
+                  fontSize: "14px",
+                  textAlign: "center",
+                }}
+              >
                 {apiError}
               </div>
             )}
-            <div style={{ padding: '16px', display: 'flex', gap: '8px' }}>
-              <Button 
-                size="l" 
-                stretched 
-                onClick={handleAddLocation} 
+            <div style={{ padding: "16px", display: "flex", gap: "8px" }}>
+              <Button
+                size="l"
+                stretched
+                onClick={handleAddLocation}
                 disabled={!newLocationName.trim() || isLoading}
               >
                 {isLoading ? (
                   <>
-                    <RefreshCw size={16} className="animate-spin" style={{ marginRight: '8px' }} />
+                    <RefreshCw
+                      size={16}
+                      className="animate-spin"
+                      style={{ marginRight: "8px" }}
+                    />
                     Adding...
                   </>
                 ) : (
-                  'Add Location'
+                  "Add Location"
                 )}
               </Button>
-              <Button size="l" stretched mode="plain" onClick={() => {
-                setShowAddLocationModal(false);
-                setNewLocationName('');
-                setNewLocationDescription('');
-                setNewLocationCategory('other');
-                setClickedLocation(null);
-              }}>
+              <Button
+                size="l"
+                stretched
+                mode="plain"
+                onClick={() => {
+                  setShowAddLocationModal(false);
+                  setNewLocationName("");
+                  setNewLocationDescription("");
+                  setNewLocationCategory("other");
+                  setClickedLocation(null);
+                }}
+              >
                 Cancel
               </Button>
             </div>
@@ -566,15 +633,17 @@ export function LocationPage() {
           <Section>
             <Cell
               before={
-                <div style={{ 
-                  background: 'var(--tg-theme-button-color, #0088cc)',
-                  borderRadius: '12px',
-                  padding: '8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  <MapPin size={20} style={{ color: 'white' }} />
+                <div
+                  style={{
+                    background: "var(--tg-theme-button-color, #0088cc)",
+                    borderRadius: "12px",
+                    padding: "8px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <MapPin size={20} style={{ color: "white" }} />
                 </div>
               }
               after={
@@ -593,7 +662,7 @@ export function LocationPage() {
               }
               subtitle={`${locations.length} locations available`}
             >
-              <span style={{ fontSize: '18px', fontWeight: '600' }}>
+              <span style={{ fontSize: "18px", fontWeight: "600" }}>
                 OpenFreeMap
               </span>
             </Cell>
@@ -603,34 +672,36 @@ export function LocationPage() {
         {/* Search and View Controls */}
         <List>
           <Section>
-            <div style={{ 
-              display: 'flex', 
-              gap: '12px', 
-              padding: '16px',
-              background: 'var(--tg-theme-secondary-bg-color)',
-              borderRadius: '16px',
-              margin: '0 16px'
-            }}>
+            <div
+              style={{
+                display: "flex",
+                gap: "12px",
+                padding: "16px",
+                background: "var(--tg-theme-secondary-bg-color)",
+                borderRadius: "16px",
+                margin: "0 16px",
+              }}
+            >
               <Button
                 size="m"
                 mode="filled"
                 onClick={() => setShowSearchModal(true)}
                 style={{ flex: 1 }}
               >
-                <Search size={16} style={{ marginRight: '8px' }} />
+                <Search size={16} style={{ marginRight: "8px" }} />
                 Search places...
               </Button>
               <Button
                 size="m"
-                mode={viewMode === 'map' ? 'filled' : 'plain'}
-                onClick={() => setViewMode('map')}
+                mode={viewMode === "map" ? "filled" : "plain"}
+                onClick={() => setViewMode("map")}
               >
                 <MapPin size={16} />
               </Button>
               <Button
                 size="m"
-                mode={viewMode === 'list' ? 'filled' : 'plain'}
-                onClick={() => setViewMode('list')}
+                mode={viewMode === "list" ? "filled" : "plain"}
+                onClick={() => setViewMode("list")}
               >
                 <Grid3X3 size={16} />
               </Button>
@@ -644,22 +715,26 @@ export function LocationPage() {
             </div>
           </Section>
         </List>
-        
+
         {/* Map Section */}
-        {viewMode === 'map' && (
+        {viewMode === "map" && (
           <List>
-            <Section header={`🗺️ Interactive Map (${filteredLocations.length} locations)`}>
+            <Section
+              header={`🗺️ Interactive Map (${filteredLocations.length} locations)`}
+            >
               <Cell
                 subtitle="Tap anywhere on the map to add a location, or tap a marker to view details"
                 multiline
               >
-                <div style={{ 
-                  width: '100%', 
-                  height: '450px',
-                  marginTop: '12px',
-                  borderRadius: '16px',
-                  overflow: 'hidden'
-                }}>
+                <div
+                  style={{
+                    width: "100%",
+                    height: "450px",
+                    marginTop: "12px",
+                    borderRadius: "16px",
+                    overflow: "hidden",
+                  }}
+                >
                   <EnhancedMap
                     latitude={displayLat}
                     longitude={displayLng}
@@ -682,23 +757,27 @@ export function LocationPage() {
             <Section header="📍 Your Location">
               <Cell
                 before={
-                  <div style={{
-                    background: 'var(--tg-theme-accent-text-color, #0088cc)',
-                    borderRadius: '8px',
-                    padding: '6px'
-                  }}>
-                    <Navigation2 size={16} style={{ color: 'white' }} />
+                  <div
+                    style={{
+                      background: "var(--tg-theme-accent-text-color, #0088cc)",
+                      borderRadius: "8px",
+                      padding: "6px",
+                    }}
+                  >
+                    <Navigation2 size={16} style={{ color: "white" }} />
                   </div>
                 }
                 subtitle={`${displayLat.toFixed(6)}, ${displayLng.toFixed(6)}`}
                 after={
-                  <span style={{ 
-                    fontSize: '12px', 
-                    color: 'var(--tg-theme-hint-color)',
-                    background: 'var(--tg-theme-secondary-bg-color)',
-                    padding: '4px 8px',
-                    borderRadius: '12px'
-                  }}>
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      color: "var(--tg-theme-hint-color)",
+                      background: "var(--tg-theme-secondary-bg-color)",
+                      padding: "4px 8px",
+                      borderRadius: "12px",
+                    }}
+                  >
                     GPS
                   </span>
                 }
@@ -710,85 +789,138 @@ export function LocationPage() {
         )}
 
         {/* Locations List View */}
-        {viewMode === 'list' && (
+        {viewMode === "list" && (
           <List>
-            <Section header={`📍 ${categoryFilter === 'all' ? 'All' : formatCategory(categoryFilter)} Locations (${filteredLocations.length})`}>
+            <Section
+              header={`📍 ${
+                categoryFilter === "all"
+                  ? "All"
+                  : formatCategory(categoryFilter)
+              } Locations (${filteredLocations.length})`}
+            >
               {filteredLocations.length === 0 ? (
                 <Cell>
-                  <div style={{ 
-                    textAlign: 'center', 
-                    color: 'var(--tg-theme-hint-color)', 
-                    padding: '40px 20px' 
-                  }}>
-                    {searchQuery ? `No locations found for "${searchQuery}"` : 'No locations found'}
+                  <div
+                    style={{
+                      textAlign: "center",
+                      color: "var(--tg-theme-hint-color)",
+                      padding: "40px 20px",
+                    }}
+                  >
+                    {searchQuery
+                      ? `No locations found for "${searchQuery}"`
+                      : "No locations found"}
                   </div>
                 </Cell>
               ) : (
                 filteredLocations.map((loc) => {
-                  const rating = locationRatings[loc.id] || { average: 0, count: 0 };
+                  const rating = locationRatings[loc.id] || {
+                    average: 0,
+                    count: 0,
+                  };
                   return (
                     <Cell
                       key={loc.id}
                       Component="button"
                       before={
-                        <div style={{
-                          background: getCategoryColor(loc.category),
-                          borderRadius: '12px',
-                          padding: '10px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '20px'
-                        }}>
+                        <div
+                          style={{
+                            background: getCategoryColor(loc.category),
+                            borderRadius: "12px",
+                            padding: "10px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: "20px",
+                          }}
+                        >
                           {getCategoryIcon(loc.category)}
                         </div>
                       }
                       onClick={() => handleLocationSelect(loc)}
                       after={
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                          }}
+                        >
                           {rating.count > 0 && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <Star size={14} style={{ color: '#F59E0B', fill: '#F59E0B' }} />
-                              <span style={{ 
-                                fontSize: '13px', 
-                                color: 'var(--tg-theme-text-color)',
-                                fontWeight: '500'
-                              }}>
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "4px",
+                              }}
+                            >
+                              <Star
+                                size={14}
+                                style={{ color: "#F59E0B", fill: "#F59E0B" }}
+                              />
+                              <span
+                                style={{
+                                  fontSize: "13px",
+                                  color: "var(--tg-theme-text-color)",
+                                  fontWeight: "500",
+                                }}
+                              >
                                 {rating.average.toFixed(1)}
                               </span>
-                              <span style={{ 
-                                fontSize: '11px', 
-                                color: 'var(--tg-theme-hint-color)'
-                              }}>
+                              <span
+                                style={{
+                                  fontSize: "11px",
+                                  color: "var(--tg-theme-hint-color)",
+                                }}
+                              >
                                 ({rating.count})
                               </span>
                             </div>
                           )}
-                          <Button size="s" mode="plain" onClick={(e) => {
-                            e.stopPropagation();
-                            setMapCenter({ lat: loc.latitude, lng: loc.longitude });
-                            setViewMode('map');
-                          }}>
+                          <Button
+                            size="s"
+                            mode="plain"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMapCenter({
+                                lat: loc.latitude,
+                                lng: loc.longitude,
+                              });
+                              setViewMode("map");
+                            }}
+                          >
                             <MapPin size={14} />
                           </Button>
                         </div>
                       }
                     >
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '6px', width: '100%' }}>
-                        <div style={{ 
-                          fontWeight: '600',
-                          fontSize: '17px',
-                          color: 'var(--tg-theme-text-color)'
-                        }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "flex-start",
+                          gap: "6px",
+                          width: "100%",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontWeight: "600",
+                            fontSize: "17px",
+                            color: "var(--tg-theme-text-color)",
+                          }}
+                        >
                           {loc.name}
                         </div>
-                        <div style={{ 
-                          fontSize: '14px',
-                          color: 'var(--tg-theme-hint-color)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px'
-                        }}>
+                        <div
+                          style={{
+                            fontSize: "14px",
+                            color: "var(--tg-theme-hint-color)",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                          }}
+                        >
                           <span>{formatCategory(loc.category)}</span>
                           <span>•</span>
                           <span>{formatDate(loc.created_at)}</span>
@@ -796,17 +928,22 @@ export function LocationPage() {
                             <>
                               <span>•</span>
                               <MessageCircle size={12} />
-                              <span>{rating.count} review{rating.count !== 1 ? 's' : ''}</span>
+                              <span>
+                                {rating.count} review
+                                {rating.count !== 1 ? "s" : ""}
+                              </span>
                             </>
                           )}
                         </div>
                         {loc.description && (
-                          <div style={{ 
-                            fontSize: '13px',
-                            color: 'var(--tg-theme-text-color)',
-                            lineHeight: '1.4',
-                            marginTop: '2px'
-                          }}>
+                          <div
+                            style={{
+                              fontSize: "13px",
+                              color: "var(--tg-theme-text-color)",
+                              lineHeight: "1.4",
+                              marginTop: "2px",
+                            }}
+                          >
                             {loc.description}
                           </div>
                         )}
@@ -825,10 +962,12 @@ export function LocationPage() {
           open={showSearchModal}
           onOpenChange={setShowSearchModal}
         >
-          <div style={{ padding: '16px' }}>
+          <div style={{ padding: "16px" }}>
             <DatabaseLocationSearch
               onLocationSelect={handleDatabaseLocationSelect}
-              currentLocation={latitude && longitude ? { lat: latitude, lng: longitude } : null}
+              currentLocation={
+                latitude && longitude ? { lat: latitude, lng: longitude } : null
+              }
               placeholder="Search saved locations..."
             />
           </div>
@@ -843,10 +982,29 @@ export function LocationPage() {
           <List>
             <Section header="Category">
               {[
-                { value: 'all', label: '🌟 All Categories', count: locations.length },
-                { value: 'grocery', label: '🛒 Grocery Stores', count: locations.filter(l => l.category === 'grocery').length },
-                { value: 'restaurant-bar', label: '🍽️ Restaurants & Bars', count: locations.filter(l => l.category === 'restaurant-bar').length },
-                { value: 'other', label: '🏪 Other Places', count: locations.filter(l => l.category === 'other').length }
+                {
+                  value: "all",
+                  label: "🌟 All Categories",
+                  count: locations.length,
+                },
+                {
+                  value: "grocery",
+                  label: "🛒 Grocery Stores",
+                  count: locations.filter((l) => l.category === "grocery")
+                    .length,
+                },
+                {
+                  value: "restaurant-bar",
+                  label: "🍽️ Restaurants & Bars",
+                  count: locations.filter(
+                    (l) => l.category === "restaurant-bar"
+                  ).length,
+                },
+                {
+                  value: "other",
+                  label: "🏪 Other Places",
+                  count: locations.filter((l) => l.category === "other").length,
+                },
               ].map((category) => (
                 <Cell
                   key={category.value}
@@ -856,24 +1014,40 @@ export function LocationPage() {
                     setShowFiltersModal(false);
                   }}
                   after={
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ 
-                        background: categoryFilter === category.value ? 'var(--tg-theme-button-color)' : 'var(--tg-theme-secondary-bg-color)',
-                        color: categoryFilter === category.value ? 'white' : 'var(--tg-theme-hint-color)',
-                        padding: '4px 8px',
-                        borderRadius: '12px',
-                        fontSize: '12px',
-                        fontWeight: '500'
-                      }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                      }}
+                    >
+                      <span
+                        style={{
+                          background:
+                            categoryFilter === category.value
+                              ? "var(--tg-theme-button-color)"
+                              : "var(--tg-theme-secondary-bg-color)",
+                          color:
+                            categoryFilter === category.value
+                              ? "white"
+                              : "var(--tg-theme-hint-color)",
+                          padding: "4px 8px",
+                          borderRadius: "12px",
+                          fontSize: "12px",
+                          fontWeight: "500",
+                        }}
+                      >
                         {category.count}
                       </span>
                       {categoryFilter === category.value && (
-                        <div style={{
-                          width: '8px',
-                          height: '8px',
-                          background: 'var(--tg-theme-button-color)',
-                          borderRadius: '50%'
-                        }} />
+                        <div
+                          style={{
+                            width: "8px",
+                            height: "8px",
+                            background: "var(--tg-theme-button-color)",
+                            borderRadius: "50%",
+                          }}
+                        />
                       )}
                     </div>
                   }
@@ -882,7 +1056,7 @@ export function LocationPage() {
                 </Cell>
               ))}
             </Section>
-            
+
             <Section header="Search in Results">
               <Cell>
                 <Input
@@ -917,7 +1091,7 @@ export function LocationPage() {
             onClose={handleLocationDetailClose}
             onLocationClick={(lat, lng) => {
               setMapCenter({ lat, lng });
-              setViewMode('map');
+              setViewMode("map");
               handleLocationDetailClose();
             }}
           />
