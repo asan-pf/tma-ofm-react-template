@@ -117,7 +117,7 @@ export function MapPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const navigate = useNavigate();
-  const { latitude, longitude, error: locationError } = useGeolocation();
+  const { latitude, longitude } = useGeolocation();
   const launchParams = retrieveLaunchParams();
   const telegramUser = (launchParams?.initDataUnsafe as any)?.user;
 
