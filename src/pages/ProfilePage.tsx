@@ -372,17 +372,24 @@ export function ProfilePage() {
             {isEditing ? (
               <div style={{ display: "flex", gap: 12 }}>
                 <Button
+                  mode="filled"
                   size="l"
-                  stretched
                   onClick={handleSave}
                   disabled={isSaving || !editData.nickname.trim()}
-                  before={isSaving ? null : <Save size={20} />}
+                  style={{ flex: 1 }}
                 >
-                  {isSaving ? "Saving..." : "Save Changes"}
+                  {isSaving ? (
+                    "Saving..."
+                  ) : (
+                    <>
+                      <Save size={16} style={{ marginRight: 8 }} />
+                      Save Changes
+                    </>
+                  )}
                 </Button>
                 <Button
-                  size="l"
                   mode="outline"
+                  size="l"
                   onClick={handleCancel}
                   disabled={isSaving}
                 >
@@ -390,7 +397,12 @@ export function ProfilePage() {
                 </Button>
               </div>
             ) : (
-              <Button size="l" stretched onClick={() => setIsEditing(true)}>
+              <Button
+                mode="filled"
+                size="l"
+                onClick={() => setIsEditing(true)}
+                style={{ width: "100%" }}
+              >
                 Edit Profile
               </Button>
             )}

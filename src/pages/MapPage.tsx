@@ -7,16 +7,20 @@ import {
   Popup,
   useMapEvents,
 } from "react-leaflet";
-import { MapPin, Heart, HeartOff, Plus, User, Navigation2 } from "lucide-react";
+import {
+  MapPin,
+  Heart,
+  HeartOff,
+  Plus,
+  User,
+  Navigation2,
+  X,
+} from "lucide-react";
 import {
   Button,
-  Cell,
-  Section,
-  List,
   Caption,
   Subheadline,
   Title,
-  IconButton,
 } from "@telegram-apps/telegram-ui";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { retrieveLaunchParams } from "@telegram-apps/sdk-react";
@@ -121,6 +125,10 @@ export function MapPage() {
   const launchParams = retrieveLaunchParams();
   const telegramUser = (launchParams?.initDataUnsafe as any)?.user;
 
+  // Debug user data
+  console.log("Launch params:", launchParams);
+  console.log("Telegram user:", telegramUser);
+
   const mapCenter = {
     lat: latitude || 40.7128,
     lng: longitude || -74.006,
@@ -174,7 +182,26 @@ export function MapPage() {
   };
 
   const handleAddLocation = async () => {
-    if (!telegramUser || !addLocationData.name.trim()) return;
+    console.log("Add location button clicked!", {
+      telegramUser,
+      name: addLocationData.name,
+      data: addLocationData,
+    });
+
+    // Create a fallback user for development/testing
+    const effectiveUser = telegramUser || {
+      id: 123456789,
+      first_name: "Test",
+      last_name: "User",
+      username: "testuser",
+    };
+
+    if (!addLocationData.name.trim()) {
+      console.log("Validation failed - no name provided");
+      return;
+    }
+
+    console.log("Using effective user:", effectiveUser);
 
     setIsSubmitting(true);
     try {
@@ -185,7 +212,7 @@ export function MapPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          telegramId: telegramUser.id.toString(),
+          telegramId: effectiveUser.id.toString(),
           name: addLocationData.name,
           description: addLocationData.description,
           latitude: addLocationData.lat,
@@ -258,8 +285,6 @@ export function MapPage() {
     }
   };
 
-  const displayedLocations =
-    activeTab === "explore" ? locations : favoriteLocations;
 
   if (isLoading) {
     return (
@@ -275,360 +300,624 @@ export function MapPage() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-white dark:bg-gray-900">
-      {/* Top Header with Tabs */}
-      <div className="flex-none bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm">
-        <div className="flex items-center justify-between p-4">
-          <div className="flex space-x-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+    <>
+      <style>
+        {`
+          @keyframes slideUp {
+            from {
+              transform: translateY(100%);
+            }
+            to {
+              transform: translateY(0);
+            }
+          }
+        `}
+      </style>
+      <div
+        style={{
+          height: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          backgroundColor: "var(--tg-color-bg)",
+        }}
+      >
+        {/* Top Header with Tabs */}
+        <div className="flex-none bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+          <div className="flex items-center justify-between p-4">
+            <div className="flex space-x-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+              <Button
+                size="s"
+                mode={activeTab === "explore" ? "filled" : "outline"}
+                onClick={() => setActiveTab("explore")}
+              >
+                <MapPin size={16} style={{ marginRight: 8 }} />
+                Explore
+              </Button>
+              <Button
+                size="s"
+                mode={activeTab === "favorites" ? "filled" : "outline"}
+                onClick={() => setActiveTab("favorites")}
+              >
+                <Heart size={16} style={{ marginRight: 8 }} />
+                Favorites
+              </Button>
+            </div>
+
             <button
-              onClick={() => setActiveTab("explore")}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                activeTab === "explore"
-                  ? "bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm"
-                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-              }`}
+              onClick={() => navigate("/profile")}
+              style={{
+                background: "none",
+                border: "1px solid var(--tg-color-separator)",
+                borderRadius: "50%",
+                width: 40,
+                height: 40,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                color: "var(--tg-color-text-secondary)",
+              }}
             >
-              <MapPin className="w-4 h-4 inline mr-2" />
-              Explore
-            </button>
-            <button
-              onClick={() => setActiveTab("favorites")}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                activeTab === "favorites"
-                  ? "bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 shadow-sm"
-                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-              }`}
-            >
-              <Heart className="w-4 h-4 inline mr-2" />
-              Favorites
+              <User size={16} />
             </button>
           </div>
-
-          <Button
-            onClick={() => navigate("/profile")}
-            mode="outline"
-            size="s"
-            className="rounded-full w-10 h-10 p-0"
-          >
-            <User className="h-4 w-4" />
-          </Button>
         </div>
-      </div>
 
-      {/* Fullscreen Map */}
-      <div className="flex-1 relative">
-        <LeafletMapContainer
-          center={[mapCenter.lat, mapCenter.lng]}
-          zoom={13}
-          style={{ height: "100%", width: "100%" }}
-          zoomControl={true}
-          scrollWheelZoom={true}
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-
-          {activeTab === "explore" && (
-            <MapClickHandler onLocationSelect={handleMapClick} />
-          )}
-
-          {/* User location marker */}
-          {latitude && longitude && (
-            <Marker position={[latitude, longitude]}>
-              <Popup>
-                <div className="text-center">
-                  <Navigation2 className="w-4 h-4 inline text-blue-600 mr-1" />
-                  <span className="font-medium">Your Location</span>
-                </div>
-              </Popup>
-            </Marker>
-          )}
-
-          {/* Location markers */}
-          {displayedLocations.map((location) => {
-            const isFavorited = favoriteLocations.some(
-              (fav) => fav.id === location.id
-            );
-            return (
-              <Marker
-                key={location.id}
-                position={[location.latitude, location.longitude]}
-                icon={createCustomIcon(location.category, isFavorited)}
+        {/* Content Area */}
+        <div className="flex-1 relative">
+          {activeTab === "explore" ? (
+            // Map View for Explore Tab
+            <>
+              <LeafletMapContainer
+                center={[mapCenter.lat, mapCenter.lng]}
+                zoom={13}
+                style={{ height: "100%", width: "100%" }}
+                zoomControl={true}
+                scrollWheelZoom={true}
               >
-                <Popup>
-                  <div className="min-w-[200px] p-2">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <h3 className="font-medium text-gray-900 dark:text-white text-sm">
-                        {location.name}
-                      </h3>
-                      <Button
-                        onClick={() => toggleFavorite(location.id)}
-                        mode="outline"
-                        size="s"
-                        className="p-1 h-6 w-6"
-                      >
-                        {isFavorited ? (
-                          <Heart className="h-3 w-3 text-red-500 fill-current" />
-                        ) : (
-                          <HeartOff className="h-3 w-3 text-gray-400" />
-                        )}
-                      </Button>
-                    </div>
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
 
-                    {location.description && (
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-                        {location.description}
+                <MapClickHandler onLocationSelect={handleMapClick} />
+
+                {/* User location marker */}
+                {latitude && longitude && (
+                  <Marker position={[latitude, longitude]}>
+                    <Popup>
+                      <div className="text-center">
+                        <Navigation2 className="w-4 h-4 inline text-blue-600 mr-1" />
+                        <span className="font-medium">Your Location</span>
+                      </div>
+                    </Popup>
+                  </Marker>
+                )}
+
+                {/* Location markers */}
+                {locations.map((location) => {
+                  const isFavorited = favoriteLocations.some(
+                    (fav) => fav.id === location.id
+                  );
+                  return (
+                    <Marker
+                      key={location.id}
+                      position={[location.latitude, location.longitude]}
+                      icon={createCustomIcon(location.category, isFavorited)}
+                    >
+                      <Popup>
+                        <div className="min-w-[200px] p-2">
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <h3 className="font-medium text-gray-900 dark:text-white text-sm">
+                              {location.name}
+                            </h3>
+                            <Button
+                              onClick={() => toggleFavorite(location.id)}
+                              mode="outline"
+                              size="s"
+                              className="p-1 h-6 w-6"
+                            >
+                              {isFavorited ? (
+                                <Heart className="h-3 w-3 text-red-500 fill-current" />
+                              ) : (
+                                <HeartOff className="h-3 w-3 text-gray-400" />
+                              )}
+                            </Button>
+                          </div>
+
+                          {location.description && (
+                            <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                              {location.description}
+                            </p>
+                          )}
+
+                          <div className="flex items-center gap-2 text-xs">
+                            <span
+                              className={`px-2 py-1 rounded-full ${
+                                location.category === "grocery"
+                                  ? "bg-green-100 text-green-700"
+                                  : location.category === "restaurant-bar"
+                                  ? "bg-orange-100 text-orange-700"
+                                  : "bg-purple-100 text-purple-700"
+                              }`}
+                            >
+                              {location.category.replace("-", " ")}
+                            </span>
+                            <span className="text-gray-500">{location.type}</span>
+                          </div>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  );
+                })}
+
+                {/* Pending location marker */}
+                {pendingLocation && (
+                  <Marker position={[pendingLocation.lat, pendingLocation.lng]}>
+                    <Popup>
+                      <div className="text-center">
+                        <Plus className="w-4 h-4 inline text-green-600 mr-1" />
+                        <span className="font-medium">New Location</span>
+                      </div>
+                    </Popup>
+                  </Marker>
+                )}
+              </LeafletMapContainer>
+
+              {/* Instructions overlay for explore mode */}
+              {!showAddLocationModal && (
+                <div className="absolute top-4 left-4 right-4 z-10 pointer-events-none">
+                  <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-xl p-4 border border-gray-200 dark:border-gray-700 shadow-lg">
+                    <div className="flex items-center gap-3">
+                      <Plus className="h-5 w-5 text-green-600 dark:text-green-400" />
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                        Tap anywhere on the map to add a location
                       </p>
-                    )}
-
-                    <div className="flex items-center gap-2 text-xs">
-                      <span
-                        className={`px-2 py-1 rounded-full ${
-                          location.category === "grocery"
-                            ? "bg-green-100 text-green-700"
-                            : location.category === "restaurant-bar"
-                            ? "bg-orange-100 text-orange-700"
-                            : "bg-purple-100 text-purple-700"
-                        }`}
-                      >
-                        {location.category.replace("-", " ")}
-                      </span>
-                      <span className="text-gray-500">{location.type}</span>
                     </div>
                   </div>
-                </Popup>
-              </Marker>
-            );
-          })}
-
-          {/* Pending location marker */}
-          {pendingLocation && (
-            <Marker position={[pendingLocation.lat, pendingLocation.lng]}>
-              <Popup>
-                <div className="text-center">
-                  <Plus className="w-4 h-4 inline text-green-600 mr-1" />
-                  <span className="font-medium">New Location</span>
                 </div>
-              </Popup>
-            </Marker>
-          )}
-        </LeafletMapContainer>
+              )}
+            </>
+          ) : (
+            // List View for Favorites Tab
+            <div style={{ 
+              height: "100%", 
+              backgroundColor: "var(--tg-color-bg)", 
+              overflow: "auto" 
+            }}>
+              {favoriteLocations.length === 0 ? (
+                <div style={{
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "2rem"
+                }}>
+                  <div style={{ textAlign: "center" }}>
+                    <Heart 
+                      size={48} 
+                      style={{ 
+                        color: "var(--tg-color-hint-color)", 
+                        margin: "0 auto 1rem auto", 
+                        display: "block" 
+                      }} 
+                    />
+                    <Title level="2" style={{ marginBottom: "0.5rem" }}>
+                      No Favorites Yet
+                    </Title>
+                    <Caption>
+                      Explore locations and add them to your favorites to see them here.
+                    </Caption>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ padding: "1rem" }}>
+                  <Title level="2" style={{ marginBottom: "1rem", padding: "0 0.5rem" }}>
+                    Your Favorites ({favoriteLocations.length})
+                  </Title>
+                  
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                    {favoriteLocations.map((location) => {
+                      const getCategoryColor = (category: string) => {
+                        switch (category) {
+                          case 'grocery': return '#22c55e';
+                          case 'restaurant-bar': return '#f59e0b';
+                          default: return '#6366f1';
+                        }
+                      };
 
-        {/* Instructions overlay for explore mode */}
-        {activeTab === "explore" && !showAddLocationModal && (
-          <div className="absolute top-4 left-4 right-4 z-10 pointer-events-none">
-            <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-xl p-4 border border-gray-200 dark:border-gray-700 shadow-lg">
-              <div className="flex items-center gap-3">
-                <Plus className="h-5 w-5 text-green-600 dark:text-green-400" />
-                <p className="text-sm font-medium text-gray-900 dark:text-white">
-                  Tap anywhere on the map to add a location
-                </p>
+                      const getCategoryIcon = (category: string) => {
+                        switch (category) {
+                          case 'grocery': return '🛒';
+                          case 'restaurant-bar': return '🍽️';
+                          default: return '🏪';
+                        }
+                      };
+
+                      return (
+                        <div
+                          key={location.id}
+                          style={{
+                            backgroundColor: "var(--tg-color-bg-secondary)",
+                            borderRadius: "12px",
+                            padding: "1rem",
+                            border: "1px solid var(--tg-color-separator)"
+                          }}
+                        >
+                          <div style={{ 
+                            display: "flex", 
+                            alignItems: "flex-start", 
+                            gap: "0.75rem" 
+                          }}>
+                            <div style={{
+                              backgroundColor: getCategoryColor(location.category),
+                              borderRadius: "8px",
+                              padding: "8px",
+                              minWidth: "40px",
+                              height: "40px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: "18px"
+                            }}>
+                              {getCategoryIcon(location.category)}
+                            </div>
+                            
+                            <div style={{ flex: 1 }}>
+                              <div style={{ 
+                                display: "flex", 
+                                alignItems: "flex-start", 
+                                justifyContent: "space-between",
+                                marginBottom: "0.5rem"
+                              }}>
+                                <Subheadline style={{ fontWeight: "600" }}>
+                                  {location.name}
+                                </Subheadline>
+                                
+                                <Button
+                                  onClick={() => toggleFavorite(location.id)}
+                                  mode="plain"
+                                  size="s"
+                                  style={{ padding: "4px", minWidth: "unset" }}
+                                >
+                                  <Heart 
+                                    size={16} 
+                                    style={{ color: "#ef4444" }} 
+                                    fill="currentColor" 
+                                  />
+                                </Button>
+                              </div>
+                              
+                              {location.description && (
+                                <Caption style={{ 
+                                  marginBottom: "0.5rem",
+                                  display: "block"
+                                }}>
+                                  {location.description}
+                                </Caption>
+                              )}
+                              
+                              <div style={{ 
+                                display: "flex", 
+                                alignItems: "center", 
+                                gap: "0.5rem",
+                                flexWrap: "wrap"
+                              }}>
+                                <span style={{
+                                  backgroundColor: getCategoryColor(location.category),
+                                  color: "white",
+                                  fontSize: "12px",
+                                  padding: "2px 8px",
+                                  borderRadius: "6px",
+                                  fontWeight: "500"
+                                }}>
+                                  {location.category.replace("-", " ")}
+                                </span>
+                                
+                                <span style={{
+                                  backgroundColor: "var(--tg-color-separator)",
+                                  color: "var(--tg-color-text-secondary)",
+                                  fontSize: "12px",
+                                  padding: "2px 8px",
+                                  borderRadius: "6px"
+                                }}>
+                                  {location.type}
+                                </span>
+                                
+                                <Caption style={{ 
+                                  fontSize: "12px",
+                                  color: "var(--tg-color-hint-color)"
+                                }}>
+                                  {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}
+                                </Caption>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Add Location Modal */}
+        {showAddLocationModal && (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              backgroundColor: "rgba(15, 23, 42, 0.95)",
+              display: "flex",
+              alignItems: "flex-end",
+              zIndex: 50,
+            }}
+          >
+            <div
+              style={{
+                width: "100%",
+                backgroundColor: "#334155",
+                borderTopLeftRadius: 20,
+                borderTopRightRadius: 20,
+                maxHeight: "85vh",
+                overflow: "auto",
+                boxShadow: "0 -10px 30px rgba(0, 0, 0, 0.5)",
+                animation: "slideUp 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+                transform: "translateY(0)",
+              }}
+            >
+              <div
+                style={{
+                  backgroundColor: "#334155",
+                  borderTopLeftRadius: 20,
+                  borderTopRightRadius: 20,
+                  position: "relative",
+                }}
+              >
+                {/* Modal Handle */}
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    padding: "12px 0 8px 0",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 36,
+                      height: 4,
+                      backgroundColor: "#64748b",
+                      borderRadius: 2,
+                    }}
+                  />
+                </div>
+
+                <div style={{ padding: "0 24px 24px 24px" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      marginBottom: 24,
+                    }}
+                  >
+                    <Title level="1" style={{ color: "#f1f5f9" }}>Add Location</Title>
+                    <button
+                      onClick={() => {
+                        setShowAddLocationModal(false);
+                        setPendingLocation(null);
+                      }}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: "8px",
+                        borderRadius: "50%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#cbd5e1",
+                      }}
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 16,
+                    }}
+                  >
+                    <div>
+                      <Subheadline style={{ marginBottom: 8, color: "#e2e8f0" }}>
+                        Location Name *
+                      </Subheadline>
+                      <input
+                        type="text"
+                        value={addLocationData.name}
+                        onChange={(e) =>
+                          setAddLocationData((prev) => ({
+                            ...prev,
+                            name: e.target.value,
+                          }))
+                        }
+                        placeholder="Enter location name"
+                        autoFocus
+                        style={{
+                          width: "100%",
+                          padding: "12px 16px",
+                          border: "1px solid #475569",
+                          borderRadius: "12px",
+                          backgroundColor: "#475569",
+                          color: "#f1f5f9",
+                          fontSize: "16px",
+                          outline: "none",
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <Subheadline style={{ marginBottom: 8, color: "#e2e8f0" }}>
+                        Description
+                      </Subheadline>
+                      <textarea
+                        value={addLocationData.description}
+                        onChange={(e) =>
+                          setAddLocationData((prev) => ({
+                            ...prev,
+                            description: e.target.value,
+                          }))
+                        }
+                        placeholder="Describe this location"
+                        rows={3}
+                        style={{
+                          width: "100%",
+                          padding: "12px 16px",
+                          border: "1px solid #475569",
+                          borderRadius: "12px",
+                          backgroundColor: "#475569",
+                          color: "#f1f5f9",
+                          fontSize: "16px",
+                          outline: "none",
+                          resize: "none",
+                          fontFamily: "inherit",
+                        }}
+                      />
+                    </div>
+
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: 16,
+                      }}
+                    >
+                      <div>
+                        <Subheadline style={{ marginBottom: 8, color: "#e2e8f0" }}>
+                          Category
+                        </Subheadline>
+                        <select
+                          value={addLocationData.category}
+                          onChange={(e) =>
+                            setAddLocationData((prev) => ({
+                              ...prev,
+                              category: e.target.value as any,
+                            }))
+                          }
+                          style={{
+                            width: "100%",
+                            padding: "12px 16px",
+                            border: "1px solid #475569",
+                            borderRadius: "12px",
+                            backgroundColor: "#475569",
+                            color: "#f1f5f9",
+                            fontSize: "16px",
+                            outline: "none",
+                          }}
+                        >
+                          <option value="grocery">Grocery</option>
+                          <option value="restaurant-bar">Restaurant/Bar</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <Subheadline style={{ marginBottom: 8, color: "#e2e8f0" }}>
+                          Type
+                        </Subheadline>
+                        <select
+                          value={addLocationData.type}
+                          onChange={(e) =>
+                            setAddLocationData((prev) => ({
+                              ...prev,
+                              type: e.target.value as any,
+                            }))
+                          }
+                          style={{
+                            width: "100%",
+                            padding: "12px 16px",
+                            border: "1px solid #475569",
+                            borderRadius: "12px",
+                            backgroundColor: "#475569",
+                            color: "#f1f5f9",
+                            fontSize: "16px",
+                            outline: "none",
+                          }}
+                        >
+                          <option value="permanent">Permanent</option>
+                          <option value="temporary">Temporary</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        padding: 16,
+                        backgroundColor: "#475569",
+                        borderRadius: 12,
+                        border: "1px solid #64748b",
+                      }}
+                    >
+                      <Caption style={{ fontWeight: 600, marginBottom: 4, color: "#e2e8f0" }}>
+                        Coordinates:
+                      </Caption>
+                      <Caption style={{ color: "#cbd5e1" }}>
+                        {addLocationData.lat.toFixed(6)},{" "}
+                        {addLocationData.lng.toFixed(6)}
+                      </Caption>
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: 24 }}>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log("Button clicked! Event details:", e);
+                        handleAddLocation();
+                      }}
+                      disabled={!addLocationData.name.trim() || isSubmitting}
+                      style={{
+                        width: "100%",
+                        padding: "16px 24px",
+                        backgroundColor: isSubmitting
+                          ? "#64748b"
+                          : "#3b82f6",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "12px",
+                        fontSize: "16px",
+                        fontWeight: "600",
+                        cursor: isSubmitting ? "not-allowed" : "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        opacity: isSubmitting ? 0.6 : 1,
+                        transition: "all 0.2s ease",
+                      }}
+                    >
+                      {isSubmitting ? (
+                        "Adding Location..."
+                      ) : (
+                        <>
+                          <Plus size={16} />
+                          Add Location
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         )}
       </div>
-
-      {/* Add Location Modal */}
-      {showAddLocationModal && (
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            display: "flex",
-            alignItems: "flex-end",
-            zIndex: 50,
-          }}
-        >
-          <div
-            style={{
-              width: "100%",
-              backgroundColor: "var(--tg-color-bg)",
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
-              maxHeight: "80vh",
-              overflow: "auto",
-            }}
-          >
-            <Section style={{ padding: 24 }}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  marginBottom: 24,
-                }}
-              >
-                <Title level="1">Add Location</Title>
-                <IconButton
-                  mode="outline"
-                  size="s"
-                  onClick={() => {
-                    setShowAddLocationModal(false);
-                    setPendingLocation(null);
-                  }}
-                >
-                  ×
-                </IconButton>
-              </div>
-
-              <List style={{ background: "transparent" }}>
-                <Cell
-                  Component="label"
-                  multiline
-                  subtitle={
-                    <input
-                      type="text"
-                      value={addLocationData.name}
-                      onChange={(e) =>
-                        setAddLocationData((prev) => ({
-                          ...prev,
-                          name: e.target.value,
-                        }))
-                      }
-                      placeholder="Enter location name"
-                      style={{
-                        width: "100%",
-                        padding: 12,
-                        border: "1px solid var(--tg-color-separator)",
-                        borderRadius: 8,
-                        backgroundColor: "var(--tg-color-bg-secondary)",
-                        color: "var(--tg-color-text)",
-                        fontSize: 16,
-                      }}
-                      autoFocus
-                    />
-                  }
-                >
-                  <Subheadline>Location Name *</Subheadline>
-                </Cell>
-
-                <Cell
-                  Component="label"
-                  multiline
-                  subtitle={
-                    <textarea
-                      value={addLocationData.description}
-                      onChange={(e) =>
-                        setAddLocationData((prev) => ({
-                          ...prev,
-                          description: e.target.value,
-                        }))
-                      }
-                      placeholder="Describe this location"
-                      rows={3}
-                      style={{
-                        width: "100%",
-                        padding: 12,
-                        border: "1px solid var(--tg-color-separator)",
-                        borderRadius: 8,
-                        backgroundColor: "var(--tg-color-bg-secondary)",
-                        color: "var(--tg-color-text)",
-                        fontSize: 16,
-                        resize: "none",
-                      }}
-                    />
-                  }
-                >
-                  <Subheadline>Description</Subheadline>
-                </Cell>
-
-                <Cell
-                  Component="label"
-                  multiline
-                  subtitle={
-                    <select
-                      value={addLocationData.category}
-                      onChange={(e) =>
-                        setAddLocationData((prev) => ({
-                          ...prev,
-                          category: e.target.value as any,
-                        }))
-                      }
-                      style={{
-                        width: "100%",
-                        padding: 12,
-                        border: "1px solid var(--tg-color-separator)",
-                        borderRadius: 8,
-                        backgroundColor: "var(--tg-color-bg-secondary)",
-                        color: "var(--tg-color-text)",
-                        fontSize: 16,
-                      }}
-                    >
-                      <option value="grocery">Grocery</option>
-                      <option value="restaurant-bar">Restaurant/Bar</option>
-                      <option value="other">Other</option>
-                    </select>
-                  }
-                >
-                  <Subheadline>Category</Subheadline>
-                </Cell>
-
-                <Cell
-                  Component="label"
-                  multiline
-                  subtitle={
-                    <select
-                      value={addLocationData.type}
-                      onChange={(e) =>
-                        setAddLocationData((prev) => ({
-                          ...prev,
-                          type: e.target.value as any,
-                        }))
-                      }
-                      style={{
-                        width: "100%",
-                        padding: 12,
-                        border: "1px solid var(--tg-color-separator)",
-                        borderRadius: 8,
-                        backgroundColor: "var(--tg-color-bg-secondary)",
-                        color: "var(--tg-color-text)",
-                        fontSize: 16,
-                      }}
-                    >
-                      <option value="permanent">Permanent</option>
-                      <option value="temporary">Temporary</option>
-                    </select>
-                  }
-                >
-                  <Subheadline>Type</Subheadline>
-                </Cell>
-
-                <Cell>
-                  <div
-                    style={{
-                      padding: 12,
-                      backgroundColor: "var(--tg-color-bg-secondary)",
-                      borderRadius: 8,
-                      border: "1px solid var(--tg-color-separator)",
-                    }}
-                  >
-                    <Caption style={{ fontWeight: 600 }}>Coordinates:</Caption>
-                    <Caption>
-                      {addLocationData.lat.toFixed(6)},{" "}
-                      {addLocationData.lng.toFixed(6)}
-                    </Caption>
-                  </div>
-                </Cell>
-              </List>
-
-              <div style={{ marginTop: 24 }}>
-                <Button
-                  size="l"
-                  stretched
-                  onClick={handleAddLocation}
-                  disabled={!addLocationData.name.trim() || isSubmitting}
-                  before={isSubmitting ? null : <Plus size={20} />}
-                >
-                  {isSubmitting ? "Adding Location..." : "Add Location"}
-                </Button>
-              </div>
-            </Section>
-          </div>
-        </div>
-      )}
-    </div>
+    </>
   );
 }
