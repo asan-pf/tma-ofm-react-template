@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { User, Camera, Save, X, MapPin } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import { initDataState, useSignal } from '@telegram-apps/sdk-react';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { User, Camera, Save, X, MapPin } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { retrieveLaunchParams } from "@telegram-apps/sdk-react";
 
 interface UserProfile {
   id: number;
@@ -19,8 +19,8 @@ export function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editData, setEditData] = useState({
-    nickname: '',
-    avatar_url: ''
+    nickname: "",
+    avatar_url: "",
   });
 
   const navigate = useNavigate();
@@ -37,63 +37,45 @@ export function ProfilePage() {
     if (!telegramUser) return;
 
     try {
+      const BACKEND_URL =
+        import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+
       let profileData;
       try {
-        const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
-        const response = await fetch(`${BACKEND_URL}/api/users/${telegramUser.id}`);
+        const response = await fetch(
+          `${BACKEND_URL}/api/users/${telegramUser.id}`
+        );
         if (response.ok) {
           profileData = await response.json();
         } else {
-          throw new Error('User not found');
+          throw new Error("User not found");
         }
       } catch (error) {
-        console.error('Error loading user profile:', error);
+        console.error("Error loading user profile:", error);
         // Create new user if not found
-        try {
-          const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
-          const createResponse = await fetch(`${BACKEND_URL}/api/users`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              telegramId: telegramUser.id.toString(),
-              nickname: telegramUser.username || `${telegramUser.first_name} ${telegramUser.last_name || ''}`.trim(),
-              avatarUrl: null
-            })
-          });
-          if (createResponse.ok) {
-            profileData = await createResponse.json();
-          } else {
-            // If user creation also fails, create a fallback profile
-            profileData = {
-              id: 0,
-              telegram_id: telegramUser.id.toString(),
-              nickname: telegramUser.username || `${telegramUser.first_name} ${telegramUser.last_name || ''}`.trim(),
-              avatar_url: null,
-              role: 'user',
-              created_at: new Date().toISOString()
-            };
-          }
-        } catch (createError) {
-          console.error('Error creating user profile:', createError);
-          // Fallback profile when both load and create fail
-          profileData = {
-            id: 0,
-            telegram_id: telegramUser.id.toString(),
-            nickname: telegramUser.username || `${telegramUser.first_name} ${telegramUser.last_name || ''}`.trim(),
-            avatar_url: null,
-            role: 'user',
-            created_at: new Date().toISOString()
-          };
-        }
+        const createResponse = await fetch(`${BACKEND_URL}/api/users`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            telegramId: telegramUser.id.toString(),
+            nickname:
+              telegramUser.username ||
+              `${telegramUser.first_name} ${
+                telegramUser.last_name || ""
+              }`.trim(),
+            avatarUrl: null,
+          }),
+        });
+        profileData = await createResponse.json();
       }
 
       setProfile(profileData);
       setEditData({
         nickname: profileData.nickname,
-        avatar_url: profileData.avatar_url || ''
+        avatar_url: profileData.avatar_url || "",
       });
     } catch (error) {
-      console.error('Error loading profile:', error);
+      console.error("Error loading profile:", error);
     } finally {
       setIsLoading(false);
     }
@@ -104,46 +86,31 @@ export function ProfilePage() {
 
     setIsSaving(true);
     try {
-      // If profile has id 0 (fallback profile), just update local state
-      if (profile.id === 0) {
-        const updatedProfile = {
-          ...profile,
-          nickname: editData.nickname,
-          avatar_url: editData.avatar_url || null
-        };
-        setProfile(updatedProfile);
-        setIsEditing(false);
-        return;
-      }
+      const BACKEND_URL =
+        import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
 
-      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
-      const response = await fetch(`${BACKEND_URL}/api/users/update/${profile.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nickname: editData.nickname,
-          avatarUrl: editData.avatar_url || undefined
-        })
-      });
+      const response = await fetch(
+        `${BACKEND_URL}/api/users/update/${profile.id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            nickname: editData.nickname,
+            avatarUrl: editData.avatar_url || null,
+          }),
+        }
+      );
 
       if (!response.ok) {
-        throw new Error('Failed to update profile');
+        throw new Error("Failed to update profile");
       }
 
       const updatedProfile = await response.json();
       setProfile(updatedProfile);
       setIsEditing(false);
     } catch (error) {
-      console.error('Error updating profile:', error);
-      // For fallback profiles or API errors, just update locally
-      const updatedProfile = {
-        ...profile,
-        nickname: editData.nickname,
-        avatar_url: editData.avatar_url || null
-      };
-      setProfile(updatedProfile);
-      setIsEditing(false);
-      alert('Profile updated locally. Changes may not be saved to server.');
+      console.error("Error updating profile:", error);
+      alert("Failed to update profile. Please try again.");
     } finally {
       setIsSaving(false);
     }
@@ -151,8 +118,8 @@ export function ProfilePage() {
 
   const handleCancel = () => {
     setEditData({
-      nickname: profile?.nickname || '',
-      avatar_url: profile?.avatar_url || ''
+      nickname: profile?.nickname || "",
+      avatar_url: profile?.avatar_url || "",
     });
     setIsEditing(false);
   };
@@ -165,7 +132,9 @@ export function ProfilePage() {
             <div className="w-16 h-16 mx-auto bg-blue-100 dark:bg-blue-900/40 rounded-full flex items-center justify-center mb-4">
               <User className="h-8 w-8 text-blue-600 dark:text-blue-400 animate-pulse" />
             </div>
-            <p className="text-gray-600 dark:text-gray-400">Loading profile...</p>
+            <p className="text-gray-600 dark:text-gray-400">
+              Loading profile...
+            </p>
           </div>
         </div>
       </div>
@@ -180,8 +149,14 @@ export function ProfilePage() {
             <div className="w-16 h-16 mx-auto bg-red-100 dark:bg-red-900/40 rounded-full flex items-center justify-center mb-4">
               <X className="h-8 w-8 text-red-600 dark:text-red-400" />
             </div>
-            <p className="text-gray-600 dark:text-gray-400">Failed to load profile</p>
-            <Button onClick={() => navigate('/')} variant="outline" className="mt-4">
+            <p className="text-gray-600 dark:text-gray-400">
+              Failed to load profile
+            </p>
+            <Button
+              onClick={() => navigate("/")}
+              variant="outline"
+              className="mt-4"
+            >
               Back to Map
             </Button>
           </div>
@@ -208,11 +183,7 @@ export function ProfilePage() {
               </p>
             </div>
           </div>
-          <Button 
-            onClick={() => navigate('/')} 
-            variant="outline" 
-            size="sm"
-          >
+          <Button onClick={() => navigate("/")} variant="outline" size="sm">
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -226,27 +197,63 @@ export function ProfilePage() {
             {/* Avatar Section */}
             <div className="text-center">
               <div className="relative inline-block">
-                <div className="w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/40 dark:to-purple-900/40 flex items-center justify-center">
-                  {(editData.avatar_url || profile.avatar_url) ? (
+                <div className="w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/40 dark:to-purple-900/40 flex items-center justify-center border-4 border-white dark:border-gray-700 shadow-xl">
+                  {editData.avatar_url ||
+                  profile.avatar_url ||
+                  telegramUser?.photo_url ? (
                     <img
-                      src={editData.avatar_url || profile.avatar_url || undefined}
-                      alt="Profile"
+                      src={
+                        editData.avatar_url ||
+                        profile.avatar_url ||
+                        telegramUser?.photo_url ||
+                        ""
+                      }
+                      alt={
+                        profile.nickname ||
+                        telegramUser?.first_name ||
+                        "Profile"
+                      }
                       className="w-full h-full object-cover"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
+                        const img = e.target as HTMLImageElement;
+                        img.style.display = "none";
+                        img.nextElementSibling?.classList.remove("hidden");
                       }}
                     />
-                  ) : (
+                  ) : null}
+                  <div
+                    className={`${
+                      editData.avatar_url ||
+                      profile.avatar_url ||
+                      telegramUser?.photo_url
+                        ? "hidden"
+                        : ""
+                    } flex items-center justify-center w-full h-full`}
+                  >
                     <User className="h-12 w-12 text-blue-600 dark:text-blue-400" />
-                  )}
+                  </div>
                 </div>
                 {isEditing && (
-                  <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                  <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center shadow-lg">
                     <Camera className="h-4 w-4 text-white" />
                   </div>
                 )}
               </div>
-              
+
+              {/* Display name under avatar */}
+              {!isEditing && (
+                <div className="mt-4">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                    {profile.nickname}
+                  </h2>
+                  {telegramUser?.username && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      @{telegramUser.username}
+                    </p>
+                  )}
+                </div>
+              )}
+
               {isEditing && (
                 <div className="mt-4">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -255,7 +262,12 @@ export function ProfilePage() {
                   <input
                     type="url"
                     value={editData.avatar_url}
-                    onChange={(e) => setEditData(prev => ({ ...prev, avatar_url: e.target.value }))}
+                    onChange={(e) =>
+                      setEditData((prev) => ({
+                        ...prev,
+                        avatar_url: e.target.value,
+                      }))
+                    }
                     placeholder="https://example.com/avatar.jpg"
                     className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
                   />
@@ -273,7 +285,12 @@ export function ProfilePage() {
                   <input
                     type="text"
                     value={editData.nickname}
-                    onChange={(e) => setEditData(prev => ({ ...prev, nickname: e.target.value }))}
+                    onChange={(e) =>
+                      setEditData((prev) => ({
+                        ...prev,
+                        nickname: e.target.value,
+                      }))
+                    }
                     className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
                 ) : (
@@ -365,15 +382,23 @@ export function ProfilePage() {
               Your Activity
             </h2>
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4">
             <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-2xl">
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">0</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">Locations Added</div>
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                {/* This would be loaded from API */}0
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Locations Added
+              </div>
             </div>
-            <div className="text-center p-4 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-2xl">
-              <div className="text-2xl font-bold text-green-600 dark:text-green-400">0</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">Reviews Given</div>
+            <div className="text-center p-4 bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 rounded-2xl">
+              <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+                {/* This would be loaded from API */}0
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Favorites
+              </div>
             </div>
           </div>
         </div>
