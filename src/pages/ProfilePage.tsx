@@ -344,7 +344,11 @@ export function ProfilePage() {
 
             <Cell
               subtitle={
-                <Badge mode="secondary" style={{ textTransform: "capitalize" }}>
+                <Badge
+                  type="number"
+                  mode="secondary"
+                  style={{ textTransform: "capitalize" }}
+                >
                   {profile.role}
                 </Badge>
               }
@@ -405,7 +409,7 @@ export function ProfilePage() {
             }}
           >
             <Avatar
-              size={32}
+              size={28}
               style={{ backgroundColor: "var(--tg-color-accent)" }}
             >
               <MapPin size={16} />
