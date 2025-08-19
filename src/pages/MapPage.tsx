@@ -7,16 +7,17 @@ import {
   Popup,
   useMapEvents,
 } from "react-leaflet";
+import { MapPin, Heart, HeartOff, Plus, User, Navigation2 } from "lucide-react";
 import {
-  MapPin,
-  Heart,
-  HeartOff,
-  Plus,
-  User,
-  Star,
-  Navigation2,
-} from "lucide-react";
-import { Button } from "@/components/ui/Button";
+  Button,
+  Cell,
+  Section,
+  List,
+  Caption,
+  Subheadline,
+  Title,
+  IconButton,
+} from "@telegram-apps/telegram-ui";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { retrieveLaunchParams } from "@telegram-apps/sdk-react";
 import L from "leaflet";
@@ -305,8 +306,8 @@ export function MapPage() {
 
           <Button
             onClick={() => navigate("/profile")}
-            variant="outline"
-            size="sm"
+            mode="outline"
+            size="s"
             className="rounded-full w-10 h-10 p-0"
           >
             <User className="h-4 w-4" />
@@ -363,8 +364,8 @@ export function MapPage() {
                       </h3>
                       <Button
                         onClick={() => toggleFavorite(location.id)}
-                        variant="outline"
-                        size="sm"
+                        mode="outline"
+                        size="s"
                         className="p-1 h-6 w-6"
                       >
                         {isFavorited ? (
@@ -431,129 +432,200 @@ export function MapPage() {
 
       {/* Add Location Modal */}
       {showAddLocationModal && (
-        <div className="absolute inset-0 bg-black/50 flex items-end z-50">
-          <div className="w-full bg-white dark:bg-gray-800 rounded-t-3xl shadow-xl p-6 space-y-4 max-h-[80vh] overflow-y-auto">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                Add Location
-              </h2>
-              <Button
-                onClick={() => {
-                  setShowAddLocationModal(false);
-                  setPendingLocation(null);
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "flex-end",
+            zIndex: 50,
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              backgroundColor: "var(--tg-color-bg)",
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              maxHeight: "80vh",
+              overflow: "auto",
+            }}
+          >
+            <Section style={{ padding: 24 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 24,
                 }}
-                variant="outline"
-                size="sm"
               >
-                ×
-              </Button>
-            </div>
+                <Title level="1">Add Location</Title>
+                <IconButton
+                  mode="outline"
+                  size="s"
+                  onClick={() => {
+                    setShowAddLocationModal(false);
+                    setPendingLocation(null);
+                  }}
+                >
+                  ×
+                </IconButton>
+              </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Location Name *
-                </label>
-                <input
-                  type="text"
-                  value={addLocationData.name}
-                  onChange={(e) =>
-                    setAddLocationData((prev) => ({
-                      ...prev,
-                      name: e.target.value,
-                    }))
+              <List style={{ background: "transparent" }}>
+                <Cell
+                  Component="label"
+                  multiline
+                  subtitle={
+                    <input
+                      type="text"
+                      value={addLocationData.name}
+                      onChange={(e) =>
+                        setAddLocationData((prev) => ({
+                          ...prev,
+                          name: e.target.value,
+                        }))
+                      }
+                      placeholder="Enter location name"
+                      style={{
+                        width: "100%",
+                        padding: 12,
+                        border: "1px solid var(--tg-color-separator)",
+                        borderRadius: 8,
+                        backgroundColor: "var(--tg-color-bg-secondary)",
+                        color: "var(--tg-color-text)",
+                        fontSize: 16,
+                      }}
+                      autoFocus
+                    />
                   }
-                  placeholder="Enter location name"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  autoFocus
-                />
-              </div>
+                >
+                  <Subheadline>Location Name *</Subheadline>
+                </Cell>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Description
-                </label>
-                <textarea
-                  value={addLocationData.description}
-                  onChange={(e) =>
-                    setAddLocationData((prev) => ({
-                      ...prev,
-                      description: e.target.value,
-                    }))
+                <Cell
+                  Component="label"
+                  multiline
+                  subtitle={
+                    <textarea
+                      value={addLocationData.description}
+                      onChange={(e) =>
+                        setAddLocationData((prev) => ({
+                          ...prev,
+                          description: e.target.value,
+                        }))
+                      }
+                      placeholder="Describe this location"
+                      rows={3}
+                      style={{
+                        width: "100%",
+                        padding: 12,
+                        border: "1px solid var(--tg-color-separator)",
+                        borderRadius: 8,
+                        backgroundColor: "var(--tg-color-bg-secondary)",
+                        color: "var(--tg-color-text)",
+                        fontSize: 16,
+                        resize: "none",
+                      }}
+                    />
                   }
-                  placeholder="Describe this location"
-                  rows={3}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
-                />
-              </div>
+                >
+                  <Subheadline>Description</Subheadline>
+                </Cell>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Category
-                  </label>
-                  <select
-                    value={addLocationData.category}
-                    onChange={(e) =>
-                      setAddLocationData((prev) => ({
-                        ...prev,
-                        category: e.target.value as any,
-                      }))
-                    }
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                <Cell
+                  Component="label"
+                  multiline
+                  subtitle={
+                    <select
+                      value={addLocationData.category}
+                      onChange={(e) =>
+                        setAddLocationData((prev) => ({
+                          ...prev,
+                          category: e.target.value as any,
+                        }))
+                      }
+                      style={{
+                        width: "100%",
+                        padding: 12,
+                        border: "1px solid var(--tg-color-separator)",
+                        borderRadius: 8,
+                        backgroundColor: "var(--tg-color-bg-secondary)",
+                        color: "var(--tg-color-text)",
+                        fontSize: 16,
+                      }}
+                    >
+                      <option value="grocery">Grocery</option>
+                      <option value="restaurant-bar">Restaurant/Bar</option>
+                      <option value="other">Other</option>
+                    </select>
+                  }
+                >
+                  <Subheadline>Category</Subheadline>
+                </Cell>
+
+                <Cell
+                  Component="label"
+                  multiline
+                  subtitle={
+                    <select
+                      value={addLocationData.type}
+                      onChange={(e) =>
+                        setAddLocationData((prev) => ({
+                          ...prev,
+                          type: e.target.value as any,
+                        }))
+                      }
+                      style={{
+                        width: "100%",
+                        padding: 12,
+                        border: "1px solid var(--tg-color-separator)",
+                        borderRadius: 8,
+                        backgroundColor: "var(--tg-color-bg-secondary)",
+                        color: "var(--tg-color-text)",
+                        fontSize: 16,
+                      }}
+                    >
+                      <option value="permanent">Permanent</option>
+                      <option value="temporary">Temporary</option>
+                    </select>
+                  }
+                >
+                  <Subheadline>Type</Subheadline>
+                </Cell>
+
+                <Cell>
+                  <div
+                    style={{
+                      padding: 12,
+                      backgroundColor: "var(--tg-color-bg-secondary)",
+                      borderRadius: 8,
+                      border: "1px solid var(--tg-color-separator)",
+                    }}
                   >
-                    <option value="grocery">Grocery</option>
-                    <option value="restaurant-bar">Restaurant/Bar</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
+                    <Caption style={{ fontWeight: 600 }}>Coordinates:</Caption>
+                    <Caption>
+                      {addLocationData.lat.toFixed(6)},{" "}
+                      {addLocationData.lng.toFixed(6)}
+                    </Caption>
+                  </div>
+                </Cell>
+              </List>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Type
-                  </label>
-                  <select
-                    value={addLocationData.type}
-                    onChange={(e) =>
-                      setAddLocationData((prev) => ({
-                        ...prev,
-                        type: e.target.value as any,
-                      }))
-                    }
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  >
-                    <option value="permanent">Permanent</option>
-                    <option value="temporary">Temporary</option>
-                  </select>
-                </div>
+              <div style={{ marginTop: 24 }}>
+                <Button
+                  size="l"
+                  stretched
+                  onClick={handleAddLocation}
+                  disabled={!addLocationData.name.trim() || isSubmitting}
+                  before={isSubmitting ? null : <Plus size={20} />}
+                >
+                  {isSubmitting ? "Adding Location..." : "Add Location"}
+                </Button>
               </div>
-
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-3">
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  <strong>Coordinates:</strong> {addLocationData.lat.toFixed(6)}
-                  , {addLocationData.lng.toFixed(6)}
-                </p>
-              </div>
-
-              <Button
-                onClick={handleAddLocation}
-                disabled={!addLocationData.name.trim() || isSubmitting}
-                className="w-full"
-                size="lg"
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                    Adding Location...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Location
-                  </>
-                )}
-              </Button>
-            </div>
+            </Section>
           </div>
         </div>
       )}

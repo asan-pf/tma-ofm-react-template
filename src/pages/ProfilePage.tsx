@@ -1,8 +1,21 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { User, Camera, Save, X, MapPin } from "lucide-react";
-import { Button } from "@/components/ui/Button";
-import { retrieveLaunchParams } from "@telegram-apps/sdk-react";
+import {
+  Button,
+  Cell,
+  Section,
+  List,
+  Avatar,
+  Caption,
+  Subheadline,
+  Title,
+  Text,
+  IconButton,
+  Badge,
+  Placeholder,
+} from "@telegram-apps/telegram-ui";
+import { useSignal, initDataState } from "@telegram-apps/sdk-react";
 
 interface UserProfile {
   id: number;
@@ -126,139 +139,147 @@ export function ProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-        <div className="flex items-center justify-center min-h-screen p-4">
-          <div className="text-center">
-            <div className="w-16 h-16 mx-auto bg-blue-100 dark:bg-blue-900/40 rounded-full flex items-center justify-center mb-4">
-              <User className="h-8 w-8 text-blue-600 dark:text-blue-400 animate-pulse" />
-            </div>
-            <p className="text-gray-600 dark:text-gray-400">
-              Loading profile...
-            </p>
-          </div>
-        </div>
+      <div
+        style={{
+          height: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Placeholder
+          header="Loading Profile..."
+          description="Please wait while we load your profile information"
+        >
+          <User size={48} color="var(--tg-color-text-accent)" />
+        </Placeholder>
       </div>
     );
   }
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-100 dark:from-gray-900 dark:to-gray-800">
-        <div className="flex items-center justify-center min-h-screen p-4">
-          <div className="text-center">
-            <div className="w-16 h-16 mx-auto bg-red-100 dark:bg-red-900/40 rounded-full flex items-center justify-center mb-4">
-              <X className="h-8 w-8 text-red-600 dark:text-red-400" />
-            </div>
-            <p className="text-gray-600 dark:text-gray-400">
-              Failed to load profile
-            </p>
-            <Button
-              onClick={() => navigate("/")}
-              variant="outline"
-              className="mt-4"
-            >
+      <div
+        style={{
+          height: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Placeholder
+          header="Profile Error"
+          description="Failed to load profile information"
+          action={
+            <Button size="s" onClick={() => navigate("/")}>
               Back to Map
             </Button>
-          </div>
-        </div>
+          }
+        >
+          <X size={48} color="var(--tg-color-destructive)" />
+        </Placeholder>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+    <div style={{ minHeight: "100vh" }}>
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg border-b border-white/20 dark:border-gray-800/20">
-        <div className="flex items-center justify-between p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-xl">
-              <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-            </div>
+      <Section
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 10,
+          borderBottom: "1px solid var(--tg-color-separator)",
+          padding: 16,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <Avatar
+              size={24}
+              style={{ backgroundColor: "var(--tg-color-accent)" }}
+            >
+              <User size={16} />
+            </Avatar>
             <div>
-              <h1 className="text-lg font-bold text-gray-900 dark:text-white">
-                Profile
-              </h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Manage your account settings
-              </p>
+              <Title level="2">Profile</Title>
+              <Caption>Manage your account settings</Caption>
             </div>
           </div>
-          <Button onClick={() => navigate("/")} variant="outline" size="sm">
-            <X className="h-4 w-4" />
-          </Button>
+          <IconButton mode="outline" size="s" onClick={() => navigate("/")}>
+            <X size={16} />
+          </IconButton>
         </div>
-      </div>
+      </Section>
 
       {/* Content */}
-      <div className="max-w-md mx-auto p-4 space-y-6">
+      <div style={{ maxWidth: 480, margin: "0 auto", padding: 16 }}>
         {/* Profile Card */}
-        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/20 dark:border-gray-700/30 overflow-hidden">
-          <div className="p-6 space-y-6">
-            {/* Avatar Section */}
-            <div className="text-center">
-              <div className="relative inline-block">
-                <div className="w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/40 dark:to-purple-900/40 flex items-center justify-center border-4 border-white dark:border-gray-700 shadow-xl">
-                  {editData.avatar_url ||
+        <Section style={{ marginBottom: 16 }}>
+          {/* Avatar Section */}
+          <div style={{ textAlign: "center", padding: 24 }}>
+            <div style={{ position: "relative", display: "inline-block" }}>
+              <Avatar
+                size={96}
+                src={
+                  editData.avatar_url ||
                   profile.avatar_url ||
-                  telegramUser?.photo_url ? (
-                    <img
-                      src={
-                        editData.avatar_url ||
-                        profile.avatar_url ||
-                        telegramUser?.photo_url ||
-                        ""
-                      }
-                      alt={
-                        profile.nickname ||
-                        telegramUser?.first_name ||
-                        "Profile"
-                      }
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        const img = e.target as HTMLImageElement;
-                        img.style.display = "none";
-                        img.nextElementSibling?.classList.remove("hidden");
-                      }}
-                    />
-                  ) : null}
-                  <div
-                    className={`${
-                      editData.avatar_url ||
-                      profile.avatar_url ||
-                      telegramUser?.photo_url
-                        ? "hidden"
-                        : ""
-                    } flex items-center justify-center w-full h-full`}
-                  >
-                    <User className="h-12 w-12 text-blue-600 dark:text-blue-400" />
-                  </div>
-                </div>
-                {isEditing && (
-                  <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center shadow-lg">
-                    <Camera className="h-4 w-4 text-white" />
-                  </div>
-                )}
-              </div>
-
-              {/* Display name under avatar */}
-              {!isEditing && (
-                <div className="mt-4">
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                    {profile.nickname}
-                  </h2>
-                  {telegramUser?.username && (
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      @{telegramUser.username}
-                    </p>
-                  )}
+                  telegramUser?.photo_url ||
+                  undefined
+                }
+                style={{
+                  border: "4px solid var(--tg-color-bg)",
+                  boxShadow: "0 4px 16px rgba(0, 0, 0, 0.1)",
+                }}
+              />
+              {isEditing && (
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: -4,
+                    right: -4,
+                    width: 32,
+                    height: 32,
+                    backgroundColor: "var(--tg-color-accent)",
+                    borderRadius: "50%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
+                  }}
+                >
+                  <Camera size={16} color="white" />
                 </div>
               )}
+            </div>
 
-              {isEditing && (
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Avatar URL
-                  </label>
+            {/* Display name under avatar */}
+            {!isEditing && (
+              <div style={{ marginTop: 16 }}>
+                <Title level="1" style={{ marginBottom: 4 }}>
+                  {profile.nickname}
+                </Title>
+                {telegramUser?.username && (
+                  <Caption>@{telegramUser.username}</Caption>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Profile Form */}
+          <List>
+            {isEditing && (
+              <Cell
+                Component="label"
+                multiline
+                subtitle={
                   <input
                     type="url"
                     value={editData.avatar_url}
@@ -269,19 +290,27 @@ export function ProfilePage() {
                       }))
                     }
                     placeholder="https://example.com/avatar.jpg"
-                    className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                    style={{
+                      width: "100%",
+                      padding: 12,
+                      border: "1px solid var(--tg-color-separator)",
+                      borderRadius: 8,
+                      backgroundColor: "var(--tg-color-bg-secondary)",
+                      color: "var(--tg-color-text)",
+                      fontSize: 14,
+                    }}
                   />
-                </div>
-              )}
-            </div>
+                }
+              >
+                <Subheadline>Avatar URL</Subheadline>
+              </Cell>
+            )}
 
-            {/* Profile Info */}
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Display Name
-                </label>
-                {isEditing ? (
+            <Cell
+              Component="label"
+              multiline
+              subtitle={
+                isEditing ? (
                   <input
                     type="text"
                     value={editData.nickname}
@@ -291,117 +320,146 @@ export function ProfilePage() {
                         nickname: e.target.value,
                       }))
                     }
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    style={{
+                      width: "100%",
+                      padding: 12,
+                      border: "1px solid var(--tg-color-separator)",
+                      borderRadius: 8,
+                      backgroundColor: "var(--tg-color-bg-secondary)",
+                      color: "var(--tg-color-text)",
+                      fontSize: 16,
+                    }}
                   />
                 ) : (
-                  <div className="px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white">
-                    {profile.nickname}
-                  </div>
-                )}
-              </div>
+                  <Text>{profile.nickname}</Text>
+                )
+              }
+            >
+              <Subheadline>Display Name</Subheadline>
+            </Cell>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Telegram ID
-                </label>
-                <div className="px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
-                  {profile.telegram_id}
-                </div>
-              </div>
+            <Cell subtitle={<Caption>{profile.telegram_id}</Caption>}>
+              <Subheadline>Telegram ID</Subheadline>
+            </Cell>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Role
-                </label>
-                <div className="px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 capitalize">
+            <Cell
+              subtitle={
+                <Badge mode="secondary" style={{ textTransform: "capitalize" }}>
                   {profile.role}
-                </div>
-              </div>
+                </Badge>
+              }
+            >
+              <Subheadline>Role</Subheadline>
+            </Cell>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Member Since
-                </label>
-                <div className="px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
+            <Cell
+              subtitle={
+                <Caption>
                   {new Date(profile.created_at).toLocaleDateString()}
-                </div>
-              </div>
-            </div>
+                </Caption>
+              }
+            >
+              <Subheadline>Member Since</Subheadline>
+            </Cell>
+          </List>
 
-            {/* Action Buttons */}
-            <div className="pt-4 space-y-3">
-              {isEditing ? (
-                <div className="flex gap-3">
-                  <Button
-                    onClick={handleSave}
-                    disabled={isSaving || !editData.nickname.trim()}
-                    className="flex-1"
-                    size="lg"
-                  >
-                    {isSaving ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-4 w-4 mr-2" />
-                        Save Changes
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    onClick={handleCancel}
-                    variant="outline"
-                    disabled={isSaving}
-                    size="lg"
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              ) : (
+          {/* Action Buttons */}
+          <div style={{ padding: 16 }}>
+            {isEditing ? (
+              <div style={{ display: "flex", gap: 12 }}>
                 <Button
-                  onClick={() => setIsEditing(true)}
-                  className="w-full"
-                  size="lg"
+                  size="l"
+                  stretched
+                  onClick={handleSave}
+                  disabled={isSaving || !editData.nickname.trim()}
+                  before={isSaving ? null : <Save size={20} />}
                 >
-                  Edit Profile
+                  {isSaving ? "Saving..." : "Save Changes"}
                 </Button>
-              )}
-            </div>
+                <Button
+                  size="l"
+                  mode="outline"
+                  onClick={handleCancel}
+                  disabled={isSaving}
+                >
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <Button size="l" stretched onClick={() => setIsEditing(true)}>
+                Edit Profile
+              </Button>
+            )}
           </div>
-        </div>
+        </Section>
 
         {/* Stats Card */}
-        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/20 dark:border-gray-700/30 p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-purple-100 dark:bg-purple-900/40 rounded-xl">
-              <MapPin className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-            </div>
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-              Your Activity
-            </h2>
+        <Section>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: 16,
+              paddingBottom: 8,
+            }}
+          >
+            <Avatar
+              size={32}
+              style={{ backgroundColor: "var(--tg-color-accent)" }}
+            >
+              <MapPin size={16} />
+            </Avatar>
+            <Title level="2">Your Activity</Title>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-2xl">
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                {/* This would be loaded from API */}0
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                Locations Added
-              </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 16,
+              padding: 16,
+            }}
+          >
+            <div
+              style={{
+                textAlign: "center",
+                padding: 16,
+                backgroundColor: "var(--tg-color-bg-secondary)",
+                borderRadius: 12,
+                border: "1px solid var(--tg-color-separator)",
+              }}
+            >
+              <Title
+                level="1"
+                style={{ color: "var(--tg-color-accent)", marginBottom: 4 }}
+              >
+                0
+              </Title>
+              <Caption>Locations Added</Caption>
             </div>
-            <div className="text-center p-4 bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 rounded-2xl">
-              <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-                {/* This would be loaded from API */}0
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                Favorites
-              </div>
+            <div
+              style={{
+                textAlign: "center",
+                padding: 16,
+                backgroundColor: "var(--tg-color-bg-secondary)",
+                borderRadius: 12,
+                border: "1px solid var(--tg-color-separator)",
+              }}
+            >
+              <Title
+                level="1"
+                style={{
+                  color: "var(--tg-color-destructive)",
+                  marginBottom: 4,
+                }}
+              >
+                0
+              </Title>
+              <Caption>Favorites</Caption>
             </div>
           </div>
-        </div>
+        </Section>
       </div>
     </div>
   );
