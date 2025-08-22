@@ -15,6 +15,8 @@ import {
   User,
   Navigation2,
   X,
+  Search,
+  MessageCircle,
 } from "lucide-react";
 import {
   Button,
@@ -24,6 +26,9 @@ import {
 } from "@telegram-apps/telegram-ui";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { retrieveLaunchParams } from "@telegram-apps/sdk-react";
+import { DatabaseLocationSearch } from "@/components/DatabaseLocationSearch";
+import { LocationSearch } from "@/components/LocationSearch";
+import { LocationDetailModal } from "@/components/LocationDetailModal";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -40,14 +45,14 @@ L.Icon.Default.mergeOptions({
 
 interface Location {
   id: number;
-  user_id: number;
+  user_id?: number;
   name: string;
   description: string;
   latitude: number;
   longitude: number;
-  type: "permanent" | "temporary";
+  type?: "permanent" | "temporary";
   category: "grocery" | "restaurant-bar" | "other";
-  is_approved: boolean;
+  is_approved?: boolean;
   created_at: string;
   is_favorited?: boolean;
   rating?: number;
@@ -99,12 +104,21 @@ function MapClickHandler({
 }
 
 type TabType = "explore" | "favorites";
+type SearchTabType = "db" | "global";
 
 export function MapPage() {
   const [activeTab, setActiveTab] = useState<TabType>("explore");
+  const [searchTab, setSearchTab] = useState<SearchTabType>("db");
   const [locations, setLocations] = useState<Location[]>([]);
   const [favoriteLocations, setFavoriteLocations] = useState<Location[]>([]);
   const [showAddLocationModal, setShowAddLocationModal] = useState(false);
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showLocationDetail, setShowLocationDetail] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState<Location | null>(
+    null
+  );
+  const [isAddLocationMode, setIsAddLocationMode] = useState(false);
+  const [mapRef, setMapRef] = useState<any>(null);
   const [pendingLocation, setPendingLocation] = useState<{
     lat: number;
     lng: number;
@@ -285,6 +299,27 @@ export function MapPage() {
     }
   };
 
+  const handleLocationClick = (location: Location) => {
+    setSelectedLocation(location);
+    setShowLocationDetail(true);
+  };
+
+  const handleSearchLocationSelect = (location: Location) => {
+    setSelectedLocation(location);
+    setShowLocationDetail(true);
+    setShowSearchModal(false);
+  };
+
+  const handleGlobalLocationSelect = (
+    lat: number,
+    lng: number,
+    name: string
+  ) => {
+    setPendingLocation({ lat, lng });
+    setAddLocationData((prev) => ({ ...prev, lat, lng, name }));
+    setShowAddLocationModal(true);
+    setShowSearchModal(false);
+  };
 
   if (isLoading) {
     return (
@@ -306,10 +341,32 @@ export function MapPage() {
           @keyframes slideUp {
             from {
               transform: translateY(100%);
+              opacity: 0;
             }
             to {
               transform: translateY(0);
+              opacity: 1;
             }
+          }
+          
+          /* Ensure proper contrast for Telegram */
+          .leaflet-popup-content-wrapper {
+            background: var(--tg-theme-bg-color) !important;
+            color: var(--tg-theme-text-color) !important;
+            border-radius: 12px !important;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2) !important;
+          }
+          
+          .leaflet-popup-tip {
+            background: var(--tg-theme-bg-color) !important;
+          }
+          
+          /* Better mobile touch targets */
+          .leaflet-control-zoom a {
+            width: 36px !important;
+            height: 36px !important;
+            line-height: 36px !important;
+            font-size: 18px !important;
           }
         `}
       </style>
@@ -321,33 +378,94 @@ export function MapPage() {
           backgroundColor: "var(--tg-color-bg)",
         }}
       >
-        {/* Top Header with Tabs */}
-        <div className="flex-none bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm">
-          <div className="flex items-center justify-between p-4">
-            <div className="flex space-x-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-              <Button
-                size="s"
-                mode={activeTab === "explore" ? "filled" : "outline"}
+        {/* Improved Top Header */}
+        <div
+          style={{
+            position: "sticky",
+            top: 0,
+            zIndex: 1000,
+            background: "var(--tg-theme-bg-color)",
+            borderBottom: "1px solid var(--tg-theme-section-separator-color)",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+          }}
+        >
+          {/* Main Navigation Tabs */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "12px 16px 8px 16px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                background: "var(--tg-theme-section-bg-color)",
+                borderRadius: "12px",
+                padding: "4px",
+                border: "1px solid var(--tg-theme-section-separator-color)",
+              }}
+            >
+              <button
                 onClick={() => setActiveTab("explore")}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "10px 16px",
+                  borderRadius: "8px",
+                  border: "none",
+                  background:
+                    activeTab === "explore"
+                      ? "var(--tg-theme-button-color)"
+                      : "transparent",
+                  color:
+                    activeTab === "explore"
+                      ? "#FFFFFF"
+                      : "var(--tg-theme-text-color)",
+                  fontWeight: "600",
+                  fontSize: "14px",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                }}
               >
-                <MapPin size={16} style={{ marginRight: 8 }} />
+                <MapPin size={16} />
                 Explore
-              </Button>
-              <Button
-                size="s"
-                mode={activeTab === "favorites" ? "filled" : "outline"}
+              </button>
+              <button
                 onClick={() => setActiveTab("favorites")}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "10px 16px",
+                  borderRadius: "8px",
+                  border: "none",
+                  background:
+                    activeTab === "favorites"
+                      ? "var(--tg-theme-button-color)"
+                      : "transparent",
+                  color:
+                    activeTab === "favorites"
+                      ? "#FFFFFF"
+                      : "var(--tg-theme-text-color)",
+                  fontWeight: "600",
+                  fontSize: "14px",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                }}
               >
-                <Heart size={16} style={{ marginRight: 8 }} />
+                <Heart size={16} />
                 Favorites
-              </Button>
+              </button>
             </div>
 
             <button
               onClick={() => navigate("/profile")}
               style={{
-                background: "none",
-                border: "1px solid var(--tg-color-separator)",
+                background: "var(--tg-theme-section-bg-color)",
+                border: "1px solid var(--tg-theme-section-separator-color)",
                 borderRadius: "50%",
                 width: 40,
                 height: 40,
@@ -355,12 +473,43 @@ export function MapPage() {
                 alignItems: "center",
                 justifyContent: "center",
                 cursor: "pointer",
-                color: "var(--tg-color-text-secondary)",
+                color: "var(--tg-theme-text-color)",
+                transition: "all 0.2s ease",
               }}
             >
               <User size={16} />
             </button>
           </div>
+
+          {/* Search Bar for Explore Tab */}
+          {activeTab === "explore" && (
+            <div
+              style={{
+                padding: "0 16px 12px 16px",
+              }}
+            >
+              <button
+                onClick={() => setShowSearchModal(true)}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  padding: "12px 16px",
+                  background: "var(--tg-theme-section-bg-color)",
+                  border: "1px solid var(--tg-theme-section-separator-color)",
+                  borderRadius: "24px",
+                  color: "var(--tg-theme-hint-color)",
+                  fontSize: "16px",
+                  cursor: "pointer",
+                  textAlign: "left",
+                }}
+              >
+                <Search size={18} />
+                <span>Search locations...</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Content Area */}
@@ -406,45 +555,132 @@ export function MapPage() {
                       icon={createCustomIcon(location.category, isFavorited)}
                     >
                       <Popup>
-                        <div className="min-w-[200px] p-2">
-                          <div className="flex items-start justify-between gap-2 mb-2">
-                            <h3 className="font-medium text-gray-900 dark:text-white text-sm">
+                        <div
+                          style={{
+                            minWidth: "240px",
+                            padding: "8px",
+                            background: "var(--tg-theme-bg-color)",
+                            color: "var(--tg-theme-text-color)",
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "flex-start",
+                              justifyContent: "space-between",
+                              gap: "8px",
+                              marginBottom: "8px",
+                            }}
+                          >
+                            <h3
+                              style={{
+                                fontWeight: "600",
+                                fontSize: "16px",
+                                margin: 0,
+                              }}
+                            >
                               {location.name}
                             </h3>
-                            <Button
+                            <button
                               onClick={() => toggleFavorite(location.id)}
-                              mode="outline"
-                              size="s"
-                              className="p-1 h-6 w-6"
+                              style={{
+                                background: "none",
+                                border:
+                                  "1px solid var(--tg-theme-section-separator-color)",
+                                borderRadius: "50%",
+                                width: "28px",
+                                height: "28px",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                cursor: "pointer",
+                                color: isFavorited
+                                  ? "#ef4444"
+                                  : "var(--tg-theme-hint-color)",
+                              }}
                             >
                               {isFavorited ? (
-                                <Heart className="h-3 w-3 text-red-500 fill-current" />
+                                <Heart size={14} fill="currentColor" />
                               ) : (
-                                <HeartOff className="h-3 w-3 text-gray-400" />
+                                <HeartOff size={14} />
                               )}
-                            </Button>
+                            </button>
                           </div>
 
                           {location.description && (
-                            <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                            <p
+                              style={{
+                                fontSize: "14px",
+                                color: "var(--tg-theme-hint-color)",
+                                marginBottom: "8px",
+                                lineHeight: "1.3",
+                              }}
+                            >
                               {location.description}
                             </p>
                           )}
 
-                          <div className="flex items-center gap-2 text-xs">
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "8px",
+                              marginBottom: "12px",
+                            }}
+                          >
                             <span
-                              className={`px-2 py-1 rounded-full ${
-                                location.category === "grocery"
-                                  ? "bg-green-100 text-green-700"
-                                  : location.category === "restaurant-bar"
-                                  ? "bg-orange-100 text-orange-700"
-                                  : "bg-purple-100 text-purple-700"
-                              }`}
+                              style={{
+                                padding: "4px 8px",
+                                borderRadius: "8px",
+                                fontSize: "12px",
+                                fontWeight: "500",
+                                background:
+                                  location.category === "grocery"
+                                    ? "#dcfce7"
+                                    : location.category === "restaurant-bar"
+                                    ? "#fef3c7"
+                                    : "#e0e7ff",
+                                color:
+                                  location.category === "grocery"
+                                    ? "#166534"
+                                    : location.category === "restaurant-bar"
+                                    ? "#92400e"
+                                    : "#3730a3",
+                              }}
                             >
                               {location.category.replace("-", " ")}
                             </span>
-                            <span className="text-gray-500">{location.type}</span>
+                            <span
+                              style={{
+                                fontSize: "12px",
+                                color: "var(--tg-theme-hint-color)",
+                              }}
+                            >
+                              {location.type}
+                            </span>
                           </div>
+
+                          <button
+                            onClick={() => handleLocationClick(location)}
+                            style={{
+                              width: "100%",
+                              padding: "8px 12px",
+                              background: "var(--tg-theme-button-color)",
+                              color: "#FFFFFF",
+                              border: "none",
+                              borderRadius: "8px",
+                              fontSize: "14px",
+                              fontWeight: "500",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: "6px",
+                            }}
+                          >
+                            <MessageCircle size={14} />
+                            View Details
+                          </button>
                         </div>
                       </Popup>
                     </Marker>
@@ -480,57 +716,79 @@ export function MapPage() {
             </>
           ) : (
             // List View for Favorites Tab
-            <div style={{ 
-              height: "100%", 
-              backgroundColor: "var(--tg-color-bg)", 
-              overflow: "auto" 
-            }}>
+            <div
+              style={{
+                height: "100%",
+                backgroundColor: "var(--tg-color-bg)",
+                overflow: "auto",
+              }}
+            >
               {favoriteLocations.length === 0 ? (
-                <div style={{
-                  height: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: "2rem"
-                }}>
+                <div
+                  style={{
+                    height: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "2rem",
+                  }}
+                >
                   <div style={{ textAlign: "center" }}>
-                    <Heart 
-                      size={48} 
-                      style={{ 
-                        color: "var(--tg-color-hint-color)", 
-                        margin: "0 auto 1rem auto", 
-                        display: "block" 
-                      }} 
+                    <Heart
+                      size={48}
+                      style={{
+                        color: "var(--tg-color-hint-color)",
+                        margin: "0 auto 1rem auto",
+                        display: "block",
+                      }}
                     />
                     <Title level="2" style={{ marginBottom: "0.5rem" }}>
                       No Favorites Yet
                     </Title>
                     <Caption>
-                      Explore locations and add them to your favorites to see them here.
+                      Explore locations and add them to your favorites to see
+                      them here.
                     </Caption>
                   </div>
                 </div>
               ) : (
                 <div style={{ padding: "1rem" }}>
-                  <Title level="2" style={{ marginBottom: "1rem", padding: "0 0.5rem" }}>
-                    Your Favorites ({favoriteLocations.length})
-                  </Title>
-                  
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                  <div style={{ marginBottom: "1rem", padding: "0 0.5rem" }}>
+                    <Title level="2" style={{ marginBottom: "0.5rem" }}>
+                      Your Favorites ({favoriteLocations.length})
+                    </Title>
+                    <Caption style={{ color: "var(--tg-theme-hint-color)" }}>
+                      Tap any location to view details, ratings, and comments
+                    </Caption>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "0.75rem",
+                    }}
+                  >
                     {favoriteLocations.map((location) => {
                       const getCategoryColor = (category: string) => {
                         switch (category) {
-                          case 'grocery': return '#22c55e';
-                          case 'restaurant-bar': return '#f59e0b';
-                          default: return '#6366f1';
+                          case "grocery":
+                            return "#22c55e";
+                          case "restaurant-bar":
+                            return "#f59e0b";
+                          default:
+                            return "#6366f1";
                         }
                       };
 
                       const getCategoryIcon = (category: string) => {
                         switch (category) {
-                          case 'grocery': return '🛒';
-                          case 'restaurant-bar': return '🍽️';
-                          default: return '🏪';
+                          case "grocery":
+                            return "🛒";
+                          case "restaurant-bar":
+                            return "🍽️";
+                          default:
+                            return "🏪";
                         }
                       };
 
@@ -541,94 +799,121 @@ export function MapPage() {
                             backgroundColor: "var(--tg-color-bg-secondary)",
                             borderRadius: "12px",
                             padding: "1rem",
-                            border: "1px solid var(--tg-color-separator)"
+                            border: "1px solid var(--tg-color-separator)",
+                            cursor: "pointer",
                           }}
+                          onClick={() => handleLocationClick(location)}
                         >
-                          <div style={{ 
-                            display: "flex", 
-                            alignItems: "flex-start", 
-                            gap: "0.75rem" 
-                          }}>
-                            <div style={{
-                              backgroundColor: getCategoryColor(location.category),
-                              borderRadius: "8px",
-                              padding: "8px",
-                              minWidth: "40px",
-                              height: "40px",
+                          <div
+                            style={{
                               display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              fontSize: "18px"
-                            }}>
+                              alignItems: "flex-start",
+                              gap: "0.75rem",
+                            }}
+                          >
+                            <div
+                              style={{
+                                backgroundColor: getCategoryColor(
+                                  location.category
+                                ),
+                                borderRadius: "8px",
+                                padding: "8px",
+                                minWidth: "40px",
+                                height: "40px",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: "18px",
+                              }}
+                            >
                               {getCategoryIcon(location.category)}
                             </div>
-                            
+
                             <div style={{ flex: 1 }}>
-                              <div style={{ 
-                                display: "flex", 
-                                alignItems: "flex-start", 
-                                justifyContent: "space-between",
-                                marginBottom: "0.5rem"
-                              }}>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "flex-start",
+                                  justifyContent: "space-between",
+                                  marginBottom: "0.5rem",
+                                }}
+                              >
                                 <Subheadline style={{ fontWeight: "600" }}>
                                   {location.name}
                                 </Subheadline>
-                                
+
                                 <Button
-                                  onClick={() => toggleFavorite(location.id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation(); //adding to Prevent triggering the location click
+                                    toggleFavorite(location.id);
+                                  }}
                                   mode="plain"
                                   size="s"
                                   style={{ padding: "4px", minWidth: "unset" }}
                                 >
-                                  <Heart 
-                                    size={16} 
-                                    style={{ color: "#ef4444" }} 
-                                    fill="currentColor" 
+                                  <Heart
+                                    size={16}
+                                    style={{ color: "#ef4444" }}
+                                    fill="currentColor"
                                   />
                                 </Button>
                               </div>
-                              
+
                               {location.description && (
-                                <Caption style={{ 
-                                  marginBottom: "0.5rem",
-                                  display: "block"
-                                }}>
+                                <Caption
+                                  style={{
+                                    marginBottom: "0.5rem",
+                                    display: "block",
+                                  }}
+                                >
                                   {location.description}
                                 </Caption>
                               )}
-                              
-                              <div style={{ 
-                                display: "flex", 
-                                alignItems: "center", 
-                                gap: "0.5rem",
-                                flexWrap: "wrap"
-                              }}>
-                                <span style={{
-                                  backgroundColor: getCategoryColor(location.category),
-                                  color: "white",
-                                  fontSize: "12px",
-                                  padding: "2px 8px",
-                                  borderRadius: "6px",
-                                  fontWeight: "500"
-                                }}>
+
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "0.5rem",
+                                  flexWrap: "wrap",
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    backgroundColor: getCategoryColor(
+                                      location.category
+                                    ),
+                                    color: "white",
+                                    fontSize: "12px",
+                                    padding: "2px 8px",
+                                    borderRadius: "6px",
+                                    fontWeight: "500",
+                                  }}
+                                >
                                   {location.category.replace("-", " ")}
                                 </span>
-                                
-                                <span style={{
-                                  backgroundColor: "var(--tg-color-separator)",
-                                  color: "var(--tg-color-text-secondary)",
-                                  fontSize: "12px",
-                                  padding: "2px 8px",
-                                  borderRadius: "6px"
-                                }}>
+
+                                <span
+                                  style={{
+                                    backgroundColor:
+                                      "var(--tg-color-separator)",
+                                    color: "var(--tg-color-text-secondary)",
+                                    fontSize: "12px",
+                                    padding: "2px 8px",
+                                    borderRadius: "6px",
+                                  }}
+                                >
                                   {location.type}
                                 </span>
-                                
-                                <Caption style={{ 
-                                  fontSize: "12px",
-                                  color: "var(--tg-color-hint-color)"
-                                }}>
-                                  {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}
+
+                                <Caption
+                                  style={{
+                                    fontSize: "12px",
+                                    color: "var(--tg-color-hint-color)",
+                                  }}
+                                >
+                                  {location.latitude.toFixed(4)},{" "}
+                                  {location.longitude.toFixed(4)}
                                 </Caption>
                               </div>
                             </div>
@@ -703,7 +988,9 @@ export function MapPage() {
                       marginBottom: 24,
                     }}
                   >
-                    <Title level="1" style={{ color: "#f1f5f9" }}>Add Location</Title>
+                    <Title level="1" style={{ color: "#f1f5f9" }}>
+                      Add Location
+                    </Title>
                     <button
                       onClick={() => {
                         setShowAddLocationModal(false);
@@ -733,7 +1020,9 @@ export function MapPage() {
                     }}
                   >
                     <div>
-                      <Subheadline style={{ marginBottom: 8, color: "#e2e8f0" }}>
+                      <Subheadline
+                        style={{ marginBottom: 8, color: "#e2e8f0" }}
+                      >
                         Location Name *
                       </Subheadline>
                       <input
@@ -761,7 +1050,9 @@ export function MapPage() {
                     </div>
 
                     <div>
-                      <Subheadline style={{ marginBottom: 8, color: "#e2e8f0" }}>
+                      <Subheadline
+                        style={{ marginBottom: 8, color: "#e2e8f0" }}
+                      >
                         Description
                       </Subheadline>
                       <textarea
@@ -797,7 +1088,9 @@ export function MapPage() {
                       }}
                     >
                       <div>
-                        <Subheadline style={{ marginBottom: 8, color: "#e2e8f0" }}>
+                        <Subheadline
+                          style={{ marginBottom: 8, color: "#e2e8f0" }}
+                        >
                           Category
                         </Subheadline>
                         <select
@@ -826,7 +1119,9 @@ export function MapPage() {
                       </div>
 
                       <div>
-                        <Subheadline style={{ marginBottom: 8, color: "#e2e8f0" }}>
+                        <Subheadline
+                          style={{ marginBottom: 8, color: "#e2e8f0" }}
+                        >
                           Type
                         </Subheadline>
                         <select
@@ -862,7 +1157,13 @@ export function MapPage() {
                         border: "1px solid #64748b",
                       }}
                     >
-                      <Caption style={{ fontWeight: 600, marginBottom: 4, color: "#e2e8f0" }}>
+                      <Caption
+                        style={{
+                          fontWeight: 600,
+                          marginBottom: 4,
+                          color: "#e2e8f0",
+                        }}
+                      >
                         Coordinates:
                       </Caption>
                       <Caption style={{ color: "#cbd5e1" }}>
@@ -885,9 +1186,7 @@ export function MapPage() {
                       style={{
                         width: "100%",
                         padding: "16px 24px",
-                        backgroundColor: isSubmitting
-                          ? "#64748b"
-                          : "#3b82f6",
+                        backgroundColor: isSubmitting ? "#64748b" : "#3b82f6",
                         color: "white",
                         border: "none",
                         borderRadius: "12px",
@@ -916,6 +1215,175 @@ export function MapPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Search Modal */}
+        {showSearchModal && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 2000,
+              padding: "20px",
+            }}
+            onClick={() => setShowSearchModal(false)}
+          >
+            <div
+              style={{
+                width: "100%",
+                maxWidth: "500px",
+                height: "fit-content",
+                maxHeight: "calc(100vh - 40px)",
+                backgroundColor: "var(--tg-theme-bg-color)",
+                borderRadius: "20px",
+                display: "flex",
+                flexDirection: "column",
+                animation: "slideUp 0.3s ease-out",
+                boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "20px 20px 0 20px",
+                  borderBottom:
+                    "1px solid var(--tg-theme-section-separator-color)",
+                }}
+              >
+                <Title level="2">Search Locations</Title>
+                <button
+                  onClick={() => setShowSearchModal(false)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: "8px",
+                    borderRadius: "50%",
+                    color: "var(--tg-theme-hint-color)",
+                  }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Search Tab Selector */}
+              <div
+                style={{
+                  display: "flex",
+                  margin: "16px",
+                  background: "var(--tg-theme-section-bg-color)",
+                  borderRadius: "12px",
+                  padding: "4px",
+                  border: "1px solid var(--tg-theme-section-separator-color)",
+                }}
+              >
+                <button
+                  onClick={() => setSearchTab("db")}
+                  style={{
+                    flex: 1,
+                    padding: "10px 16px",
+                    borderRadius: "8px",
+                    border: "none",
+                    background:
+                      searchTab === "db"
+                        ? "var(--tg-theme-button-color)"
+                        : "transparent",
+                    color:
+                      searchTab === "db"
+                        ? "#FFFFFF"
+                        : "var(--tg-theme-text-color)",
+                    fontWeight: "600",
+                    fontSize: "14px",
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                  }}
+                >
+                  OFM Locations
+                </button>
+                <button
+                  onClick={() => setSearchTab("global")}
+                  style={{
+                    flex: 1,
+                    padding: "10px 16px",
+                    borderRadius: "8px",
+                    border: "none",
+                    background:
+                      searchTab === "global"
+                        ? "var(--tg-theme-button-color)"
+                        : "transparent",
+                    color:
+                      searchTab === "global"
+                        ? "#FFFFFF"
+                        : "var(--tg-theme-text-color)",
+                    fontWeight: "600",
+                    fontSize: "14px",
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                  }}
+                >
+                  Global Search
+                </button>
+              </div>
+
+              {/* Search Content */}
+              <div
+                style={{
+                  flex: 1,
+                  padding: "0 16px 20px 16px",
+                  overflow: "auto",
+                  minHeight: "300px",
+                }}
+              >
+                {searchTab === "db" ? (
+                  <DatabaseLocationSearch
+                    onLocationSelect={handleSearchLocationSelect}
+                    placeholder="Search stored locations..."
+                    currentLocation={
+                      latitude && longitude
+                        ? { lat: latitude, lng: longitude }
+                        : null
+                    }
+                    showCurrentLocation={true}
+                  />
+                ) : (
+                  <LocationSearch
+                    onLocationSelect={handleGlobalLocationSelect}
+                    placeholder="Search places worldwide..."
+                    currentLocation={
+                      latitude && longitude
+                        ? { lat: latitude, lng: longitude }
+                        : null
+                    }
+                    showCurrentLocation={true}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Location Detail Modal */}
+        {showLocationDetail && selectedLocation && (
+          <LocationDetailModal
+            location={selectedLocation}
+            isOpen={showLocationDetail}
+            onClose={() => {
+              setShowLocationDetail(false);
+              setSelectedLocation(null);
+            }}
+            onLocationClick={(_lat, _lng) => {
+              setShowLocationDetail(false);
+              // You could add map center functionality here if needed
+            }}
+          />
         )}
       </div>
     </>
