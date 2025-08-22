@@ -90,16 +90,14 @@ const createCustomIcon = (category: string, isFavorite: boolean = false) => {
   });
 };
 
-function MapClickHandler({
-  onLocationSelect,
-}: {
-  onLocationSelect: (lat: number, lng: number) => void;
-}) {
-  useMapEvents({
-    click: (e) => {
-      onLocationSelect(e.latlng.lat, e.latlng.lng);
-    },
-  });
+// Component to setup map reference
+function MapSetup({ setMapRef }: { setMapRef: (map: any) => void }) {
+  const map = useMapEvents({});
+
+  useEffect(() => {
+    setMapRef(map);
+  }, [map, setMapRef]);
+
   return null;
 }
 
@@ -143,10 +141,16 @@ export function MapPage() {
   console.log("Launch params:", launchParams);
   console.log("Telegram user:", telegramUser);
 
-  const mapCenter = {
+  const [dynamicMapCenter, setDynamicMapCenter] = useState({
     lat: latitude || 40.7128,
     lng: longitude || -74.006,
-  };
+  });
+
+  useEffect(() => {
+    if (latitude && longitude) {
+      setDynamicMapCenter({ lat: latitude, lng: longitude });
+    }
+  }, [latitude, longitude]);
 
   useEffect(() => {
     loadLocations();
@@ -187,12 +191,6 @@ export function MapPage() {
     } catch (error) {
       console.error("Error loading favorites:", error);
     }
-  };
-
-  const handleMapClick = (lat: number, lng: number) => {
-    setPendingLocation({ lat, lng });
-    setAddLocationData((prev) => ({ ...prev, lat, lng }));
-    setShowAddLocationModal(true);
   };
 
   const handleAddLocation = async () => {
@@ -280,6 +278,7 @@ export function MapPage() {
           setFavoriteLocations((prev) =>
             prev.filter((fav) => fav.id !== locationId)
           );
+          // You could add a toast notification here: "Removed from favorites"
         }
       } else {
         const response = await fetch(
@@ -292,6 +291,7 @@ export function MapPage() {
         );
         if (response.ok) {
           loadFavorites(); // Refresh favorites
+          // You could add a toast notification here: "Added to favorites"
         }
       }
     } catch (error) {
@@ -305,6 +305,11 @@ export function MapPage() {
   };
 
   const handleSearchLocationSelect = (location: Location) => {
+    // Navigate to the location
+    setDynamicMapCenter({ lat: location.latitude, lng: location.longitude });
+    if (mapRef) {
+      mapRef.setView([location.latitude, location.longitude], 16);
+    }
     setSelectedLocation(location);
     setShowLocationDetail(true);
     setShowSearchModal(false);
@@ -315,10 +320,35 @@ export function MapPage() {
     lng: number,
     name: string
   ) => {
+    // Navigate to the location
+    setDynamicMapCenter({ lat, lng });
+    if (mapRef) {
+      mapRef.setView([lat, lng], 16);
+    }
     setPendingLocation({ lat, lng });
     setAddLocationData((prev) => ({ ...prev, lat, lng, name }));
     setShowAddLocationModal(true);
     setShowSearchModal(false);
+  };
+
+  const handleAddLocationModeToggle = () => {
+    setIsAddLocationMode(!isAddLocationMode);
+    setPendingLocation(null);
+  };
+
+  const handleMapCenterAdd = () => {
+    if (mapRef && isAddLocationMode) {
+      const center = mapRef.getCenter();
+      setPendingLocation({ lat: center.lat, lng: center.lng });
+      setAddLocationData((prev) => ({
+        ...prev,
+        lat: center.lat,
+        lng: center.lng,
+        name: "",
+      }));
+      setShowAddLocationModal(true);
+      setIsAddLocationMode(false);
+    }
   };
 
   if (isLoading) {
@@ -495,19 +525,80 @@ export function MapPage() {
                   display: "flex",
                   alignItems: "center",
                   gap: "12px",
-                  padding: "12px 16px",
-                  background: "var(--tg-theme-section-bg-color)",
-                  border: "1px solid var(--tg-theme-section-separator-color)",
-                  borderRadius: "24px",
+                  padding: "14px 20px",
+                  background: "var(--tg-theme-bg-color)",
+                  border: "2px solid var(--tg-theme-section-separator-color)",
+                  borderRadius: "28px",
                   color: "var(--tg-theme-hint-color)",
                   fontSize: "16px",
                   cursor: "pointer",
                   textAlign: "left",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                  transition: "all 0.2s ease",
                 }}
               >
-                <Search size={18} />
-                <span>Search locations...</span>
+                <Search size={20} />
+                <span>Search for places, locations...</span>
               </button>
+
+              {/* Category Pills */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: "8px",
+                  marginTop: "12px",
+                  overflowX: "auto",
+                  paddingBottom: "4px",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "8px",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  <span
+                    style={{
+                      padding: "6px 12px",
+                      background: "var(--tg-theme-section-bg-color)",
+                      borderRadius: "16px",
+                      fontSize: "14px",
+                      color: "var(--tg-theme-text-color)",
+                      border:
+                        "1px solid var(--tg-theme-section-separator-color)",
+                    }}
+                  >
+                    🍽️ Restaurants
+                  </span>
+                  <span
+                    style={{
+                      padding: "6px 12px",
+                      background: "var(--tg-theme-section-bg-color)",
+                      borderRadius: "16px",
+                      fontSize: "14px",
+                      color: "var(--tg-theme-text-color)",
+                      border:
+                        "1px solid var(--tg-theme-section-separator-color)",
+                    }}
+                  >
+                    🛒 Groceries
+                  </span>
+                  <span
+                    style={{
+                      padding: "6px 12px",
+                      background: "var(--tg-theme-section-bg-color)",
+                      borderRadius: "16px",
+                      fontSize: "14px",
+                      color: "var(--tg-theme-text-color)",
+                      border:
+                        "1px solid var(--tg-theme-section-separator-color)",
+                    }}
+                  >
+                    🏪 Other
+                  </span>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -518,7 +609,7 @@ export function MapPage() {
             // Map View for Explore Tab
             <>
               <LeafletMapContainer
-                center={[mapCenter.lat, mapCenter.lng]}
+                center={[dynamicMapCenter.lat, dynamicMapCenter.lng]}
                 zoom={13}
                 style={{ height: "100%", width: "100%" }}
                 zoomControl={true}
@@ -529,9 +620,8 @@ export function MapPage() {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
 
-                <MapClickHandler onLocationSelect={handleMapClick} />
+                <MapSetup setMapRef={setMapRef} />
 
-                {/* User location marker */}
                 {latitude && longitude && (
                   <Marker position={[latitude, longitude]}>
                     <Popup>
@@ -543,7 +633,6 @@ export function MapPage() {
                   </Marker>
                 )}
 
-                {/* Location markers */}
                 {locations.map((location) => {
                   const isFavorited = favoriteLocations.some(
                     (fav) => fav.id === location.id
@@ -700,15 +789,195 @@ export function MapPage() {
                 )}
               </LeafletMapContainer>
 
-              {/* Instructions overlay for explore mode */}
-              {!showAddLocationModal && (
-                <div className="absolute top-4 left-4 right-4 z-10 pointer-events-none">
-                  <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-xl p-4 border border-gray-200 dark:border-gray-700 shadow-lg">
-                    <div className="flex items-center gap-3">
-                      <Plus className="h-5 w-5 text-green-600 dark:text-green-400" />
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">
-                        Tap anywhere on the map to add a location
-                      </p>
+              {/* Center Crosshair for Add Location Mode */}
+              {isAddLocationMode && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "50%",
+                    left: "50%",
+                    transform: "translate(-50%, -50%)",
+                    zIndex: 1000,
+                    pointerEvents: "none",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "40px",
+                      height: "40px",
+                      position: "relative",
+                    }}
+                  >
+                    {/* Crosshair */}
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "50%",
+                        left: "50%",
+                        width: "20px",
+                        height: "2px",
+                        backgroundColor: "var(--tg-theme-button-color)",
+                        transform: "translate(-50%, -50%)",
+                        borderRadius: "1px",
+                      }}
+                    />
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "50%",
+                        left: "50%",
+                        width: "2px",
+                        height: "20px",
+                        backgroundColor: "var(--tg-theme-button-color)",
+                        transform: "translate(-50%, -50%)",
+                        borderRadius: "1px",
+                      }}
+                    />
+                    {/* Center dot */}
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "50%",
+                        left: "50%",
+                        width: "6px",
+                        height: "6px",
+                        backgroundColor: "var(--tg-theme-button-color)",
+                        borderRadius: "50%",
+                        transform: "translate(-50%, -50%)",
+                        border: "2px solid white",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Floating Action Buttons */}
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: "20px",
+                  right: "20px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "12px",
+                  zIndex: 1000,
+                }}
+              >
+                {/* Add Location Button */}
+                <button
+                  onClick={
+                    isAddLocationMode
+                      ? handleMapCenterAdd
+                      : handleAddLocationModeToggle
+                  }
+                  style={{
+                    width: "56px",
+                    height: "56px",
+                    borderRadius: "50%",
+                    background: isAddLocationMode
+                      ? "var(--tg-theme-destructive-text-color)"
+                      : "var(--tg-theme-button-color)",
+                    color: "white",
+                    border: "none",
+                    boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    transition: "all 0.2s ease",
+                  }}
+                >
+                  {isAddLocationMode ? (
+                    <MapPin size={24} />
+                  ) : (
+                    <Plus size={24} />
+                  )}
+                </button>
+
+                {/* Current Location Button */}
+                {latitude && longitude && (
+                  <button
+                    onClick={() => {
+                      setDynamicMapCenter({ lat: latitude, lng: longitude });
+                      if (mapRef) {
+                        mapRef.setView([latitude, longitude], 16);
+                      }
+                    }}
+                    style={{
+                      width: "48px",
+                      height: "48px",
+                      borderRadius: "50%",
+                      background: "var(--tg-theme-bg-color)",
+                      color: "var(--tg-theme-text-color)",
+                      border:
+                        "1px solid var(--tg-theme-section-separator-color)",
+                      boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      transition: "all 0.2s ease",
+                    }}
+                  >
+                    <Navigation2 size={20} />
+                  </button>
+                )}
+              </div>
+
+              {/* Add Location Mode Instructions */}
+              {isAddLocationMode && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "20px",
+                    left: "20px",
+                    right: "20px",
+                    zIndex: 1000,
+                    pointerEvents: "none",
+                  }}
+                >
+                  <div
+                    style={{
+                      background: "var(--tg-theme-bg-color)",
+                      borderRadius: "16px",
+                      padding: "16px",
+                      border:
+                        "1px solid var(--tg-theme-section-separator-color)",
+                      boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "12px",
+                      }}
+                    >
+                      <MapPin
+                        size={20}
+                        style={{ color: "var(--tg-theme-button-color)" }}
+                      />
+                      <div>
+                        <div
+                          style={{
+                            fontWeight: "600",
+                            fontSize: "14px",
+                            color: "var(--tg-theme-text-color)",
+                            marginBottom: "4px",
+                          }}
+                        >
+                          Position the crosshair and tap the pin button
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "12px",
+                            color: "var(--tg-theme-hint-color)",
+                          }}
+                        >
+                          Move the map to place your location precisely
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1332,8 +1601,6 @@ export function MapPage() {
                   Global Search
                 </button>
               </div>
-
-              {/* Search Content */}
               <div
                 style={{
                   flex: 1,
@@ -1369,8 +1636,6 @@ export function MapPage() {
             </div>
           </div>
         )}
-
-        {/* Location Detail Modal */}
         {showLocationDetail && selectedLocation && (
           <LocationDetailModal
             location={selectedLocation}
@@ -1381,8 +1646,11 @@ export function MapPage() {
             }}
             onLocationClick={(_lat, _lng) => {
               setShowLocationDetail(false);
-              // You could add map center functionality here if needed
             }}
+            onToggleFavorite={toggleFavorite}
+            isFavorited={favoriteLocations.some(
+              (fav) => fav.id === selectedLocation.id
+            )}
           />
         )}
       </div>
