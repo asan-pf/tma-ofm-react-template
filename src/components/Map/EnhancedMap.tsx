@@ -70,7 +70,10 @@ export function EnhancedMap({
   // Pinch zoom state
   const [isPinching, setIsPinching] = useState(false);
   const [lastPinchDistance, setLastPinchDistance] = useState(0);
-  // Removed unused lastPinchCenter
+  
+  // Touch interaction state for better mobile support
+  const [touchStartPos, setTouchStartPos] = useState({ x: 0, y: 0 });
+  const [hasMoved, setHasMoved] = useState(false);
   
   const tileCache = useRef<Map<string, HTMLImageElement>>(new Map());
 
@@ -413,7 +416,9 @@ export function EnhancedMap({
         Math.pow(canvasX - markerX, 2) + Math.pow(canvasY - (markerY - 6), 2)
       );
 
-      if (distance <= 20) {
+      // Larger touch target for mobile devices
+      const touchRadius = 'ontouchstart' in window ? 35 : 20;
+      if (distance <= touchRadius) {
         return location;
       }
     }
@@ -442,7 +447,9 @@ export function EnhancedMap({
         Math.pow(canvasX - poiX, 2) + Math.pow(canvasY - poiY, 2)
       );
 
-      if (distance <= 20) {
+      // Larger touch target for mobile devices
+      const touchRadius = 'ontouchstart' in window ? 35 : 20;
+      if (distance <= touchRadius) {
         return poi;
       }
     }
@@ -451,49 +458,36 @@ export function EnhancedMap({
   };
 
   const handleStart = (e: React.MouseEvent | React.TouchEvent) => {
-    e.preventDefault();
+    // Only prevent default for mouse events, not touch events (to allow native pinch zoom)
+    if (!('touches' in e)) {
+      e.preventDefault();
+    }
     
     if ('touches' in e && e.touches.length === 2) {
-      // Start pinch zoom
-      const touch1 = e.touches[0];
-      const touch2 = e.touches[1];
-      const distance = getTouchDistance(touch1, touch2);
-      
-      setIsPinching(true);
-      setLastPinchDistance(distance);
-      setIsDragging(false);
-    } else {
-      // Start dragging
+      // For now, let native pinch zoom handle this
+      return;
+    } else if ('touches' in e && e.touches.length === 1) {
+      // Single touch - start dragging
       const pos = getEventPosition(e);
       setIsDragging(true);
       setLastMousePos(pos);
+      setTouchStartPos(pos);
       setIsPinching(false);
+      setHasMoved(false);
+    } else {
+      // Mouse event - start dragging  
+      const pos = getEventPosition(e);
+      setIsDragging(true);
+      setLastMousePos(pos);
+      setTouchStartPos(pos);
+      setIsPinching(false);
+      setHasMoved(false);
     }
   };
 
   const handleMove = (e: React.MouseEvent | React.TouchEvent) => {
-    if ('touches' in e && e.touches.length === 2 && isPinching) {
-      // Handle pinch zoom
-      e.preventDefault();
-      const touch1 = e.touches[0];
-      const touch2 = e.touches[1];
-      const distance = getTouchDistance(touch1, touch2);
-      
-      if (lastPinchDistance > 0) {
-        const zoomDelta = (distance - lastPinchDistance) / 100;
-        const newZoom = Math.max(1, Math.min(18, mapState.zoom + zoomDelta));
-        
-        if (newZoom !== mapState.zoom) {
-          setMapState(prev => ({
-            ...prev,
-            zoom: newZoom,
-            offsetX: 0,
-            offsetY: 0
-          }));
-        }
-      }
-      
-      setLastPinchDistance(distance);
+    // Skip pinch zoom handling for now - let native handle it
+    if ('touches' in e && e.touches.length === 2) {
       return;
     }
 
@@ -512,6 +506,14 @@ export function EnhancedMap({
 
     const deltaX = pos.x - lastMousePos.x;
     const deltaY = pos.y - lastMousePos.y;
+    
+    // Track if user has moved significantly (helps distinguish tap vs drag on mobile)
+    const totalMovement = Math.sqrt(
+      Math.pow(pos.x - touchStartPos.x, 2) + Math.pow(pos.y - touchStartPos.y, 2)
+    );
+    if (totalMovement > 5) {
+      setHasMoved(true);
+    }
 
     setMapState(prev => ({
       ...prev,
@@ -546,7 +548,8 @@ export function EnhancedMap({
   };
 
   const handleMapClick = (e: React.MouseEvent) => {
-    if (isDragging) return;
+    // Don't handle click if user was dragging (especially on mobile)
+    if (hasMoved) return;
 
     const pos = { x: e.clientX, y: e.clientY };
     
@@ -585,9 +588,8 @@ export function EnhancedMap({
   const handleZoom = (delta: number) => {
     setMapState(prev => ({
       ...prev,
-      zoom: Math.max(1, Math.min(18, prev.zoom + delta)),
-      offsetX: 0,
-      offsetY: 0
+      zoom: Math.max(1, Math.min(18, prev.zoom + delta))
+      // Keep existing offsets for smoother zoom
     }));
   };
 
@@ -671,7 +673,7 @@ export function EnhancedMap({
           width: '100%',
           height: '100%',
           cursor: isDragging ? 'grabbing' : 'grab',
-          touchAction: 'none'
+          touchAction: 'manipulation'  // Allow pinch zoom but prevent other touch actions
         }}
         onMouseDown={handleStart}
         onMouseMove={handleMove}
