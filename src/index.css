@@ -2,10 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
+html, body {
   background: var(--tg-theme-secondary-bg-color, white);
   padding: 0;
   margin: 0;
+  /* Prevent page zoom while allowing scrolling */
+  touch-action: pan-x pan-y;
+  -ms-touch-action: pan-x pan-y;
+  width: 100%;
+  height: 100%;
+}
+
+/* Prevent double-tap zoom on all elements */
+* {
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Allow text selection where needed */
+input, textarea {
+  -webkit-user-select: text;
+}
+
+/* Allow map canvas to handle its own touch events */
+canvas {
+  touch-action: none;
 }
 
 /* Complete CSS isolation for map */

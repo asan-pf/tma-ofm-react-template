@@ -69,6 +69,8 @@ export function EnhancedMap({
 
   // Pinch zoom state
   const [isPinching, setIsPinching] = useState(false);
+  const [initialPinchDistance, setInitialPinchDistance] = useState(0);
+  const [initialPinchZoom, setInitialPinchZoom] = useState(0);
 
   // Touch interaction state for better mobile support
   const [touchStartPos, setTouchStartPos] = useState({ x: 0, y: 0 });
@@ -566,22 +568,24 @@ export function EnhancedMap({
   };
 
   const handleStart = (e: React.MouseEvent | React.TouchEvent) => {
-    // Only prevent default for mouse events, not touch events (to allow native pinch zoom)
+    // Only prevent default for mouse events, not touch events
     if (!("touches" in e)) {
       e.preventDefault();
     }
 
     if ("touches" in e && e.touches.length === 2) {
-      // For now, let native pinch zoom handle this
-      return;
+      // Two fingers - start pinch zoom
+      e.preventDefault(); // Prevent browser zoom
+      handlePinchZoom(e.touches);
     } else if ("touches" in e && e.touches.length === 1) {
-      // Single touch - start dragging
-      const pos = getEventPosition(e);
-      setIsDragging(true);
-      setLastMousePos(pos);
-      setTouchStartPos(pos);
-      setIsPinching(false);
-      setHasMoved(false);
+      // Single touch - start dragging (only if not already pinching)
+      if (!isPinching) {
+        const pos = getEventPosition(e);
+        setIsDragging(true);
+        setLastMousePos(pos);
+        setTouchStartPos(pos);
+        setHasMoved(false);
+      }
     } else {
       // Mouse event - start dragging
       const pos = getEventPosition(e);
@@ -594,8 +598,10 @@ export function EnhancedMap({
   };
 
   const handleMove = (e: React.MouseEvent | React.TouchEvent) => {
-    // Skip pinch zoom handling for now - let native handle it
     if ("touches" in e && e.touches.length === 2) {
+      // Two fingers - handle pinch zoom
+      e.preventDefault();
+      handlePinchZoom(e.touches);
       return;
     }
 
@@ -609,6 +615,7 @@ export function EnhancedMap({
       setHoveredPOI(poi ? poi.id : null);
     }
 
+    // Don't handle dragging if we're pinching
     if (!isDragging || isPinching) return;
     e.preventDefault();
 
@@ -633,7 +640,12 @@ export function EnhancedMap({
     setLastMousePos(pos);
   };
 
-  const handleEnd = () => {
+  const handleEnd = (e?: React.TouchEvent | React.MouseEvent) => {
+    // If this is a touch event and we still have touches, don't end yet
+    if (e && "touches" in e && e.touches.length > 0) {
+      return;
+    }
+
     if (isDragging) {
       const canvas = canvasRef.current;
       if (canvas) {
@@ -659,8 +671,12 @@ export function EnhancedMap({
         }));
       }
     }
+    
+    // Reset all touch states
     setIsDragging(false);
     setIsPinching(false);
+    setInitialPinchDistance(0);
+    setInitialPinchZoom(0);
   };
 
   const handleMapClick = (e: React.MouseEvent) => {
@@ -713,6 +729,49 @@ export function EnhancedMap({
       zoom: Math.max(1, Math.min(18, prev.zoom + delta)),
       // Keep existing offsets for smoother zoom
     }));
+  };
+
+  // Smooth zoom with smaller increments for better UX
+  const handleSmoothZoom = (direction: 1 | -1) => {
+    const increment = 0.5; // Smaller increment for smoother zooming
+    handleZoom(direction * increment);
+  };
+
+  // Calculate distance between two touch points
+  const getTouchDistance = (touches: React.TouchList): number => {
+    if (touches.length < 2) return 0;
+    const touch1 = touches[0];
+    const touch2 = touches[1];
+    return Math.sqrt(
+      Math.pow(touch2.clientX - touch1.clientX, 2) +
+      Math.pow(touch2.clientY - touch1.clientY, 2)
+    );
+  };
+
+  // Handle pinch zoom
+  const handlePinchZoom = (touches: React.TouchList) => {
+    if (touches.length !== 2) return;
+
+    const distance = getTouchDistance(touches);
+
+    if (!isPinching) {
+      // Start of pinch gesture
+      setIsPinching(true);
+      setInitialPinchDistance(distance);
+      setInitialPinchZoom(mapState.zoom);
+      setIsDragging(false); // Stop dragging when pinching starts
+    } else if (initialPinchDistance > 0) {
+      // Calculate zoom change based on distance change
+      const scale = distance / initialPinchDistance;
+      const zoomDelta = Math.log2(scale) * 0.8; // Reduce sensitivity for smoother zooming
+      const newZoom = Math.max(1, Math.min(18, initialPinchZoom + zoomDelta));
+
+      // Update map state with new zoom
+      setMapState((prev) => ({
+        ...prev,
+        zoom: newZoom,
+      }));
+    }
   };
 
   // Update map state when props change
@@ -816,7 +875,7 @@ export function EnhancedMap({
           width: "100%",
           height: "100%",
           cursor: isDragging ? "grabbing" : "grab",
-          touchAction: "manipulation", // Allow pinch zoom but prevent other touch actions
+          touchAction: "none", // Prevent all default touch behaviors, we'll handle them ourselves
         }}
         onMouseDown={handleStart}
         onMouseMove={handleMove}
@@ -825,6 +884,7 @@ export function EnhancedMap({
         onTouchStart={handleStart}
         onTouchMove={handleMove}
         onTouchEnd={handleEnd}
+        onTouchCancel={handleEnd}
         onClick={handleMapClick}
       />
 
@@ -863,7 +923,7 @@ export function EnhancedMap({
         }}
       >
         <button
-          onClick={() => handleZoom(1)}
+          onClick={() => handleSmoothZoom(1)}
           style={{
             width: "48px",
             height: "48px",
@@ -878,15 +938,23 @@ export function EnhancedMap({
             alignItems: "center",
             justifyContent: "center",
             boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
-            transition: "transform 0.1s ease",
+            transition: "all 0.15s ease",
             WebkitTapHighlightColor: "transparent",
             touchAction: "manipulation",
+          }}
+          onTouchStart={(e) => {
+            e.currentTarget.style.transform = "scale(0.95)";
+            e.currentTarget.style.backgroundColor = "var(--tg-theme-secondary-bg-color, #f1f3f4)";
+          }}
+          onTouchEnd={(e) => {
+            e.currentTarget.style.transform = "scale(1)";
+            e.currentTarget.style.backgroundColor = "var(--tg-theme-bg-color, white)";
           }}
         >
           +
         </button>
         <button
-          onClick={() => handleZoom(-1)}
+          onClick={() => handleSmoothZoom(-1)}
           style={{
             width: "48px",
             height: "48px",
@@ -901,9 +969,17 @@ export function EnhancedMap({
             alignItems: "center",
             justifyContent: "center",
             boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
-            transition: "transform 0.1s ease",
+            transition: "all 0.15s ease",
             WebkitTapHighlightColor: "transparent",
             touchAction: "manipulation",
+          }}
+          onTouchStart={(e) => {
+            e.currentTarget.style.transform = "scale(0.95)";
+            e.currentTarget.style.backgroundColor = "var(--tg-theme-secondary-bg-color, #f1f3f4)";
+          }}
+          onTouchEnd={(e) => {
+            e.currentTarget.style.transform = "scale(1)";
+            e.currentTarget.style.backgroundColor = "var(--tg-theme-bg-color, white)";
           }}
         >
           −
