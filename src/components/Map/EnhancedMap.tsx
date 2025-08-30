@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { ZoomIn, ZoomOut } from 'lucide-react';
 import { POI, POIService } from '@/utils/poiService';
 
 interface Location {
@@ -67,6 +66,12 @@ export function EnhancedMap({
   const [hoveredPOI, setHoveredPOI] = useState<string | null>(null);
   const [pois, setPOIs] = useState<POI[]>([]);
   const [isLoadingPOIs, setIsLoadingPOIs] = useState(false);
+  
+  // Pinch zoom state
+  const [isPinching, setIsPinching] = useState(false);
+  const [lastPinchDistance, setLastPinchDistance] = useState(0);
+  // Removed unused lastPinchCenter
+  
   const tileCache = useRef<Map<string, HTMLImageElement>>(new Map());
 
   // Convert locations to markers
@@ -335,26 +340,41 @@ export function EnhancedMap({
         const userX = (canvasWidth / 2) + (userPixel.x - centerPixel.x) + mapState.offsetX;
         const userY = (canvasHeight / 2) + (userPixel.y - centerPixel.y) + mapState.offsetY;
 
-        // User location blue dot
-        ctx.fillStyle = '#4285f4';
-        ctx.beginPath();
-        ctx.arc(userX, userY, 10, 0, 2 * Math.PI);
-        ctx.fill();
-        
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(userX, userY, 10, 0, 2 * Math.PI);
-        ctx.stroke();
+        // Skip if user location is outside visible area
+        if (userX >= -20 && userX <= canvasWidth + 20 && userY >= -20 && userY <= canvasHeight + 20) {
+          // Outer pulse ring
+          ctx.strokeStyle = '#4285f4';
+          ctx.lineWidth = 3;
+          ctx.globalAlpha = 0.3;
+          ctx.beginPath();
+          ctx.arc(userX, userY, 20, 0, 2 * Math.PI);
+          ctx.stroke();
+          
+          // Inner pulse ring  
+          ctx.lineWidth = 2;
+          ctx.globalAlpha = 0.5;
+          ctx.beginPath();
+          ctx.arc(userX, userY, 15, 0, 2 * Math.PI);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
 
-        // Pulse effect
-        ctx.strokeStyle = '#4285f4';
-        ctx.lineWidth = 2;
-        ctx.globalAlpha = 0.3;
-        ctx.beginPath();
-        ctx.arc(userX, userY, 16, 0, 2 * Math.PI);
-        ctx.stroke();
-        ctx.globalAlpha = 1;
+          // Main blue dot with white border
+          ctx.fillStyle = '#fff';
+          ctx.beginPath();
+          ctx.arc(userX, userY, 12, 0, 2 * Math.PI);
+          ctx.fill();
+          
+          ctx.fillStyle = '#4285f4';
+          ctx.beginPath();
+          ctx.arc(userX, userY, 8, 0, 2 * Math.PI);
+          ctx.fill();
+          
+          // Inner white dot for better visibility
+          ctx.fillStyle = '#fff';
+          ctx.beginPath();
+          ctx.arc(userX, userY, 3, 0, 2 * Math.PI);
+          ctx.fill();
+        }
       }
     });
   };
@@ -366,6 +386,13 @@ export function EnhancedMap({
     }
     return { x: e.clientX, y: e.clientY };
   };
+
+  const getTouchDistance = (touch1: React.Touch, touch2: React.Touch) => {
+    const dx = touch1.clientX - touch2.clientX;
+    const dy = touch1.clientY - touch2.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
 
   const getMarkerAtPosition = (x: number, y: number): Location | null => {
     const canvas = canvasRef.current;
@@ -425,23 +452,62 @@ export function EnhancedMap({
 
   const handleStart = (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
-    const pos = getEventPosition(e);
-    setIsDragging(true);
-    setLastMousePos(pos);
+    
+    if ('touches' in e && e.touches.length === 2) {
+      // Start pinch zoom
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
+      const distance = getTouchDistance(touch1, touch2);
+      
+      setIsPinching(true);
+      setLastPinchDistance(distance);
+      setIsDragging(false);
+    } else {
+      // Start dragging
+      const pos = getEventPosition(e);
+      setIsDragging(true);
+      setLastMousePos(pos);
+      setIsPinching(false);
+    }
   };
 
   const handleMove = (e: React.MouseEvent | React.TouchEvent) => {
+    if ('touches' in e && e.touches.length === 2 && isPinching) {
+      // Handle pinch zoom
+      e.preventDefault();
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
+      const distance = getTouchDistance(touch1, touch2);
+      
+      if (lastPinchDistance > 0) {
+        const zoomDelta = (distance - lastPinchDistance) / 100;
+        const newZoom = Math.max(1, Math.min(18, mapState.zoom + zoomDelta));
+        
+        if (newZoom !== mapState.zoom) {
+          setMapState(prev => ({
+            ...prev,
+            zoom: newZoom,
+            offsetX: 0,
+            offsetY: 0
+          }));
+        }
+      }
+      
+      setLastPinchDistance(distance);
+      return;
+    }
+
     const pos = getEventPosition(e);
 
     // Handle hover for desktop
-    if (!isDragging && 'clientX' in e) {
+    if (!isDragging && !isPinching && 'clientX' in e) {
       const marker = getMarkerAtPosition(pos.x, pos.y);
       const poi = getPOIAtPosition(pos.x, pos.y);
       setHoveredMarker(marker ? marker.id : null);
       setHoveredPOI(poi ? poi.id : null);
     }
 
-    if (!isDragging) return;
+    if (!isDragging || isPinching) return;
     e.preventDefault();
 
     const deltaX = pos.x - lastMousePos.x;
@@ -475,6 +541,8 @@ export function EnhancedMap({
       }
     }
     setIsDragging(false);
+    setIsPinching(false);
+    setLastPinchDistance(0);
   };
 
   const handleMapClick = (e: React.MouseEvent) => {
@@ -545,7 +613,7 @@ export function EnhancedMap({
   // Redraw map when state changes
   useEffect(() => {
     drawMap();
-  }, [mapState, markers, hoveredMarker, selectedLocationId, pois, hoveredPOI, selectedPOI, showPOIs]);
+  }, [mapState, markers, hoveredMarker, selectedLocationId, pois, hoveredPOI, selectedPOI, showPOIs, showUserLocation, latitude, longitude]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -557,6 +625,33 @@ export function EnhancedMap({
 
     drawMap();
   }, []);
+
+  // Calculate user location marker position for CSS overlay
+  const userLocationStyle = showUserLocation ? (() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    
+    const centerPixel = latLngToPixel(mapState.centerLat, mapState.centerLng, mapState.zoom);
+    const userPixel = latLngToPixel(latitude, longitude, mapState.zoom);
+    const userX = (canvas.width / 2) + (userPixel.x - centerPixel.x) + mapState.offsetX;
+    const userY = (canvas.height / 2) + (userPixel.y - centerPixel.y) + mapState.offsetY;
+    
+    return {
+      position: 'absolute' as const,
+      left: `${userX}px`,
+      top: `${userY}px`,
+      transform: 'translate(-50%, -50%)',
+      width: '24px',
+      height: '24px',
+      background: '#4285f4',
+      borderRadius: '50%',
+      border: '4px solid white',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.3), 0 0 0 8px rgba(66, 133, 244, 0.2)',
+      zIndex: 500,
+      animation: 'pulse 2s infinite',
+      pointerEvents: 'none' as const
+    };
+  })() : null;
 
   return (
     <div 
@@ -588,6 +683,28 @@ export function EnhancedMap({
         onClick={handleMapClick}
       />
       
+      {/* User Location CSS Overlay Marker */}
+      {userLocationStyle && (
+        <>
+          <style>
+            {`
+              @keyframes pulse {
+                0% {
+                  box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 0 0 0 rgba(66, 133, 244, 0.4);
+                }
+                50% {
+                  box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 0 0 8px rgba(66, 133, 244, 0.2);
+                }
+                100% {
+                  box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 0 0 16px rgba(66, 133, 244, 0);
+                }
+              }
+            `}
+          </style>
+          <div style={userLocationStyle}></div>
+        </>
+      )}
+      
       {/* Map Controls */}
       <div style={{
         position: 'absolute',
@@ -601,42 +718,48 @@ export function EnhancedMap({
         <button
           onClick={() => handleZoom(1)}
           style={{
-            width: '44px', 
-            height: '44px', 
+            width: '48px', 
+            height: '48px', 
             background: 'var(--tg-theme-bg-color, white)', 
             color: 'var(--tg-theme-text-color, #333)',
-            border: '1px solid var(--tg-theme-section-separator-color)', 
+            border: '2px solid var(--tg-theme-section-separator-color)', 
             borderRadius: '12px', 
             cursor: 'pointer', 
-            fontSize: '18px',
+            fontSize: '22px',
+            fontWeight: 'bold',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
-            transition: 'transform 0.1s ease'
+            boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+            transition: 'transform 0.1s ease',
+            WebkitTapHighlightColor: 'transparent',
+            touchAction: 'manipulation'
           }}
         >
-          <ZoomIn size={20} />
+          +
         </button>
         <button
           onClick={() => handleZoom(-1)}
           style={{
-            width: '44px', 
-            height: '44px', 
+            width: '48px', 
+            height: '48px', 
             background: 'var(--tg-theme-bg-color, white)', 
             color: 'var(--tg-theme-text-color, #333)',
-            border: '1px solid var(--tg-theme-section-separator-color)', 
+            border: '2px solid var(--tg-theme-section-separator-color)', 
             borderRadius: '12px', 
             cursor: 'pointer', 
-            fontSize: '18px',
+            fontSize: '22px',
+            fontWeight: 'bold',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
-            transition: 'transform 0.1s ease'
+            boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+            transition: 'transform 0.1s ease',
+            WebkitTapHighlightColor: 'transparent',
+            touchAction: 'manipulation'
           }}
         >
-          <ZoomOut size={20} />
+          −
         </button>
       </div>
 
