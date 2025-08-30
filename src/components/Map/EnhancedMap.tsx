@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ZoomIn, ZoomOut } from 'lucide-react';
+import { POI, POIService } from '@/utils/poiService';
 
 interface Location {
   id: number;
@@ -27,9 +28,13 @@ interface EnhancedMapProps {
   height?: string;
   onMapClick?: (lat: number, lng: number) => void;
   onMarkerClick?: (location: Location) => void;
+  onPOIClick?: (poi: POI) => void;
   locations?: Location[];
   showUserLocation?: boolean;
   selectedLocationId?: number;
+  showPOIs?: boolean;
+  selectedPOI?: POI | null;
+  hideBadges?: boolean;
 }
 
 export function EnhancedMap({ 
@@ -39,9 +44,13 @@ export function EnhancedMap({
   height = "400px",
   onMapClick,
   onMarkerClick,
+  onPOIClick,
   locations = [],
   showUserLocation = true,
-  selectedLocationId
+  selectedLocationId,
+  showPOIs = true,
+  selectedPOI = null,
+  hideBadges = false
 }: EnhancedMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -55,6 +64,9 @@ export function EnhancedMap({
   const [isDragging, setIsDragging] = useState(false);
   const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
   const [hoveredMarker, setHoveredMarker] = useState<number | null>(null);
+  const [hoveredPOI, setHoveredPOI] = useState<string | null>(null);
+  const [pois, setPOIs] = useState<POI[]>([]);
+  const [isLoadingPOIs, setIsLoadingPOIs] = useState(false);
   const tileCache = useRef<Map<string, HTMLImageElement>>(new Map());
 
   // Convert locations to markers
@@ -82,6 +94,35 @@ export function EnhancedMap({
       default: return '🏪';
     }
   }
+
+  // Load POIs when map bounds change
+  const loadPOIs = async () => {
+    if (!showPOIs || mapState.zoom < 14) {
+      setPOIs([]);
+      return;
+    }
+
+    setIsLoadingPOIs(true);
+    try {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      // Calculate bounds from current view
+      const bounds = {
+        north: mapState.centerLat + (0.01 * (18 - mapState.zoom)),
+        south: mapState.centerLat - (0.01 * (18 - mapState.zoom)),
+        east: mapState.centerLng + (0.01 * (18 - mapState.zoom)),
+        west: mapState.centerLng - (0.01 * (18 - mapState.zoom))
+      };
+
+      const fetchedPOIs = await POIService.fetchPOIs(bounds);
+      setPOIs(fetchedPOIs);
+    } catch (error) {
+      console.error('Error loading POIs:', error);
+    } finally {
+      setIsLoadingPOIs(false);
+    }
+  };
 
   // Map projection functions
   const rad2deg = (rad: number) => rad * (180 / Math.PI);
@@ -179,7 +220,57 @@ export function EnhancedMap({
 
     // Wait for all tiles to load, then draw markers
     Promise.all(tilePromises).then(() => {
-      // Draw location markers
+      // Draw POI markers first (behind saved locations)
+      if (showPOIs && mapState.zoom >= 14) {
+        pois.forEach((poi) => {
+          const poiPixel = latLngToPixel(poi.latitude, poi.longitude, mapState.zoom);
+          const poiX = (canvasWidth / 2) + (poiPixel.x - centerPixel.x) + mapState.offsetX;
+          const poiY = (canvasHeight / 2) + (poiPixel.y - centerPixel.y) + mapState.offsetY;
+
+          // Skip if POI is outside visible area
+          if (poiX < -20 || poiX > canvasWidth + 20 || poiY < -30 || poiY > canvasHeight + 20) {
+            return;
+          }
+
+          const isHovered = hoveredPOI === poi.id;
+          const isSelected = selectedPOI?.id === poi.id;
+          const poiSize = isHovered || isSelected ? 10 : 8;
+          const poiColor = POIService.getCategoryColor(poi.category);
+          
+          // Draw POI marker (smaller than saved locations)
+          ctx.fillStyle = poiColor;
+          ctx.globalAlpha = 0.8;
+          ctx.beginPath();
+          ctx.arc(poiX, poiY, poiSize, 0, 2 * Math.PI);
+          ctx.fill();
+
+          // Draw white center
+          ctx.fillStyle = 'white';
+          ctx.beginPath();
+          ctx.arc(poiX, poiY, poiSize - 2, 0, 2 * Math.PI);
+          ctx.fill();
+
+          // Draw category icon (smaller)
+          ctx.fillStyle = poiColor;
+          ctx.font = `${poiSize - 1}px Arial`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(POIService.getCategoryIcon(poi.category), poiX, poiY);
+
+          // Draw selection ring if selected
+          if (isSelected) {
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(poiX, poiY, poiSize + 2, 0, 2 * Math.PI);
+            ctx.stroke();
+          }
+
+          ctx.globalAlpha = 1;
+        });
+      }
+
+      // Draw location markers (on top of POIs)
       markers.forEach((marker) => {
         const markerPixel = latLngToPixel(marker.lat, marker.lng, mapState.zoom);
         const markerX = (canvasWidth / 2) + (markerPixel.x - centerPixel.x) + mapState.offsetX;
@@ -303,6 +394,35 @@ export function EnhancedMap({
     return null;
   };
 
+  const getPOIAtPosition = (x: number, y: number): POI | null => {
+    if (!showPOIs || mapState.zoom < 14) return null;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+
+    const rect = canvas.getBoundingClientRect();
+    const canvasX = x - rect.left;
+    const canvasY = y - rect.top;
+
+    const centerPixel = latLngToPixel(mapState.centerLat, mapState.centerLng, mapState.zoom);
+
+    for (const poi of pois) {
+      const poiPixel = latLngToPixel(poi.latitude, poi.longitude, mapState.zoom);
+      const poiX = (canvas.width / 2) + (poiPixel.x - centerPixel.x) + mapState.offsetX;
+      const poiY = (canvas.height / 2) + (poiPixel.y - centerPixel.y) + mapState.offsetY;
+
+      const distance = Math.sqrt(
+        Math.pow(canvasX - poiX, 2) + Math.pow(canvasY - poiY, 2)
+      );
+
+      if (distance <= 20) {
+        return poi;
+      }
+    }
+
+    return null;
+  };
+
   const handleStart = (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
     const pos = getEventPosition(e);
@@ -316,7 +436,9 @@ export function EnhancedMap({
     // Handle hover for desktop
     if (!isDragging && 'clientX' in e) {
       const marker = getMarkerAtPosition(pos.x, pos.y);
+      const poi = getPOIAtPosition(pos.x, pos.y);
       setHoveredMarker(marker ? marker.id : null);
+      setHoveredPOI(poi ? poi.id : null);
     }
 
     if (!isDragging) return;
@@ -360,10 +482,17 @@ export function EnhancedMap({
 
     const pos = { x: e.clientX, y: e.clientY };
     
-    // Check if clicking on a marker
+    // Check if clicking on a saved location marker (higher priority)
     const clickedLocation = getMarkerAtPosition(pos.x, pos.y);
     if (clickedLocation && onMarkerClick) {
       onMarkerClick(clickedLocation);
+      return;
+    }
+
+    // Check if clicking on a POI
+    const clickedPOI = getPOIAtPosition(pos.x, pos.y);
+    if (clickedPOI && onPOIClick) {
+      onPOIClick(clickedPOI);
       return;
     }
 
@@ -404,10 +533,19 @@ export function EnhancedMap({
     }));
   }, [latitude, longitude, zoom]);
 
+  // Load POIs when map state changes
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      loadPOIs();
+    }, 300); // Debounce POI loading
+
+    return () => clearTimeout(timeoutId);
+  }, [mapState.centerLat, mapState.centerLng, mapState.zoom, showPOIs]);
+
   // Redraw map when state changes
   useEffect(() => {
     drawMap();
-  }, [mapState, markers, hoveredMarker, selectedLocationId]);
+  }, [mapState, markers, hoveredMarker, selectedLocationId, pois, hoveredPOI, selectedPOI, showPOIs]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -454,7 +592,7 @@ export function EnhancedMap({
       <div style={{
         position: 'absolute',
         bottom: '16px',
-        right: '16px',
+        left: '16px',
         display: 'flex',
         flexDirection: 'column',
         gap: '8px',
@@ -503,21 +641,57 @@ export function EnhancedMap({
       </div>
 
       {/* Location count badge */}
-      {locations.length > 0 && (
+      {!hideBadges && (
         <div style={{
           position: 'absolute',
           top: '16px',
           right: '16px',
-          background: 'var(--tg-theme-button-color, #0088cc)',
-          color: 'white',
-          padding: '8px 12px',
-          borderRadius: '20px',
-          fontSize: '12px',
-          fontWeight: '600',
-          zIndex: 1000,
-          boxShadow: '0 2px 12px rgba(0,0,0,0.15)'
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+          zIndex: 1000
         }}>
-          {locations.length} location{locations.length !== 1 ? 's' : ''}
+          {locations.length > 0 && (
+            <div style={{
+              background: 'var(--tg-theme-button-color, #0088cc)',
+              color: 'white',
+              padding: '8px 12px',
+              borderRadius: '20px',
+              fontSize: '12px',
+              fontWeight: '600',
+              boxShadow: '0 2px 12px rgba(0,0,0,0.15)'
+            }}>
+              {locations.length} saved location{locations.length !== 1 ? 's' : ''}
+            </div>
+          )}
+          
+          {showPOIs && mapState.zoom >= 14 && (
+            <div style={{
+              background: isLoadingPOIs ? 'var(--tg-theme-hint-color, #999)' : 'var(--tg-theme-secondary-bg-color, #f1f3f4)',
+              color: isLoadingPOIs ? 'white' : 'var(--tg-theme-text-color, #000)',
+              padding: '6px 10px',
+              borderRadius: '16px',
+              fontSize: '11px',
+              fontWeight: '500',
+              boxShadow: '0 2px 12px rgba(0,0,0,0.15)'
+            }}>
+              {isLoadingPOIs ? 'Loading POIs...' : `${pois.length} POI${pois.length !== 1 ? 's' : ''}`}
+            </div>
+          )}
+          
+          {showPOIs && mapState.zoom < 14 && (
+            <div style={{
+              background: 'var(--tg-theme-hint-color, #999)',
+              color: 'white',
+              padding: '6px 10px',
+              borderRadius: '16px',
+              fontSize: '11px',
+              fontWeight: '500',
+              boxShadow: '0 2px 12px rgba(0,0,0,0.15)'
+            }}>
+              Zoom in to see POIs
+            </div>
+          )}
         </div>
       )}
     </div>
