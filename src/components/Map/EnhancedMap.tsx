@@ -34,6 +34,7 @@ interface EnhancedMapProps {
   showPOIs?: boolean;
   selectedPOI?: POI | null;
   hideBadges?: boolean;
+  onSavedLocationsBadgeClick?: () => void;
 }
 
 export function EnhancedMap({
@@ -50,6 +51,7 @@ export function EnhancedMap({
   showPOIs = true,
   selectedPOI = null,
   hideBadges = false,
+  onSavedLocationsBadgeClick,
 }: EnhancedMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -213,8 +215,8 @@ export function EnhancedMap({
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
 
-    // Clear canvas
-    ctx.fillStyle = "#a0c4ff";
+    // Clear canvas with a neutral background
+    ctx.fillStyle = "#f0f0f0";
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
     // Calculate center pixel coordinates
@@ -270,8 +272,8 @@ export function EnhancedMap({
       }
     }
 
-    // Wait for all tiles to load, then draw markers
-    Promise.all(tilePromises).then(() => {
+    // Wait for tiles to load (continue even if some fail), then draw markers
+    Promise.allSettled(tilePromises).then(() => {
       // Draw POI markers first (behind saved locations)
       if (showPOIs && mapState.zoom >= 14) {
         pois.forEach((poi) => {
@@ -724,16 +726,26 @@ export function EnhancedMap({
   };
 
   const handleZoom = (delta: number) => {
+    const newZoom = Math.max(1, Math.min(18, mapState.zoom + delta));
     setMapState((prev) => ({
       ...prev,
-      zoom: Math.max(1, Math.min(18, prev.zoom + delta)),
-      // Keep existing offsets for smoother zoom
+      zoom: newZoom,
+      offsetX: 0, // Reset offsets when zooming to prevent visual glitches
+      offsetY: 0,
     }));
+    
+    // Clear tile cache to force reload at new zoom level
+    tileCache.current.clear();
+    
+    // Force a redraw after a short delay to ensure tiles load properly
+    setTimeout(() => {
+      drawMap();
+    }, 100);
   };
 
   // Smooth zoom with smaller increments for better UX
   const handleSmoothZoom = (direction: 1 | -1) => {
-    const increment = 0.5; // Smaller increment for smoother zooming
+    const increment = 1; // Use full increment for better responsiveness
     handleZoom(direction * increment);
   };
 
@@ -766,11 +778,15 @@ export function EnhancedMap({
       const zoomDelta = Math.log2(scale) * 0.8; // Reduce sensitivity for smoother zooming
       const newZoom = Math.max(1, Math.min(18, initialPinchZoom + zoomDelta));
 
-      // Update map state with new zoom
-      setMapState((prev) => ({
-        ...prev,
-        zoom: newZoom,
-      }));
+      // Only update if zoom has changed significantly
+      if (Math.abs(newZoom - mapState.zoom) > 0.1) {
+        setMapState((prev) => ({
+          ...prev,
+          zoom: newZoom,
+          offsetX: 0, // Reset offsets when zooming
+          offsetY: 0,
+        }));
+      }
     }
   };
 
@@ -1001,6 +1017,7 @@ export function EnhancedMap({
         >
           {locations.length > 0 && (
             <div
+              onClick={onSavedLocationsBadgeClick}
               style={{
                 background: "var(--tg-theme-button-color, #0088cc)",
                 color: "white",
@@ -1009,6 +1026,23 @@ export function EnhancedMap({
                 fontSize: "12px",
                 fontWeight: "600",
                 boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
+                cursor: onSavedLocationsBadgeClick ? "pointer" : "default",
+                transition: "transform 0.15s ease",
+              }}
+              onMouseDown={(e) => {
+                if (onSavedLocationsBadgeClick) {
+                  e.currentTarget.style.transform = "scale(0.95)";
+                }
+              }}
+              onMouseUp={(e) => {
+                if (onSavedLocationsBadgeClick) {
+                  e.currentTarget.style.transform = "scale(1)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (onSavedLocationsBadgeClick) {
+                  e.currentTarget.style.transform = "scale(1)";
+                }
               }}
             >
               {locations.length} saved location
@@ -1038,21 +1072,6 @@ export function EnhancedMap({
             </div>
           )}
 
-          {showPOIs && mapState.zoom < 14 && (
-            <div
-              style={{
-                background: "var(--tg-theme-hint-color, #999)",
-                color: "white",
-                padding: "6px 10px",
-                borderRadius: "16px",
-                fontSize: "11px",
-                fontWeight: "500",
-                boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
-              }}
-            >
-              Zoom in to see POIs
-            </div>
-          )}
         </div>
       )}
     </div>

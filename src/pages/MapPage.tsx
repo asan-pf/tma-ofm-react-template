@@ -12,6 +12,7 @@ import { MapControls } from "@/components/Map/MapControls";
 import { MapCrosshair } from "@/components/Map/MapCrosshair";
 import { SearchModal } from "@/components/Map/SearchModal";
 import { AddLocationModal } from "@/components/Map/AddLocationModal";
+import { SavedLocationsModal } from "@/components/SavedLocationsModal";
 import { POI } from "@/utils/poiService";
 import "leaflet/dist/leaflet.css";
 
@@ -50,6 +51,7 @@ export function MapPage() {
   const [showAddLocationModal, setShowAddLocationModal] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showLocationDetail, setShowLocationDetail] = useState(false);
+  const [showSavedLocationsModal, setShowSavedLocationsModal] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(
     null
   );
@@ -276,6 +278,15 @@ export function MapPage() {
     setPendingLocation(null);
   };
 
+  const handleSavedLocationClick = (location: Location) => {
+    setDynamicMapCenter({ lat: location.latitude, lng: location.longitude });
+    if (mapRef) {
+      mapRef.setView([location.latitude, location.longitude], 16);
+    }
+    setSelectedLocation(location);
+    setShowLocationDetail(true);
+  };
+
   const handleMapCenterAdd = () => {
     if (mapRef && isAddLocationMode) {
       const center = mapRef.getCenter();
@@ -373,12 +384,13 @@ export function MapPage() {
                 onPOIClick={handlePOIClick}
                 selectedPOI={selectedPOI}
                 showPOIs={true}
-                hideBadges={showLocationDetail || showPOIDetail || showAddLocationModal || showSearchModal}
+                hideBadges={showLocationDetail || showPOIDetail || showAddLocationModal || showSearchModal || showSavedLocationsModal}
+                onSavedLocationsBadgeClick={() => setShowSavedLocationsModal(true)}
               />
 
               <MapCrosshair isVisible={isAddLocationMode} />
 
-              {!showLocationDetail && !showPOIDetail && !showAddLocationModal && !showSearchModal && (
+              {!showLocationDetail && !showPOIDetail && !showAddLocationModal && !showSearchModal && !showSavedLocationsModal && (
                 <MapControls
                   isAddLocationMode={isAddLocationMode}
                   onAddLocationToggle={handleAddLocationModeToggle}
@@ -464,6 +476,14 @@ export function MapPage() {
             )}
           />
         )}
+
+        <SavedLocationsModal
+          locations={locations}
+          isOpen={showSavedLocationsModal}
+          onClose={() => setShowSavedLocationsModal(false)}
+          onLocationClick={handleSavedLocationClick}
+          onToggleFavorite={toggleFavorite}
+        />
       </div>
     </>
   );

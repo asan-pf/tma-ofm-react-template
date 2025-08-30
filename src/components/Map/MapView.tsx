@@ -25,6 +25,7 @@ interface MapViewProps {
   selectedPOI?: POI | null;
   showPOIs?: boolean;
   hideBadges?: boolean;
+  onSavedLocationsBadgeClick?: () => void;
 }
 
 
@@ -37,6 +38,7 @@ export function MapView({
   selectedPOI,
   showPOIs = true,
   hideBadges = false,
+  onSavedLocationsBadgeClick,
 }: MapViewProps) {
   // Convert user location for EnhancedMap
   const mapCenter = userLocation ? { lat: userLocation.lat, lng: userLocation.lng } : center;
@@ -55,6 +57,7 @@ export function MapView({
       selectedPOI={selectedPOI}
       showPOIs={showPOIs}
       hideBadges={hideBadges}
+      onSavedLocationsBadgeClick={onSavedLocationsBadgeClick}
     />
   );
 }
