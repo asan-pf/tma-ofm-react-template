@@ -112,14 +112,52 @@ export function MapPage() {
       const response = await fetch(`${BACKEND_URL}/api/locations`);
       if (response.ok) {
         const data = await response.json();
-        setLocations(data);
+        setLocations(data.length > 0 ? data : getSampleLocations());
+      } else {
+        // API not available, use sample data
+        setLocations(getSampleLocations());
       }
     } catch (error) {
       console.error("Error loading locations:", error);
+      // API not available, use sample data
+      setLocations(getSampleLocations());
     } finally {
       setIsLoading(false);
     }
   };
+
+  const getSampleLocations = (): Location[] => [
+    {
+      id: 1,
+      name: "Sample Grocery Store",
+      description: "A demo grocery store location for testing",
+      latitude: latitude || 40.7128,
+      longitude: longitude || -74.0060,
+      category: "grocery" as const,
+      created_at: new Date().toISOString(),
+      is_favorited: false,
+    },
+    {
+      id: 2,
+      name: "Demo Restaurant",
+      description: "A sample restaurant location",
+      latitude: (latitude || 40.7128) + 0.01,
+      longitude: (longitude || -74.0060) + 0.01,
+      category: "restaurant-bar" as const,
+      created_at: new Date(Date.now() - 86400000).toISOString(),
+      is_favorited: true,
+    },
+    {
+      id: 3,
+      name: "Test Shop",
+      description: "Another sample location",
+      latitude: (latitude || 40.7128) - 0.01,
+      longitude: (longitude || -74.0060) - 0.01,
+      category: "other" as const,
+      created_at: new Date(Date.now() - 2 * 86400000).toISOString(),
+      is_favorited: false,
+    },
+  ];
 
   const loadFavorites = async () => {
     if (!telegramUser) return;

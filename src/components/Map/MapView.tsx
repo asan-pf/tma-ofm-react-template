@@ -1,4 +1,4 @@
-import { EnhancedMap } from "./EnhancedMap";
+import { LeafletMap } from "./LeafletMap";
 import { POI } from "@/utils/poiService";
 
 interface Location {
@@ -40,11 +40,11 @@ export function MapView({
   hideBadges = false,
   onSavedLocationsBadgeClick,
 }: MapViewProps) {
-  // Convert user location for EnhancedMap
+  // Convert user location for LeafletMap
   const mapCenter = userLocation ? { lat: userLocation.lat, lng: userLocation.lng } : center;
   
   return (
-    <EnhancedMap
+    <LeafletMap
       latitude={mapCenter.lat}
       longitude={mapCenter.lng}
       zoom={13}
