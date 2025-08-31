@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { ZoomIn, ZoomOut } from 'lucide-react';
+import { useEffect, useRef, useState } from "react";
+import { POI, POIService } from "@/utils/poiService";
 
 interface Location {
   id: number;
@@ -7,7 +7,7 @@ interface Location {
   description: string;
   latitude: number;
   longitude: number;
-  category: 'grocery' | 'restaurant-bar' | 'other';
+  category: "grocery" | "restaurant-bar" | "other";
   created_at: string;
 }
 
@@ -27,21 +27,31 @@ interface EnhancedMapProps {
   height?: string;
   onMapClick?: (lat: number, lng: number) => void;
   onMarkerClick?: (location: Location) => void;
+  onPOIClick?: (poi: POI) => void;
   locations?: Location[];
   showUserLocation?: boolean;
   selectedLocationId?: number;
+  showPOIs?: boolean;
+  selectedPOI?: POI | null;
+  hideBadges?: boolean;
+  onSavedLocationsBadgeClick?: () => void;
 }
 
-export function EnhancedMap({ 
-  latitude, 
-  longitude, 
-  zoom = 13, 
+export function EnhancedMap({
+  latitude,
+  longitude,
+  zoom = 13,
   height = "400px",
   onMapClick,
   onMarkerClick,
+  onPOIClick,
   locations = [],
   showUserLocation = true,
-  selectedLocationId
+  selectedLocationId,
+  showPOIs = true,
+  selectedPOI = null,
+  hideBadges = false,
+  onSavedLocationsBadgeClick,
 }: EnhancedMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -50,45 +60,101 @@ export function EnhancedMap({
     centerLng: longitude,
     zoom: zoom,
     offsetX: 0,
-    offsetY: 0
+    offsetY: 0,
   });
   const [isDragging, setIsDragging] = useState(false);
   const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
   const [hoveredMarker, setHoveredMarker] = useState<number | null>(null);
+  const [hoveredPOI, setHoveredPOI] = useState<string | null>(null);
+  const [pois, setPOIs] = useState<POI[]>([]);
+  const [isLoadingPOIs, setIsLoadingPOIs] = useState(false);
+
+  // Pinch zoom state
+  const [isPinching, setIsPinching] = useState(false);
+  const [initialPinchDistance, setInitialPinchDistance] = useState(0);
+  const [initialPinchZoom, setInitialPinchZoom] = useState(0);
+
+  // Touch interaction state for better mobile support
+  const [touchStartPos, setTouchStartPos] = useState({ x: 0, y: 0 });
+  const [hasMoved, setHasMoved] = useState(false);
+
   const tileCache = useRef<Map<string, HTMLImageElement>>(new Map());
 
   // Convert locations to markers
-  const markers: MapMarker[] = locations.map(loc => ({
+  const markers: MapMarker[] = locations.map((loc) => ({
     id: loc.id,
     lat: loc.latitude,
     lng: loc.longitude,
     name: loc.name,
     category: loc.category,
-    color: getCategoryColor(loc.category)
+    color: getCategoryColor(loc.category),
   }));
 
   function getCategoryColor(category: string): string {
     switch (category) {
-      case 'grocery': return '#10B981';
-      case 'restaurant-bar': return '#F59E0B';
-      default: return '#8B5CF6';
+      case "grocery":
+        return "#10B981";
+      case "restaurant-bar":
+        return "#F59E0B";
+      default:
+        return "#8B5CF6";
     }
   }
 
   function getCategoryIcon(category: string): string {
     switch (category) {
-      case 'grocery': return '🛒';
-      case 'restaurant-bar': return '🍽️';
-      default: return '🏪';
+      case "grocery":
+        return "🛒";
+      case "restaurant-bar":
+        return "🍽️";
+      default:
+        return "🏪";
     }
   }
+
+  // Load POIs when map bounds change
+  const loadPOIs = async () => {
+    if (!showPOIs || mapState.zoom < 14) {
+      setPOIs([]);
+      return;
+    }
+
+    setIsLoadingPOIs(true);
+    try {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      // Calculate bounds from current view
+      const bounds = {
+        north: mapState.centerLat + 0.01 * (18 - mapState.zoom),
+        south: mapState.centerLat - 0.01 * (18 - mapState.zoom),
+        east: mapState.centerLng + 0.01 * (18 - mapState.zoom),
+        west: mapState.centerLng - 0.01 * (18 - mapState.zoom),
+      };
+
+      const fetchedPOIs = await POIService.fetchPOIs(bounds);
+      setPOIs(fetchedPOIs);
+    } catch (error) {
+      console.error("Error loading POIs:", error);
+    } finally {
+      setIsLoadingPOIs(false);
+    }
+  };
 
   // Map projection functions
   const rad2deg = (rad: number) => rad * (180 / Math.PI);
 
   const latLngToPixel = (lat: number, lng: number, zoom: number) => {
-    const x = (lng + 180) / 360 * Math.pow(2, zoom) * 256;
-    const y = (1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, zoom) * 256;
+    const x = ((lng + 180) / 360) * Math.pow(2, zoom) * 256;
+    const y =
+      ((1 -
+        Math.log(
+          Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)
+        ) /
+          Math.PI) /
+        2) *
+      Math.pow(2, zoom) *
+      256;
     return { x, y };
   };
 
@@ -100,29 +166,41 @@ export function EnhancedMap({
   };
 
   const latLngToTile = (lat: number, lng: number, zoom: number) => {
-    const x = Math.floor((lng + 180) / 360 * Math.pow(2, zoom));
-    const y = Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, zoom));
+    const x = Math.floor(((lng + 180) / 360) * Math.pow(2, zoom));
+    const y = Math.floor(
+      ((1 -
+        Math.log(
+          Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)
+        ) /
+          Math.PI) /
+        2) *
+        Math.pow(2, zoom)
+    );
     return { x, y };
   };
 
-  const loadTile = async (tileX: number, tileY: number, zoom: number): Promise<HTMLImageElement | null> => {
+  const loadTile = async (
+    tileX: number,
+    tileY: number,
+    zoom: number
+  ): Promise<HTMLImageElement | null> => {
     const tileKey = `${zoom}/${tileX}/${tileY}`;
-    
+
     if (tileCache.current.has(tileKey)) {
       return tileCache.current.get(tileKey)!;
     }
 
     return new Promise((resolve) => {
       const img = new Image();
-      img.crossOrigin = 'anonymous';
-      
+      img.crossOrigin = "anonymous";
+
       img.onload = () => {
         tileCache.current.set(tileKey, img);
         resolve(img);
       };
-      
+
       img.onerror = () => resolve(null);
-      
+
       img.src = `https://tile.openstreetmap.org/${zoom}/${tileX}/${tileY}.png`;
     });
   };
@@ -131,19 +209,27 @@ export function EnhancedMap({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
 
-    // Clear canvas
-    ctx.fillStyle = '#a0c4ff';
+    // Clear canvas with a neutral background
+    ctx.fillStyle = "#f0f0f0";
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
     // Calculate center pixel coordinates
-    const centerPixel = latLngToPixel(mapState.centerLat, mapState.centerLng, mapState.zoom);
-    const centerTile = latLngToTile(mapState.centerLat, mapState.centerLng, mapState.zoom);
+    const centerPixel = latLngToPixel(
+      mapState.centerLat,
+      mapState.centerLng,
+      mapState.zoom
+    );
+    const centerTile = latLngToTile(
+      mapState.centerLat,
+      mapState.centerLng,
+      mapState.zoom
+    );
 
     // Calculate how many tiles we need to cover the canvas
     const tilesX = Math.ceil(canvasWidth / 256) + 2;
@@ -151,13 +237,18 @@ export function EnhancedMap({
 
     // Draw tiles
     const tilePromises: Promise<void>[] = [];
-    
+
     for (let dx = -Math.ceil(tilesX / 2); dx <= Math.ceil(tilesX / 2); dx++) {
       for (let dy = -Math.ceil(tilesY / 2); dy <= Math.ceil(tilesY / 2); dy++) {
         const tileX = centerTile.x + dx;
         const tileY = centerTile.y + dy;
 
-        if (tileX < 0 || tileY < 0 || tileX >= Math.pow(2, mapState.zoom) || tileY >= Math.pow(2, mapState.zoom)) {
+        if (
+          tileX < 0 ||
+          tileY < 0 ||
+          tileX >= Math.pow(2, mapState.zoom) ||
+          tileY >= Math.pow(2, mapState.zoom)
+        ) {
           continue;
         }
 
@@ -165,9 +256,13 @@ export function EnhancedMap({
           if (img) {
             const tilePixelX = tileX * 256;
             const tilePixelY = tileY * 256;
-            
-            const drawX = (canvasWidth / 2) + (tilePixelX - centerPixel.x) + mapState.offsetX;
-            const drawY = (canvasHeight / 2) + (tilePixelY - centerPixel.y) + mapState.offsetY;
+
+            const drawX =
+              canvasWidth / 2 + (tilePixelX - centerPixel.x) + mapState.offsetX;
+            const drawY =
+              canvasHeight / 2 +
+              (tilePixelY - centerPixel.y) +
+              mapState.offsetY;
 
             ctx.drawImage(img, drawX, drawY, 256, 256);
           }
@@ -177,27 +272,107 @@ export function EnhancedMap({
       }
     }
 
-    // Wait for all tiles to load, then draw markers
-    Promise.all(tilePromises).then(() => {
-      // Draw location markers
+    // Wait for tiles to load (continue even if some fail), then draw markers
+    Promise.allSettled(tilePromises).then(() => {
+      // Draw POI markers first (behind saved locations)
+      if (showPOIs && mapState.zoom >= 14) {
+        pois.forEach((poi) => {
+          const poiPixel = latLngToPixel(
+            poi.latitude,
+            poi.longitude,
+            mapState.zoom
+          );
+          const poiX =
+            canvasWidth / 2 + (poiPixel.x - centerPixel.x) + mapState.offsetX;
+          const poiY =
+            canvasHeight / 2 + (poiPixel.y - centerPixel.y) + mapState.offsetY;
+
+          // Skip if POI is outside visible area
+          if (
+            poiX < -20 ||
+            poiX > canvasWidth + 20 ||
+            poiY < -30 ||
+            poiY > canvasHeight + 20
+          ) {
+            return;
+          }
+
+          const isHovered = hoveredPOI === poi.id;
+          const isSelected = selectedPOI?.id === poi.id;
+          const poiSize = isHovered || isSelected ? 10 : 8;
+          const poiColor = POIService.getCategoryColor(poi.category);
+
+          // Draw POI marker (smaller than saved locations)
+          ctx.fillStyle = poiColor;
+          ctx.globalAlpha = 0.8;
+          ctx.beginPath();
+          ctx.arc(poiX, poiY, poiSize, 0, 2 * Math.PI);
+          ctx.fill();
+
+          // Draw white center
+          ctx.fillStyle = "white";
+          ctx.beginPath();
+          ctx.arc(poiX, poiY, poiSize - 2, 0, 2 * Math.PI);
+          ctx.fill();
+
+          // Draw category icon (smaller)
+          ctx.fillStyle = poiColor;
+          ctx.font = `${poiSize - 1}px Arial`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(POIService.getCategoryIcon(poi.category), poiX, poiY);
+
+          // Draw selection ring if selected
+          if (isSelected) {
+            ctx.strokeStyle = "#fff";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(poiX, poiY, poiSize + 2, 0, 2 * Math.PI);
+            ctx.stroke();
+          }
+
+          ctx.globalAlpha = 1;
+        });
+      }
+
+      // Draw location markers (on top of POIs)
       markers.forEach((marker) => {
-        const markerPixel = latLngToPixel(marker.lat, marker.lng, mapState.zoom);
-        const markerX = (canvasWidth / 2) + (markerPixel.x - centerPixel.x) + mapState.offsetX;
-        const markerY = (canvasHeight / 2) + (markerPixel.y - centerPixel.y) + mapState.offsetY;
+        const markerPixel = latLngToPixel(
+          marker.lat,
+          marker.lng,
+          mapState.zoom
+        );
+        const markerX =
+          canvasWidth / 2 + (markerPixel.x - centerPixel.x) + mapState.offsetX;
+        const markerY =
+          canvasHeight / 2 + (markerPixel.y - centerPixel.y) + mapState.offsetY;
 
         // Skip if marker is outside visible area
-        if (markerX < -20 || markerX > canvasWidth + 20 || markerY < -30 || markerY > canvasHeight + 20) {
+        if (
+          markerX < -20 ||
+          markerX > canvasWidth + 20 ||
+          markerY < -30 ||
+          markerY > canvasHeight + 20
+        ) {
           return;
         }
 
         const isHovered = hoveredMarker === marker.id;
         const isSelected = selectedLocationId === marker.id;
         const markerSize = isHovered || isSelected ? 16 : 12;
-        
+
         // Draw marker shadow
-        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.fillStyle = "rgba(0,0,0,0.3)";
         ctx.beginPath();
-        ctx.ellipse(markerX + 1, markerY + markerSize + 1, markerSize * 0.8, 4, 0, 0, 2 * Math.PI);
+        ctx.ellipse(
+          markerX + 1,
+          markerY + markerSize + 1,
+          markerSize * 0.8,
+          4,
+          0,
+          0,
+          2 * Math.PI
+        );
         ctx.fill();
 
         // Draw marker pin
@@ -207,17 +382,27 @@ export function EnhancedMap({
         ctx.fill();
 
         // Draw white center
-        ctx.fillStyle = 'white';
+        ctx.fillStyle = "white";
         ctx.beginPath();
-        ctx.arc(markerX, markerY - markerSize / 2, markerSize - 3, 0, 2 * Math.PI);
+        ctx.arc(
+          markerX,
+          markerY - markerSize / 2,
+          markerSize - 3,
+          0,
+          2 * Math.PI
+        );
         ctx.fill();
 
         // Draw category icon (simplified)
         ctx.fillStyle = marker.color;
         ctx.font = `${markerSize - 2}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(getCategoryIcon(marker.category), markerX, markerY - markerSize / 2);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(
+          getCategoryIcon(marker.category),
+          markerX,
+          markerY - markerSize / 2
+        );
 
         // Draw marker pointer
         ctx.fillStyle = marker.color;
@@ -230,10 +415,16 @@ export function EnhancedMap({
 
         // Draw selection ring if selected
         if (isSelected) {
-          ctx.strokeStyle = '#fff';
+          ctx.strokeStyle = "#fff";
           ctx.lineWidth = 3;
           ctx.beginPath();
-          ctx.arc(markerX, markerY - markerSize / 2, markerSize + 3, 0, 2 * Math.PI);
+          ctx.arc(
+            markerX,
+            markerY - markerSize / 2,
+            markerSize + 3,
+            0,
+            2 * Math.PI
+          );
           ctx.stroke();
         }
       });
@@ -241,36 +432,58 @@ export function EnhancedMap({
       // Draw user location marker if enabled
       if (showUserLocation) {
         const userPixel = latLngToPixel(latitude, longitude, mapState.zoom);
-        const userX = (canvasWidth / 2) + (userPixel.x - centerPixel.x) + mapState.offsetX;
-        const userY = (canvasHeight / 2) + (userPixel.y - centerPixel.y) + mapState.offsetY;
+        const userX =
+          canvasWidth / 2 + (userPixel.x - centerPixel.x) + mapState.offsetX;
+        const userY =
+          canvasHeight / 2 + (userPixel.y - centerPixel.y) + mapState.offsetY;
 
-        // User location blue dot
-        ctx.fillStyle = '#4285f4';
-        ctx.beginPath();
-        ctx.arc(userX, userY, 10, 0, 2 * Math.PI);
-        ctx.fill();
-        
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(userX, userY, 10, 0, 2 * Math.PI);
-        ctx.stroke();
+        // Skip if user location is outside visible area
+        if (
+          userX >= -20 &&
+          userX <= canvasWidth + 20 &&
+          userY >= -20 &&
+          userY <= canvasHeight + 20
+        ) {
+          // Outer pulse ring
+          ctx.strokeStyle = "#4285f4";
+          ctx.lineWidth = 3;
+          ctx.globalAlpha = 0.3;
+          ctx.beginPath();
+          ctx.arc(userX, userY, 20, 0, 2 * Math.PI);
+          ctx.stroke();
 
-        // Pulse effect
-        ctx.strokeStyle = '#4285f4';
-        ctx.lineWidth = 2;
-        ctx.globalAlpha = 0.3;
-        ctx.beginPath();
-        ctx.arc(userX, userY, 16, 0, 2 * Math.PI);
-        ctx.stroke();
-        ctx.globalAlpha = 1;
+          // Inner pulse ring
+          ctx.lineWidth = 2;
+          ctx.globalAlpha = 0.5;
+          ctx.beginPath();
+          ctx.arc(userX, userY, 15, 0, 2 * Math.PI);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+
+          // Main blue dot with white border
+          ctx.fillStyle = "#fff";
+          ctx.beginPath();
+          ctx.arc(userX, userY, 12, 0, 2 * Math.PI);
+          ctx.fill();
+
+          ctx.fillStyle = "#4285f4";
+          ctx.beginPath();
+          ctx.arc(userX, userY, 8, 0, 2 * Math.PI);
+          ctx.fill();
+
+          // Inner white dot for better visibility
+          ctx.fillStyle = "#fff";
+          ctx.beginPath();
+          ctx.arc(userX, userY, 3, 0, 2 * Math.PI);
+          ctx.fill();
+        }
       }
     });
   };
 
   // Mouse/Touch event handlers
   const getEventPosition = (e: React.MouseEvent | React.TouchEvent) => {
-    if ('touches' in e) {
+    if ("touches" in e) {
       return { x: e.touches[0]?.clientX || 0, y: e.touches[0]?.clientY || 0 };
     }
     return { x: e.clientX, y: e.clientY };
@@ -284,18 +497,30 @@ export function EnhancedMap({
     const canvasX = x - rect.left;
     const canvasY = y - rect.top;
 
-    const centerPixel = latLngToPixel(mapState.centerLat, mapState.centerLng, mapState.zoom);
+    const centerPixel = latLngToPixel(
+      mapState.centerLat,
+      mapState.centerLng,
+      mapState.zoom
+    );
 
     for (const location of locations) {
-      const markerPixel = latLngToPixel(location.latitude, location.longitude, mapState.zoom);
-      const markerX = (canvas.width / 2) + (markerPixel.x - centerPixel.x) + mapState.offsetX;
-      const markerY = (canvas.height / 2) + (markerPixel.y - centerPixel.y) + mapState.offsetY;
+      const markerPixel = latLngToPixel(
+        location.latitude,
+        location.longitude,
+        mapState.zoom
+      );
+      const markerX =
+        canvas.width / 2 + (markerPixel.x - centerPixel.x) + mapState.offsetX;
+      const markerY =
+        canvas.height / 2 + (markerPixel.y - centerPixel.y) + mapState.offsetY;
 
       const distance = Math.sqrt(
         Math.pow(canvasX - markerX, 2) + Math.pow(canvasY - (markerY - 6), 2)
       );
 
-      if (distance <= 20) {
+      // Larger touch target for mobile devices
+      const touchRadius = "ontouchstart" in window ? 35 : 20;
+      if (distance <= touchRadius) {
         return location;
       }
     }
@@ -303,67 +528,176 @@ export function EnhancedMap({
     return null;
   };
 
+  const getPOIAtPosition = (x: number, y: number): POI | null => {
+    if (!showPOIs || mapState.zoom < 14) return null;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+
+    const rect = canvas.getBoundingClientRect();
+    const canvasX = x - rect.left;
+    const canvasY = y - rect.top;
+
+    const centerPixel = latLngToPixel(
+      mapState.centerLat,
+      mapState.centerLng,
+      mapState.zoom
+    );
+
+    for (const poi of pois) {
+      const poiPixel = latLngToPixel(
+        poi.latitude,
+        poi.longitude,
+        mapState.zoom
+      );
+      const poiX =
+        canvas.width / 2 + (poiPixel.x - centerPixel.x) + mapState.offsetX;
+      const poiY =
+        canvas.height / 2 + (poiPixel.y - centerPixel.y) + mapState.offsetY;
+
+      const distance = Math.sqrt(
+        Math.pow(canvasX - poiX, 2) + Math.pow(canvasY - poiY, 2)
+      );
+
+      // Larger touch target for mobile devices
+      const touchRadius = "ontouchstart" in window ? 35 : 20;
+      if (distance <= touchRadius) {
+        return poi;
+      }
+    }
+
+    return null;
+  };
+
   const handleStart = (e: React.MouseEvent | React.TouchEvent) => {
-    e.preventDefault();
-    const pos = getEventPosition(e);
-    setIsDragging(true);
-    setLastMousePos(pos);
+    // Only prevent default for mouse events, not touch events
+    if (!("touches" in e)) {
+      e.preventDefault();
+    }
+
+    if ("touches" in e && e.touches.length === 2) {
+      // Two fingers - start pinch zoom
+      e.preventDefault(); // Prevent browser zoom
+      handlePinchZoom(e.touches);
+    } else if ("touches" in e && e.touches.length === 1) {
+      // Single touch - start dragging (only if not already pinching)
+      if (!isPinching) {
+        const pos = getEventPosition(e);
+        setIsDragging(true);
+        setLastMousePos(pos);
+        setTouchStartPos(pos);
+        setHasMoved(false);
+      }
+    } else {
+      // Mouse event - start dragging
+      const pos = getEventPosition(e);
+      setIsDragging(true);
+      setLastMousePos(pos);
+      setTouchStartPos(pos);
+      setIsPinching(false);
+      setHasMoved(false);
+    }
   };
 
   const handleMove = (e: React.MouseEvent | React.TouchEvent) => {
+    if ("touches" in e && e.touches.length === 2) {
+      // Two fingers - handle pinch zoom
+      e.preventDefault();
+      handlePinchZoom(e.touches);
+      return;
+    }
+
     const pos = getEventPosition(e);
 
     // Handle hover for desktop
-    if (!isDragging && 'clientX' in e) {
+    if (!isDragging && !isPinching && "clientX" in e) {
       const marker = getMarkerAtPosition(pos.x, pos.y);
+      const poi = getPOIAtPosition(pos.x, pos.y);
       setHoveredMarker(marker ? marker.id : null);
+      setHoveredPOI(poi ? poi.id : null);
     }
 
-    if (!isDragging) return;
+    // Don't handle dragging if we're pinching
+    if (!isDragging || isPinching) return;
     e.preventDefault();
 
     const deltaX = pos.x - lastMousePos.x;
     const deltaY = pos.y - lastMousePos.y;
 
-    setMapState(prev => ({
+    // Track if user has moved significantly (helps distinguish tap vs drag on mobile)
+    const totalMovement = Math.sqrt(
+      Math.pow(pos.x - touchStartPos.x, 2) +
+        Math.pow(pos.y - touchStartPos.y, 2)
+    );
+    if (totalMovement > 5) {
+      setHasMoved(true);
+    }
+
+    setMapState((prev) => ({
       ...prev,
       offsetX: prev.offsetX + deltaX,
-      offsetY: prev.offsetY + deltaY
+      offsetY: prev.offsetY + deltaY,
     }));
 
     setLastMousePos(pos);
   };
 
-  const handleEnd = () => {
+  const handleEnd = (e?: React.TouchEvent | React.MouseEvent) => {
+    // If this is a touch event and we still have touches, don't end yet
+    if (e && "touches" in e && e.touches.length > 0) {
+      return;
+    }
+
     if (isDragging) {
       const canvas = canvasRef.current;
       if (canvas) {
-        const centerPixel = latLngToPixel(mapState.centerLat, mapState.centerLng, mapState.zoom);
+        const centerPixel = latLngToPixel(
+          mapState.centerLat,
+          mapState.centerLng,
+          mapState.zoom
+        );
         const newCenterPixelX = centerPixel.x - mapState.offsetX;
         const newCenterPixelY = centerPixel.y - mapState.offsetY;
-        const newCenter = pixelToLatLng(newCenterPixelX, newCenterPixelY, mapState.zoom);
+        const newCenter = pixelToLatLng(
+          newCenterPixelX,
+          newCenterPixelY,
+          mapState.zoom
+        );
 
-        setMapState(prev => ({
+        setMapState((prev) => ({
           ...prev,
           centerLat: newCenter.lat,
           centerLng: newCenter.lng,
           offsetX: 0,
-          offsetY: 0
+          offsetY: 0,
         }));
       }
     }
+    
+    // Reset all touch states
     setIsDragging(false);
+    setIsPinching(false);
+    setInitialPinchDistance(0);
+    setInitialPinchZoom(0);
   };
 
   const handleMapClick = (e: React.MouseEvent) => {
-    if (isDragging) return;
+    // Don't handle click if user was dragging (especially on mobile)
+    if (hasMoved) return;
 
     const pos = { x: e.clientX, y: e.clientY };
-    
-    // Check if clicking on a marker
+
+    // Check if clicking on a saved location marker (higher priority)
     const clickedLocation = getMarkerAtPosition(pos.x, pos.y);
     if (clickedLocation && onMarkerClick) {
       onMarkerClick(clickedLocation);
+      return;
+    }
+
+    // Check if clicking on a POI
+    const clickedPOI = getPOIAtPosition(pos.x, pos.y);
+    if (clickedPOI && onPOIClick) {
+      onPOIClick(clickedPOI);
       return;
     }
 
@@ -376,38 +710,121 @@ export function EnhancedMap({
       const clickX = e.clientX - rect.left;
       const clickY = e.clientY - rect.top;
 
-      const centerPixel = latLngToPixel(mapState.centerLat, mapState.centerLng, mapState.zoom);
-      const worldX = centerPixel.x + (clickX - canvas.width / 2) - mapState.offsetX;
-      const worldY = centerPixel.y + (clickY - canvas.height / 2) - mapState.offsetY;
-      
+      const centerPixel = latLngToPixel(
+        mapState.centerLat,
+        mapState.centerLng,
+        mapState.zoom
+      );
+      const worldX =
+        centerPixel.x + (clickX - canvas.width / 2) - mapState.offsetX;
+      const worldY =
+        centerPixel.y + (clickY - canvas.height / 2) - mapState.offsetY;
+
       const clickCoords = pixelToLatLng(worldX, worldY, mapState.zoom);
       onMapClick(clickCoords.lat, clickCoords.lng);
     }
   };
 
   const handleZoom = (delta: number) => {
-    setMapState(prev => ({
+    const newZoom = Math.max(1, Math.min(18, mapState.zoom + delta));
+    setMapState((prev) => ({
       ...prev,
-      zoom: Math.max(1, Math.min(18, prev.zoom + delta)),
-      offsetX: 0,
-      offsetY: 0
+      zoom: newZoom,
+      offsetX: 0, // Reset offsets when zooming to prevent visual glitches
+      offsetY: 0,
     }));
+    
+    // Clear tile cache to force reload at new zoom level
+    tileCache.current.clear();
+    
+    // Force a redraw after a short delay to ensure tiles load properly
+    setTimeout(() => {
+      drawMap();
+    }, 100);
+  };
+
+  // Smooth zoom with smaller increments for better UX
+  const handleSmoothZoom = (direction: 1 | -1) => {
+    const increment = 1; // Use full increment for better responsiveness
+    handleZoom(direction * increment);
+  };
+
+  // Calculate distance between two touch points
+  const getTouchDistance = (touches: React.TouchList): number => {
+    if (touches.length < 2) return 0;
+    const touch1 = touches[0];
+    const touch2 = touches[1];
+    return Math.sqrt(
+      Math.pow(touch2.clientX - touch1.clientX, 2) +
+      Math.pow(touch2.clientY - touch1.clientY, 2)
+    );
+  };
+
+  // Handle pinch zoom
+  const handlePinchZoom = (touches: React.TouchList) => {
+    if (touches.length !== 2) return;
+
+    const distance = getTouchDistance(touches);
+
+    if (!isPinching) {
+      // Start of pinch gesture
+      setIsPinching(true);
+      setInitialPinchDistance(distance);
+      setInitialPinchZoom(mapState.zoom);
+      setIsDragging(false); // Stop dragging when pinching starts
+    } else if (initialPinchDistance > 0) {
+      // Calculate zoom change based on distance change
+      const scale = distance / initialPinchDistance;
+      const zoomDelta = Math.log2(scale) * 0.8; // Reduce sensitivity for smoother zooming
+      const newZoom = Math.max(1, Math.min(18, initialPinchZoom + zoomDelta));
+
+      // Only update if zoom has changed significantly
+      if (Math.abs(newZoom - mapState.zoom) > 0.1) {
+        setMapState((prev) => ({
+          ...prev,
+          zoom: newZoom,
+          offsetX: 0, // Reset offsets when zooming
+          offsetY: 0,
+        }));
+      }
+    }
   };
 
   // Update map state when props change
   useEffect(() => {
-    setMapState(prev => ({
+    setMapState((prev) => ({
       ...prev,
       centerLat: latitude,
       centerLng: longitude,
-      zoom: zoom
+      zoom: zoom,
     }));
   }, [latitude, longitude, zoom]);
+
+  // Load POIs when map state changes
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      loadPOIs();
+    }, 300); // Debounce POI loading
+
+    return () => clearTimeout(timeoutId);
+  }, [mapState.centerLat, mapState.centerLng, mapState.zoom, showPOIs]);
 
   // Redraw map when state changes
   useEffect(() => {
     drawMap();
-  }, [mapState, markers, hoveredMarker, selectedLocationId]);
+  }, [
+    mapState,
+    markers,
+    hoveredMarker,
+    selectedLocationId,
+    pois,
+    hoveredPOI,
+    selectedPOI,
+    showPOIs,
+    showUserLocation,
+    latitude,
+    longitude,
+  ]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -420,25 +837,61 @@ export function EnhancedMap({
     drawMap();
   }, []);
 
+  // Calculate user location marker position for CSS overlay
+  const userLocationStyle = showUserLocation
+    ? (() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return null;
+
+        const centerPixel = latLngToPixel(
+          mapState.centerLat,
+          mapState.centerLng,
+          mapState.zoom
+        );
+        const userPixel = latLngToPixel(latitude, longitude, mapState.zoom);
+        const userX =
+          canvas.width / 2 + (userPixel.x - centerPixel.x) + mapState.offsetX;
+        const userY =
+          canvas.height / 2 + (userPixel.y - centerPixel.y) + mapState.offsetY;
+
+        return {
+          position: "absolute" as const,
+          left: `${userX}px`,
+          top: `${userY}px`,
+          transform: "translate(-50%, -50%)",
+          width: "24px",
+          height: "24px",
+          background: "#4285f4",
+          borderRadius: "50%",
+          border: "4px solid white",
+          boxShadow:
+            "0 2px 8px rgba(0,0,0,0.3), 0 0 0 8px rgba(66, 133, 244, 0.2)",
+          zIndex: 500,
+          animation: "pulse 2s infinite",
+          pointerEvents: "none" as const,
+        };
+      })()
+    : null;
+
   return (
-    <div 
+    <div
       ref={containerRef}
-      style={{ 
-        width: '100%', 
+      style={{
+        width: "100%",
         height: height,
-        position: 'relative',
-        overflow: 'hidden',
-        borderRadius: '12px',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
+        position: "relative",
+        overflow: "hidden",
+        borderRadius: "12px",
+        boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
       }}
     >
       <canvas
         ref={canvasRef}
         style={{
-          width: '100%',
-          height: '100%',
-          cursor: isDragging ? 'grabbing' : 'grab',
-          touchAction: 'none'
+          width: "100%",
+          height: "100%",
+          cursor: isDragging ? "grabbing" : "grab",
+          touchAction: "none", // Prevent all default touch behaviors, we'll handle them ourselves
         }}
         onMouseDown={handleStart}
         onMouseMove={handleMove}
@@ -447,77 +900,178 @@ export function EnhancedMap({
         onTouchStart={handleStart}
         onTouchMove={handleMove}
         onTouchEnd={handleEnd}
+        onTouchCancel={handleEnd}
         onClick={handleMapClick}
       />
-      
+
+      {/* User Location CSS Overlay Marker */}
+      {userLocationStyle && (
+        <>
+          <style>
+            {`
+              @keyframes pulse {
+                0% {
+                  box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 0 0 0 rgba(66, 133, 244, 0.4);
+                }
+                50% {
+                  box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 0 0 8px rgba(66, 133, 244, 0.2);
+                }
+                100% {
+                  box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 0 0 16px rgba(66, 133, 244, 0);
+                }
+              }
+            `}
+          </style>
+          <div style={userLocationStyle}></div>
+        </>
+      )}
+
       {/* Map Controls */}
-      <div style={{
-        position: 'absolute',
-        bottom: '16px',
-        right: '16px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '8px',
-        zIndex: 1000
-      }}>
+      <div
+        style={{
+          position: "absolute",
+          bottom: "16px",
+          left: "16px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "8px",
+          zIndex: 1000,
+        }}
+      >
         <button
-          onClick={() => handleZoom(1)}
+          onClick={() => handleSmoothZoom(1)}
           style={{
-            width: '44px', 
-            height: '44px', 
-            background: 'var(--tg-theme-bg-color, white)', 
-            color: 'var(--tg-theme-text-color, #333)',
-            border: '1px solid var(--tg-theme-section-separator-color)', 
-            borderRadius: '12px', 
-            cursor: 'pointer', 
-            fontSize: '18px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
-            transition: 'transform 0.1s ease'
+            width: "48px",
+            height: "48px",
+            background: "var(--tg-theme-bg-color, white)",
+            color: "var(--tg-theme-text-color, #333)",
+            border: "2px solid var(--tg-theme-section-separator-color)",
+            borderRadius: "12px",
+            cursor: "pointer",
+            fontSize: "22px",
+            fontWeight: "bold",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
+            transition: "all 0.15s ease",
+            WebkitTapHighlightColor: "transparent",
+            touchAction: "manipulation",
+          }}
+          onTouchStart={(e) => {
+            e.currentTarget.style.transform = "scale(0.95)";
+            e.currentTarget.style.backgroundColor = "var(--tg-theme-secondary-bg-color, #f1f3f4)";
+          }}
+          onTouchEnd={(e) => {
+            e.currentTarget.style.transform = "scale(1)";
+            e.currentTarget.style.backgroundColor = "var(--tg-theme-bg-color, white)";
           }}
         >
-          <ZoomIn size={20} />
+          +
         </button>
         <button
-          onClick={() => handleZoom(-1)}
+          onClick={() => handleSmoothZoom(-1)}
           style={{
-            width: '44px', 
-            height: '44px', 
-            background: 'var(--tg-theme-bg-color, white)', 
-            color: 'var(--tg-theme-text-color, #333)',
-            border: '1px solid var(--tg-theme-section-separator-color)', 
-            borderRadius: '12px', 
-            cursor: 'pointer', 
-            fontSize: '18px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
-            transition: 'transform 0.1s ease'
+            width: "48px",
+            height: "48px",
+            background: "var(--tg-theme-bg-color, white)",
+            color: "var(--tg-theme-text-color, #333)",
+            border: "2px solid var(--tg-theme-section-separator-color)",
+            borderRadius: "12px",
+            cursor: "pointer",
+            fontSize: "22px",
+            fontWeight: "bold",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
+            transition: "all 0.15s ease",
+            WebkitTapHighlightColor: "transparent",
+            touchAction: "manipulation",
+          }}
+          onTouchStart={(e) => {
+            e.currentTarget.style.transform = "scale(0.95)";
+            e.currentTarget.style.backgroundColor = "var(--tg-theme-secondary-bg-color, #f1f3f4)";
+          }}
+          onTouchEnd={(e) => {
+            e.currentTarget.style.transform = "scale(1)";
+            e.currentTarget.style.backgroundColor = "var(--tg-theme-bg-color, white)";
           }}
         >
-          <ZoomOut size={20} />
+          −
         </button>
       </div>
 
       {/* Location count badge */}
-      {locations.length > 0 && (
-        <div style={{
-          position: 'absolute',
-          top: '16px',
-          right: '16px',
-          background: 'var(--tg-theme-button-color, #0088cc)',
-          color: 'white',
-          padding: '8px 12px',
-          borderRadius: '20px',
-          fontSize: '12px',
-          fontWeight: '600',
-          zIndex: 1000,
-          boxShadow: '0 2px 12px rgba(0,0,0,0.15)'
-        }}>
-          {locations.length} location{locations.length !== 1 ? 's' : ''}
+      {!hideBadges && (
+        <div
+          style={{
+            position: "absolute",
+            top: "16px",
+            right: "16px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+            zIndex: 1000,
+          }}
+        >
+          {locations.length > 0 && (
+            <div
+              onClick={onSavedLocationsBadgeClick}
+              style={{
+                background: "var(--tg-theme-button-color, #0088cc)",
+                color: "white",
+                padding: "8px 12px",
+                borderRadius: "20px",
+                fontSize: "12px",
+                fontWeight: "600",
+                boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
+                cursor: onSavedLocationsBadgeClick ? "pointer" : "default",
+                transition: "transform 0.15s ease",
+              }}
+              onMouseDown={(e) => {
+                if (onSavedLocationsBadgeClick) {
+                  e.currentTarget.style.transform = "scale(0.95)";
+                }
+              }}
+              onMouseUp={(e) => {
+                if (onSavedLocationsBadgeClick) {
+                  e.currentTarget.style.transform = "scale(1)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (onSavedLocationsBadgeClick) {
+                  e.currentTarget.style.transform = "scale(1)";
+                }
+              }}
+            >
+              {locations.length} saved location
+              {locations.length !== 1 ? "s" : ""}
+            </div>
+          )}
+
+          {showPOIs && mapState.zoom >= 14 && (
+            <div
+              style={{
+                background: isLoadingPOIs
+                  ? "var(--tg-theme-hint-color, #999)"
+                  : "var(--tg-theme-secondary-bg-color, #f1f3f4)",
+                color: isLoadingPOIs
+                  ? "white"
+                  : "var(--tg-theme-text-color, #000)",
+                padding: "6px 10px",
+                borderRadius: "16px",
+                fontSize: "11px",
+                fontWeight: "500",
+                boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
+              }}
+            >
+              {isLoadingPOIs
+                ? "Loading POIs..."
+                : `${pois.length} POI${pois.length !== 1 ? "s" : ""}`}
+            </div>
+          )}
+
         </div>
       )}
     </div>

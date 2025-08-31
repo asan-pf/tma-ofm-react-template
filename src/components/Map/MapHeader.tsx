@@ -146,61 +146,6 @@ export function MapHeader({
             <span>Search for places, locations...</span>
           </button>
 
-          {/* Category Pills */}
-          <div
-            style={{
-              display: "flex",
-              gap: "8px",
-              marginTop: "12px",
-              overflowX: "auto",
-              paddingBottom: "4px",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                gap: "8px",
-                whiteSpace: "nowrap",
-              }}
-            >
-              <span
-                style={{
-                  padding: "6px 12px",
-                  background: "var(--tg-theme-section-bg-color)",
-                  borderRadius: "16px",
-                  fontSize: "14px",
-                  color: "var(--tg-theme-text-color)",
-                  border: "1px solid var(--tg-theme-section-separator-color)",
-                }}
-              >
-                🍽️ Restaurants
-              </span>
-              <span
-                style={{
-                  padding: "6px 12px",
-                  background: "var(--tg-theme-section-bg-color)",
-                  borderRadius: "16px",
-                  fontSize: "14px",
-                  color: "var(--tg-theme-text-color)",
-                  border: "1px solid var(--tg-theme-section-separator-color)",
-                }}
-              >
-                🛒 Groceries
-              </span>
-              <span
-                style={{
-                  padding: "6px 12px",
-                  background: "var(--tg-theme-section-bg-color)",
-                  borderRadius: "16px",
-                  fontSize: "14px",
-                  color: "var(--tg-theme-text-color)",
-                  border: "1px solid var(--tg-theme-section-separator-color)",
-                }}
-              >
-                🏪 Other
-              </span>
-            </div>
-          </div>
         </div>
       )}
     </div>

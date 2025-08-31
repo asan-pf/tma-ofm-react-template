@@ -27,6 +27,29 @@ export function MapControls({
         zIndex: 1000,
       }}
     >
+      {/* Find My Location Button */}
+      {hasCurrentLocation && (
+        <button
+          onClick={onCurrentLocationClick}
+          style={{
+            width: "48px",
+            height: "48px",
+            borderRadius: "50%",
+            background: "var(--tg-theme-bg-color)",
+            color: "var(--tg-theme-accent-text-color)",
+            border: "1px solid var(--tg-theme-section-separator-color)",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            transition: "all 0.2s ease",
+          }}
+        >
+          <Navigation2 size={20} />
+        </button>
+      )}
+
       {/* Add Location Button */}
       <button
         onClick={isAddLocationMode ? onMapCenterAdd : onAddLocationToggle}
@@ -49,29 +72,6 @@ export function MapControls({
       >
         {isAddLocationMode ? <MapPin size={24} /> : <Plus size={24} />}
       </button>
-
-      {/* Current Location Button */}
-      {hasCurrentLocation && (
-        <button
-          onClick={onCurrentLocationClick}
-          style={{
-            width: "48px",
-            height: "48px",
-            borderRadius: "50%",
-            background: "var(--tg-theme-bg-color)",
-            color: "var(--tg-theme-text-color)",
-            border: "1px solid var(--tg-theme-section-separator-color)",
-            boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            transition: "all 0.2s ease",
-          }}
-        >
-          <Navigation2 size={20} />
-        </button>
-      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { MapPin } from "lucide-react";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { retrieveLaunchParams } from "@telegram-apps/sdk-react";
 import { LocationDetailModal } from "@/components/LocationDetailModal";
+import { POIDetailModal } from "@/components/POIDetailModal";
 import { MapHeader } from "@/components/Map/MapHeader";
 import { MapView } from "@/components/Map/MapView";
 import { FavoritesView } from "@/components/Map/FavoritesView";
@@ -11,6 +12,8 @@ import { MapControls } from "@/components/Map/MapControls";
 import { MapCrosshair } from "@/components/Map/MapCrosshair";
 import { SearchModal } from "@/components/Map/SearchModal";
 import { AddLocationModal } from "@/components/Map/AddLocationModal";
+import { SavedLocationsModal } from "@/components/SavedLocationsModal";
+import { POI } from "@/utils/poiService";
 import "leaflet/dist/leaflet.css";
 
 interface Location {
@@ -48,9 +51,13 @@ export function MapPage() {
   const [showAddLocationModal, setShowAddLocationModal] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showLocationDetail, setShowLocationDetail] = useState(false);
+  const [showSavedLocationsModal, setShowSavedLocationsModal] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(
     null
   );
+  const [showPOIDetail, setShowPOIDetail] = useState(false);
+  const [selectedPOI, setSelectedPOI] = useState<POI | null>(null);
+  const [favoritePOIs, setFavoritePOIs] = useState<POI[]>([]);
   const [isAddLocationMode, setIsAddLocationMode] = useState(false);
   const [mapRef, setMapRef] = useState<any>(null);
   const [pendingLocation, setPendingLocation] = useState<{
@@ -83,6 +90,13 @@ export function MapPage() {
       setDynamicMapCenter({ lat: latitude, lng: longitude });
     }
   }, [latitude, longitude]);
+
+  // Auto-navigate to user location on first load
+  useEffect(() => {
+    if (latitude && longitude && !isLoading) {
+      setDynamicMapCenter({ lat: latitude, lng: longitude });
+    }
+  }, [latitude, longitude, isLoading]);
 
   useEffect(() => {
     loadLocations();
@@ -220,6 +234,20 @@ export function MapPage() {
     setShowLocationDetail(true);
   };
 
+  const handlePOIClick = (poi: POI) => {
+    setSelectedPOI(poi);
+    setShowPOIDetail(true);
+  };
+
+  const toggleFavoritePOI = (poi: POI) => {
+    const isFavorited = favoritePOIs.some(fav => fav.id === poi.id);
+    if (isFavorited) {
+      setFavoritePOIs(prev => prev.filter(fav => fav.id !== poi.id));
+    } else {
+      setFavoritePOIs(prev => [...prev, poi]);
+    }
+  };
+
   const handleSearchLocationSelect = (location: Location) => {
     setDynamicMapCenter({ lat: location.latitude, lng: location.longitude });
     if (mapRef) {
@@ -248,6 +276,15 @@ export function MapPage() {
   const handleAddLocationModeToggle = () => {
     setIsAddLocationMode(!isAddLocationMode);
     setPendingLocation(null);
+  };
+
+  const handleSavedLocationClick = (location: Location) => {
+    setDynamicMapCenter({ lat: location.latitude, lng: location.longitude });
+    if (mapRef) {
+      mapRef.setView([location.latitude, location.longitude], 16);
+    }
+    setSelectedLocation(location);
+    setShowLocationDetail(true);
   };
 
   const handleMapCenterAdd = () => {
@@ -344,24 +381,28 @@ export function MapPage() {
                 setMapRef={setMapRef}
                 onLocationClick={handleLocationClick}
                 onToggleFavorite={toggleFavorite}
+                onPOIClick={handlePOIClick}
+                selectedPOI={selectedPOI}
+                showPOIs={true}
+                hideBadges={showLocationDetail || showPOIDetail || showAddLocationModal || showSearchModal || showSavedLocationsModal}
+                onSavedLocationsBadgeClick={() => setShowSavedLocationsModal(true)}
               />
 
               <MapCrosshair isVisible={isAddLocationMode} />
 
-              <MapControls
-                isAddLocationMode={isAddLocationMode}
-                onAddLocationToggle={handleAddLocationModeToggle}
-                onMapCenterAdd={handleMapCenterAdd}
-                onCurrentLocationClick={() => {
-                  if (latitude && longitude) {
-                    setDynamicMapCenter({ lat: latitude, lng: longitude });
-                    if (mapRef) {
-                      mapRef.setView([latitude, longitude], 16);
+              {!showLocationDetail && !showPOIDetail && !showAddLocationModal && !showSearchModal && !showSavedLocationsModal && (
+                <MapControls
+                  isAddLocationMode={isAddLocationMode}
+                  onAddLocationToggle={handleAddLocationModeToggle}
+                  onMapCenterAdd={handleMapCenterAdd}
+                  onCurrentLocationClick={() => {
+                    if (latitude && longitude) {
+                      setDynamicMapCenter({ lat: latitude, lng: longitude });
                     }
-                  }
-                }}
-                hasCurrentLocation={!!(latitude && longitude)}
-              />
+                  }}
+                  hasCurrentLocation={!!(latitude && longitude)}
+                />
+              )}
             </>
           ) : (
             <FavoritesView
@@ -413,6 +454,36 @@ export function MapPage() {
             )}
           />
         )}
+
+        {selectedPOI && (
+          <POIDetailModal
+            poi={selectedPOI}
+            isOpen={showPOIDetail}
+            onClose={() => {
+              setShowPOIDetail(false);
+              setSelectedPOI(null);
+            }}
+            onLocationClick={(lat, lng) => {
+              setDynamicMapCenter({ lat, lng });
+              if (mapRef) {
+                mapRef.setView([lat, lng], 16);
+              }
+              setShowPOIDetail(false);
+            }}
+            onToggleFavorite={toggleFavoritePOI}
+            isFavorited={favoritePOIs.some(
+              (fav) => fav.id === selectedPOI.id
+            )}
+          />
+        )}
+
+        <SavedLocationsModal
+          locations={locations}
+          isOpen={showSavedLocationsModal}
+          onClose={() => setShowSavedLocationsModal(false)}
+          onLocationClick={handleSavedLocationClick}
+          onToggleFavorite={toggleFavorite}
+        />
       </div>
     </>
   );
