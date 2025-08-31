@@ -165,15 +165,24 @@ function POIManager({
 }) {
   const map = useMap();
   const [pois, setPOIs] = useState<POI[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (!showPOIs || map.getZoom() < 14) {
+    if (!showPOIs) {
       setPOIs([]);
       return;
     }
 
     const loadPOIs = async () => {
+      if (isLoading) return; // Prevent concurrent requests
+      
       try {
+        // Only load POIs if zoomed in enough, but don't clear existing ones during zoom
+        if (map.getZoom() < 12) {
+          return;
+        }
+
+        setIsLoading(true);
         const bounds = map.getBounds();
         const fetchBounds = {
           north: bounds.getNorth(),
@@ -186,17 +195,19 @@ function POIManager({
         setPOIs(fetchedPOIs);
       } catch (error) {
         console.error("Error loading POIs:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
     const timeoutId = setTimeout(loadPOIs, 300);
     return () => clearTimeout(timeoutId);
-  }, [map, showPOIs]);
+  }, [map, showPOIs, isLoading]);
 
-  // Listen to map move events
+  // Listen to map move events  
   useMapEvents({
     moveend: () => {
-      if (showPOIs && map.getZoom() >= 14) {
+      if (showPOIs && map.getZoom() >= 12 && !isLoading) {
         const bounds = map.getBounds();
         const fetchBounds = {
           north: bounds.getNorth(),
@@ -205,13 +216,56 @@ function POIManager({
           west: bounds.getWest(),
         };
 
-        POIService.fetchPOIs(fetchBounds).then(setPOIs).catch(console.error);
-      }
-    },
-    zoomend: () => {
-      if (!showPOIs || map.getZoom() < 14) {
+        // Debounce POI loading to prevent too many requests
+        setTimeout(() => {
+          if (!isLoading) {
+            setIsLoading(true);
+            POIService.fetchPOIs(fetchBounds)
+              .then(setPOIs)
+              .catch(console.error)
+              .finally(() => setIsLoading(false));
+          }
+        }, 200);
+      } else if (!showPOIs || map.getZoom() < 10) {
+        // Only clear POIs if we're very zoomed out or POIs are disabled
         setPOIs([]);
       }
+    },
+    zoomstart: () => {
+      // Keep POIs visible during zoom transition
+    },
+    zoomend: () => {
+      if (!showPOIs) {
+        setPOIs([]);
+        return;
+      }
+      
+      const currentZoom = map.getZoom();
+      
+      if (currentZoom < 10) {
+        // Clear POIs only when very zoomed out  
+        setPOIs([]);
+      } else if (currentZoom >= 12 && !isLoading) {
+        // Reload POIs for the new zoom level
+        const bounds = map.getBounds();
+        const fetchBounds = {
+          north: bounds.getNorth(),
+          south: bounds.getSouth(),
+          east: bounds.getEast(),
+          west: bounds.getWest(),
+        };
+        
+        setTimeout(() => {
+          if (!isLoading) {
+            setIsLoading(true);
+            POIService.fetchPOIs(fetchBounds)
+              .then(setPOIs)
+              .catch(console.error)
+              .finally(() => setIsLoading(false));
+          }
+        }, 250);
+      }
+      // For zoom levels 10-12, keep existing POIs visible
     }
   });
 
