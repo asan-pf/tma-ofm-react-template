@@ -288,14 +288,10 @@ export function MapPage() {
   };
 
   const toggleFavoritePOI = (poi: POI) => {
-    console.log("toggleFavoritePOI called with:", poi.name, poi.id);
     const isFavorited = favoritePOIs.some(fav => fav.id === poi.id);
-    console.log("Currently favorited:", isFavorited, "Total favorites:", favoritePOIs.length);
     if (isFavorited) {
-      console.log("Removing from favorites");
       setFavoritePOIs(prev => prev.filter(fav => fav.id !== poi.id));
     } else {
-      console.log("Adding to favorites");
       setFavoritePOIs(prev => [...prev, poi]);
     }
   };

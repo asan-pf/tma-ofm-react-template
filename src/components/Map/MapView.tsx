@@ -41,8 +41,9 @@ export function MapView({
   hideBadges = false,
   onSavedLocationsBadgeClick,
 }: MapViewProps) {
-  // Convert user location for LeafletMap
-  const mapCenter = userLocation ? { lat: userLocation.lat, lng: userLocation.lng } : center;
+  // Always use the center prop - this allows user to freely navigate
+  // The parent component (MapPage) handles initial GPS positioning
+  const mapCenter = center;
   
   return (
     <LeafletMap

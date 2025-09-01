@@ -99,7 +99,6 @@ export function POIDetailModal({
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    console.log("POI favorite button clicked!", poi.name, "isFavorited:", isFavorited);
                     onToggleFavorite(poi);
                   }}
                   style={{
