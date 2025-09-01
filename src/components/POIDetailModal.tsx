@@ -70,75 +70,59 @@ export function POIDetailModal({
 
   return (
     <Modal
-      header={
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "0 4px",
-            width: "100%",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <div
-              style={{
-                background: POIService.getCategoryColor(poi.category),
-                borderRadius: "12px",
-                padding: "8px",
-                fontSize: "18px",
-                color: "white",
-              }}
-            >
-              {POIService.getCategoryIcon(poi.category)}
-            </div>
-            <div>
-              <div
-                style={{
-                  fontSize: "18px",
-                  fontWeight: "600",
-                  color: "var(--tg-theme-text-color)",
-                }}
-              >
-                {poi.name}
-              </div>
-              <div
-                style={{
-                  fontSize: "14px",
-                  color: "var(--tg-theme-hint-color)",
-                }}
-              >
-                {POIService.formatCategory(poi.category)}
-              </div>
-            </div>
-          </div>
-
-          {/* Favorite Button */}
-          {onToggleFavorite && (
-            <Button
-              mode="plain"
-              size="s"
-              onClick={() => onToggleFavorite(poi)}
-              style={{
-                padding: "8px",
-                minWidth: "unset",
-                color: isFavorited ? "#ef4444" : "var(--tg-theme-hint-color)",
-              }}
-            >
-              {isFavorited ? (
-                <Heart size={20} fill="currentColor" />
-              ) : (
-                <HeartOff size={20} />
-              )}
-            </Button>
-          )}
-        </div>
-      }
+      header={poi.name}
       open={isOpen}
       onOpenChange={onClose}
     >
       <List>
-        {/* Basic Info */}
+        {/* Header Info with Favorite Button */}
+        <Section>
+          <Cell
+            before={
+              <div
+                style={{
+                  background: POIService.getCategoryColor(poi.category),
+                  borderRadius: "12px",
+                  padding: "8px",
+                  fontSize: "18px",
+                  color: "white",
+                }}
+              >
+                {POIService.getCategoryIcon(poi.category)}
+              </div>
+            }
+            after={
+              onToggleFavorite && (
+                <Button
+                  mode="plain"
+                  size="s"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log("POI favorite button clicked!", poi.name, "isFavorited:", isFavorited);
+                    onToggleFavorite(poi);
+                  }}
+                  style={{
+                    padding: "8px",
+                    minWidth: "unset",
+                    color: isFavorited ? "#ef4444" : "var(--tg-theme-hint-color)",
+                  }}
+                >
+                  {isFavorited ? (
+                    <Heart size={20} fill="currentColor" />
+                  ) : (
+                    <HeartOff size={20} />
+                  )}
+                </Button>
+              )
+            }
+            subtitle={POIService.formatCategory(poi.category)}
+          >
+            {poi.name}
+          </Cell>
+        </Section>
+
+        {/* Location Info */}
         <Section>
           <Cell
             before={

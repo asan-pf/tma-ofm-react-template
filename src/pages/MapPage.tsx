@@ -8,6 +8,7 @@ import { POIDetailModal } from "@/components/POIDetailModal";
 import { MapHeader } from "@/components/Map/MapHeader";
 import { MapView } from "@/components/Map/MapView";
 import { FavoritesView } from "@/components/Map/FavoritesView";
+import { SavedLocationsView } from "@/components/Map/SavedLocationsView";
 import { MapControls } from "@/components/Map/MapControls";
 import { MapCrosshair } from "@/components/Map/MapCrosshair";
 import { SearchModal } from "@/components/Map/SearchModal";
@@ -40,7 +41,7 @@ interface AddLocationData {
   category: "grocery" | "restaurant-bar" | "other";
 }
 
-type TabType = "explore" | "favorites";
+type TabType = "explore" | "favorites" | "saved";
 type SearchTabType = "db" | "global";
 
 export function MapPage() {
@@ -84,19 +85,15 @@ export function MapPage() {
     lat: latitude || 40.7128,
     lng: longitude || -74.006,
   });
+  const [hasInitializedLocation, setHasInitializedLocation] = useState(false);
 
+  // Only auto-navigate to user location on first load, not on every location update
   useEffect(() => {
-    if (latitude && longitude) {
+    if (latitude && longitude && !hasInitializedLocation && !isLoading) {
       setDynamicMapCenter({ lat: latitude, lng: longitude });
+      setHasInitializedLocation(true);
     }
-  }, [latitude, longitude]);
-
-  // Auto-navigate to user location on first load
-  useEffect(() => {
-    if (latitude && longitude && !isLoading) {
-      setDynamicMapCenter({ lat: latitude, lng: longitude });
-    }
-  }, [latitude, longitude, isLoading]);
+  }, [latitude, longitude, isLoading, hasInitializedLocation]);
 
   useEffect(() => {
     loadLocations();
@@ -291,10 +288,14 @@ export function MapPage() {
   };
 
   const toggleFavoritePOI = (poi: POI) => {
+    console.log("toggleFavoritePOI called with:", poi.name, poi.id);
     const isFavorited = favoritePOIs.some(fav => fav.id === poi.id);
+    console.log("Currently favorited:", isFavorited, "Total favorites:", favoritePOIs.length);
     if (isFavorited) {
+      console.log("Removing from favorites");
       setFavoritePOIs(prev => prev.filter(fav => fav.id !== poi.id));
     } else {
+      console.log("Adding to favorites");
       setFavoritePOIs(prev => [...prev, poi]);
     }
   };
@@ -433,8 +434,7 @@ export function MapPage() {
                 onGlobalPOIClick={handleGlobalPOIClick}
                 selectedPOI={selectedPOI}
                 showPOIs={true}
-                hideBadges={showLocationDetail || showPOIDetail || showAddLocationModal || showSearchModal || showSavedLocationsModal}
-                onSavedLocationsBadgeClick={() => setShowSavedLocationsModal(true)}
+                hideBadges={true} // Always hide badges now since we have the saved tab
               />
 
               <MapCrosshair isVisible={isAddLocationMode} />
@@ -453,9 +453,15 @@ export function MapPage() {
                 />
               )}
             </>
-          ) : (
+          ) : activeTab === "favorites" ? (
             <FavoritesView
               favoriteLocations={favoriteLocations}
+              onLocationClick={handleLocationClick}
+              onToggleFavorite={toggleFavorite}
+            />
+          ) : (
+            <SavedLocationsView
+              locations={locations}
               onLocationClick={handleLocationClick}
               onToggleFavorite={toggleFavorite}
             />

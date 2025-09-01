@@ -46,6 +46,7 @@ interface LeafletMapProps {
   selectedPOI?: POI | null;
   hideBadges?: boolean;
   onSavedLocationsBadgeClick?: () => void;
+  setMapRef?: (map: any) => void;
 }
 
 // Custom icons for database POIs (saved locations) - larger, more prominent style
@@ -192,9 +193,20 @@ function getCategoryIcon(category: string): string {
 // Component for handling map events
 function MapEventHandler({
   onMapClick,
+  setMapRef,
 }: {
   onMapClick?: (lat: number, lng: number) => void;
+  setMapRef?: (map: any) => void;
 }) {
+  const map = useMap();
+  
+  // Set the map reference when component mounts
+  useEffect(() => {
+    if (setMapRef && map) {
+      setMapRef(map);
+    }
+  }, [map, setMapRef]);
+
   useMapEvents({
     click: (e) => {
       if (onMapClick) {
@@ -465,6 +477,7 @@ export function LeafletMap({
   selectedPOI = null,
   hideBadges = false,
   onSavedLocationsBadgeClick,
+  setMapRef,
 }: LeafletMapProps) {
   return (
     <div
@@ -498,7 +511,7 @@ export function LeafletMap({
         />
 
         {/* Map Event Handler */}
-        <MapEventHandler onMapClick={onMapClick} />
+        <MapEventHandler onMapClick={onMapClick} setMapRef={setMapRef} />
 
         {/* Center updater */}
         <MapCenterUpdater

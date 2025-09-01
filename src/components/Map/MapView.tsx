@@ -33,6 +33,7 @@ export function MapView({
   center,
   locations,
   userLocation,
+  setMapRef,
   onLocationClick,
   onGlobalPOIClick,
   selectedPOI,
@@ -58,6 +59,7 @@ export function MapView({
       showPOIs={showPOIs}
       hideBadges={hideBadges}
       onSavedLocationsBadgeClick={onSavedLocationsBadgeClick}
+      setMapRef={setMapRef}
     />
   );
 }
