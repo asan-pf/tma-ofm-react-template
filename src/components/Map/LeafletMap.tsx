@@ -1,14 +1,24 @@
 import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  useMap,
+  useMapEvents,
+} from "react-leaflet";
 import L from "leaflet";
 import { POI, POIService } from "@/utils/poiService";
 
 // Fix leaflet default icons
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+  iconRetinaUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
+  iconUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
+  shadowUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
 });
 
 interface Location {
@@ -41,16 +51,16 @@ interface LeafletMapProps {
 // Custom icons for different categories
 const createCategoryIcon = (category: string, isSelected: boolean = false) => {
   const colors = {
-    grocery: '#10B981',
-    'restaurant-bar': '#F59E0B',
-    other: '#8B5CF6'
+    grocery: "#10B981",
+    "restaurant-bar": "#F59E0B",
+    other: "#8B5CF6",
   };
-  
+
   const color = colors[category as keyof typeof colors] || colors.other;
   const size = isSelected ? 35 : 25;
-  
+
   return L.divIcon({
-    className: 'custom-marker',
+    className: "custom-marker",
     html: `
       <div style="
         background: ${color};
@@ -63,7 +73,11 @@ const createCategoryIcon = (category: string, isSelected: boolean = false) => {
         justify-content: center;
         font-size: ${size * 0.5}px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        ${isSelected ? 'box-shadow: 0 2px 12px rgba(0,0,0,0.4), 0 0 0 3px rgba(255,255,255,0.8);' : ''}
+        ${
+          isSelected
+            ? "box-shadow: 0 2px 12px rgba(0,0,0,0.4), 0 0 0 3px rgba(255,255,255,0.8);"
+            : ""
+        }
       ">
         ${getCategoryIcon(category)}
       </div>
@@ -77,9 +91,9 @@ const createCategoryIcon = (category: string, isSelected: boolean = false) => {
 const createPOIIcon = (poi: POI, isSelected: boolean = false) => {
   const color = POIService.getCategoryColor(poi.category);
   const size = isSelected ? 25 : 20;
-  
+
   return L.divIcon({
-    className: 'custom-poi-marker',
+    className: "custom-poi-marker",
     html: `
       <div style="
         background: ${color};
@@ -93,7 +107,11 @@ const createPOIIcon = (poi: POI, isSelected: boolean = false) => {
         font-size: ${size * 0.4}px;
         opacity: 0.85;
         box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-        ${isSelected ? 'box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 0 0 2px rgba(255,255,255,0.9);' : ''}
+        ${
+          isSelected
+            ? "box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 0 0 2px rgba(255,255,255,0.9);"
+            : ""
+        }
       ">
         ${POIService.getCategoryIcon(poi.category)}
       </div>
@@ -106,7 +124,7 @@ const createPOIIcon = (poi: POI, isSelected: boolean = false) => {
 // Create user location icon
 const createUserLocationIcon = () => {
   return L.divIcon({
-    className: 'user-location-marker',
+    className: "user-location-marker",
     html: `
       <div style="
         background: #4285f4;
@@ -142,7 +160,11 @@ function getCategoryIcon(category: string): string {
 }
 
 // Component for handling map events
-function MapEventHandler({ onMapClick }: { onMapClick?: (lat: number, lng: number) => void }) {
+function MapEventHandler({
+  onMapClick,
+}: {
+  onMapClick?: (lat: number, lng: number) => void;
+}) {
   useMapEvents({
     click: (e) => {
       if (onMapClick) {
@@ -154,11 +176,11 @@ function MapEventHandler({ onMapClick }: { onMapClick?: (lat: number, lng: numbe
 }
 
 // Component for managing POIs
-function POIManager({ 
-  showPOIs, 
-  onPOIClick, 
-  selectedPOI 
-}: { 
+function POIManager({
+  showPOIs,
+  onPOIClick,
+  selectedPOI,
+}: {
   showPOIs: boolean;
   onPOIClick?: (poi: POI) => void;
   selectedPOI?: POI | null;
@@ -166,6 +188,11 @@ function POIManager({
   const map = useMap();
   const [pois, setPOIs] = useState<POI[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [currentZoom, setCurrentZoom] = useState(map.getZoom());
+
+  // Zoom level thresholds for performance optimization
+  const MIN_GLOBAL_POI_ZOOM = 15; // Show global POIs only when very zoomed in
+  const CLEAR_POI_ZOOM = 12; // Clear all POIs when zoomed out below this
 
   useEffect(() => {
     if (!showPOIs) {
@@ -175,10 +202,10 @@ function POIManager({
 
     const loadPOIs = async () => {
       if (isLoading) return; // Prevent concurrent requests
-      
+
       try {
-        // Only load POIs if zoomed in enough, but don't clear existing ones during zoom
-        if (map.getZoom() < 12) {
+        // Only load global POIs if zoomed in enough (high zoom level to avoid lag)
+        if (map.getZoom() < MIN_GLOBAL_POI_ZOOM) {
           return;
         }
 
@@ -204,10 +231,10 @@ function POIManager({
     return () => clearTimeout(timeoutId);
   }, [map, showPOIs, isLoading]);
 
-  // Listen to map move events  
+  // Listen to map move events
   useMapEvents({
     moveend: () => {
-      if (showPOIs && map.getZoom() >= 12 && !isLoading) {
+      if (showPOIs && map.getZoom() >= MIN_GLOBAL_POI_ZOOM && !isLoading) {
         const bounds = map.getBounds();
         const fetchBounds = {
           north: bounds.getNorth(),
@@ -226,8 +253,8 @@ function POIManager({
               .finally(() => setIsLoading(false));
           }
         }, 200);
-      } else if (!showPOIs || map.getZoom() < 10) {
-        // Only clear POIs if we're very zoomed out or POIs are disabled
+      } else if (!showPOIs || map.getZoom() < CLEAR_POI_ZOOM) {
+        // Clear POIs when zoomed out or POIs are disabled
         setPOIs([]);
       }
     },
@@ -235,18 +262,19 @@ function POIManager({
       // Keep POIs visible during zoom transition
     },
     zoomend: () => {
+      const newZoom = map.getZoom();
+      setCurrentZoom(newZoom);
+
       if (!showPOIs) {
         setPOIs([]);
         return;
       }
-      
-      const currentZoom = map.getZoom();
-      
-      if (currentZoom < 10) {
-        // Clear POIs only when very zoomed out  
+
+      if (newZoom < CLEAR_POI_ZOOM) {
+        // Clear all global POIs when zoomed out significantly
         setPOIs([]);
-      } else if (currentZoom >= 12 && !isLoading) {
-        // Reload POIs for the new zoom level
+      } else if (newZoom >= MIN_GLOBAL_POI_ZOOM && !isLoading) {
+        // Load/reload global POIs for high zoom levels
         const bounds = map.getBounds();
         const fetchBounds = {
           north: bounds.getNorth(),
@@ -254,7 +282,7 @@ function POIManager({
           east: bounds.getEast(),
           west: bounds.getWest(),
         };
-        
+
         setTimeout(() => {
           if (!isLoading) {
             setIsLoading(true);
@@ -265,35 +293,50 @@ function POIManager({
           }
         }, 250);
       }
-      // For zoom levels 10-12, keep existing POIs visible
-    }
+      // For zoom levels between CLEAR_POI_ZOOM and MIN_GLOBAL_POI_ZOOM, keep existing POIs visible
+    },
   });
+
+  // Only render global POIs if zoom level is high enough
+  const shouldShowGlobalPOIs = currentZoom >= MIN_GLOBAL_POI_ZOOM;
 
   return (
     <>
-      {pois.map((poi) => (
-        <Marker
-          key={poi.id}
-          position={[poi.latitude, poi.longitude]}
-          icon={createPOIIcon(poi, selectedPOI?.id === poi.id)}
-          eventHandlers={{
-            click: () => onPOIClick?.(poi),
-          }}
-        >
-          <Popup>
-            <div>
-              <strong>{poi.name}</strong>
-              <small>Category: {poi.category}</small>
-            </div>
-          </Popup>
-        </Marker>
-      ))}
+      {shouldShowGlobalPOIs &&
+        pois.map((poi) => (
+          <Marker
+            key={poi.id}
+            position={[poi.latitude, poi.longitude]}
+            icon={createPOIIcon(poi, selectedPOI?.id === poi.id)}
+            eventHandlers={{
+              click: () => onPOIClick?.(poi),
+            }}
+          >
+            <Popup>
+              <div>
+                <strong>{poi.name}</strong>
+                <br />
+                <small style={{ color: "#666" }}>
+                  Category: {poi.category}
+                </small>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
     </>
   );
 }
 
 // Map center updater component
-function MapCenterUpdater({ latitude, longitude, zoom }: { latitude: number; longitude: number; zoom: number }) {
+function MapCenterUpdater({
+  latitude,
+  longitude,
+  zoom,
+}: {
+  latitude: number;
+  longitude: number;
+  zoom: number;
+}) {
   const map = useMap();
 
   useEffect(() => {
@@ -301,6 +344,108 @@ function MapCenterUpdater({ latitude, longitude, zoom }: { latitude: number; lon
   }, [map, latitude, longitude, zoom]);
 
   return null;
+}
+
+// Component for managing zoom-based database location rendering
+function DatabaseLocationManager({
+  locations,
+  selectedLocationId,
+  onMarkerClick,
+}: {
+  locations: Location[];
+  selectedLocationId?: number;
+  onMarkerClick?: (location: Location) => void;
+}) {
+  const map = useMap();
+  const [currentZoom, setCurrentZoom] = useState(map.getZoom());
+
+  // Zoom level threshold for showing database locations
+  const MIN_DATABASE_POI_ZOOM = 11; // Show database POIs at medium zoom level
+
+  useMapEvents({
+    zoomend: () => {
+      setCurrentZoom(map.getZoom());
+    },
+  });
+
+  // Only show database locations if zoom level is high enough
+  const shouldShowDatabasePOIs = currentZoom >= MIN_DATABASE_POI_ZOOM;
+
+  return (
+    <>
+      {shouldShowDatabasePOIs &&
+        locations.map((location) => (
+          <Marker
+            key={location.id}
+            position={[location.latitude, location.longitude]}
+            icon={createCategoryIcon(
+              location.category,
+              selectedLocationId === location.id
+            )}
+            eventHandlers={{
+              click: () => onMarkerClick?.(location),
+            }}
+            zIndexOffset={500}
+          >
+            <Popup>
+              <div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    marginBottom: "8px",
+                  }}
+                >
+                  <span style={{ fontSize: "16px" }}>
+                    {getCategoryIcon(location.category)}
+                  </span>
+                  <strong>{location.name}</strong>
+                </div>
+                {location.description && <p>{location.description}</p>}
+                <small>
+                  Added: {new Date(location.created_at).toLocaleDateString()}
+                </small>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+    </>
+  );
+}
+
+// Component for showing zoom-based hints
+function ZoomHintManager({
+  locations,
+  showPOIs,
+}: {
+  locations: Location[];
+  showPOIs: boolean;
+}) {
+  const map = useMap();
+  const [currentZoom, setCurrentZoom] = useState(map.getZoom());
+  const [showHint, setShowHint] = useState(false);
+
+  const MIN_DATABASE_POI_ZOOM = 11;
+  const MIN_GLOBAL_POI_ZOOM = 15;
+
+  useMapEvents({
+    zoomend: () => {
+      const newZoom = map.getZoom();
+      setCurrentZoom(newZoom);
+
+      // Show hint temporarily when user might benefit from zooming
+      if (
+        (newZoom < MIN_DATABASE_POI_ZOOM && locations.length > 0) ||
+        (newZoom < MIN_GLOBAL_POI_ZOOM &&
+          newZoom >= MIN_DATABASE_POI_ZOOM &&
+          showPOIs)
+      ) {
+        setShowHint(true);
+        setTimeout(() => setShowHint(false), 3000); // Hide after 3 seconds
+      }
+    },
+  });
 }
 
 export function LeafletMap({
@@ -319,7 +464,6 @@ export function LeafletMap({
   hideBadges = false,
   onSavedLocationsBadgeClick,
 }: LeafletMapProps) {
-
   return (
     <div
       style={{
@@ -355,10 +499,14 @@ export function LeafletMap({
         <MapEventHandler onMapClick={onMapClick} />
 
         {/* Center updater */}
-        <MapCenterUpdater latitude={latitude} longitude={longitude} zoom={zoom} />
+        <MapCenterUpdater
+          latitude={latitude}
+          longitude={longitude}
+          zoom={zoom}
+        />
 
-        {/* POI Manager */}
-        <POIManager 
+        {/* POI Manager for global POIs */}
+        <POIManager
           showPOIs={showPOIs}
           onPOIClick={onPOIClick}
           selectedPOI={selectedPOI}
@@ -374,37 +522,21 @@ export function LeafletMap({
             <Popup>
               <div>
                 <strong>📍 Your Location</strong>
-                <p>{latitude.toFixed(6)}, {longitude.toFixed(6)}</p>
+                <p>
+                  {latitude.toFixed(6)}, {longitude.toFixed(6)}
+                </p>
               </div>
             </Popup>
           </Marker>
         )}
 
-        {/* Saved Location Markers */}
-        {locations.map((location) => (
-          <Marker
-            key={location.id}
-            position={[location.latitude, location.longitude]}
-            icon={createCategoryIcon(location.category, selectedLocationId === location.id)}
-            eventHandlers={{
-              click: () => onMarkerClick?.(location),
-            }}
-            zIndexOffset={500}
-          >
-            <Popup>
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-                  <span style={{ fontSize: "16px" }}>{getCategoryIcon(location.category)}</span>
-                  <strong>{location.name}</strong>
-                </div>
-                {location.description && <p>{location.description}</p>}
-                <small>Added: {new Date(location.created_at).toLocaleDateString()}</small>
-              </div>
-            </Popup>
-          </Marker>
-        ))}
+        {/* Database Location Manager for saved locations */}
+        <DatabaseLocationManager
+          locations={locations}
+          selectedLocationId={selectedLocationId}
+          onMarkerClick={onMarkerClick}
+        />
       </MapContainer>
-
 
       {/* Location count badge */}
       {!hideBadges && (
