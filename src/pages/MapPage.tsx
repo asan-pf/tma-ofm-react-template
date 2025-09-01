@@ -268,11 +268,28 @@ export function MapPage() {
   };
 
   const handleLocationClick = (location: Location) => {
+    // Navigate to location on map
+    setDynamicMapCenter({ lat: location.latitude, lng: location.longitude });
+    if (mapRef) {
+      mapRef.setView([location.latitude, location.longitude], 16);
+    }
+    // Show location detail modal
     setSelectedLocation(location);
     setShowLocationDetail(true);
   };
 
   const handlePOIClick = (poi: POI) => {
+    setSelectedPOI(poi);
+    setShowPOIDetail(true);
+  };
+
+  const handleGlobalPOIClick = (poi: POI) => {
+    // Navigate to the POI location on the map
+    setDynamicMapCenter({ lat: poi.latitude, lng: poi.longitude });
+    if (mapRef) {
+      mapRef.setView([poi.latitude, poi.longitude], 16);
+    }
+    // Show the POI detail modal
     setSelectedPOI(poi);
     setShowPOIDetail(true);
   };
@@ -301,13 +318,11 @@ export function MapPage() {
     lng: number,
     name: string
   ) => {
+    // Just navigate to the location on the map without opening add modal
     setDynamicMapCenter({ lat, lng });
     if (mapRef) {
       mapRef.setView([lat, lng], 16);
     }
-    setPendingLocation({ lat, lng });
-    setAddLocationData((prev) => ({ ...prev, lat, lng, name }));
-    setShowAddLocationModal(true);
     setShowSearchModal(false);
   };
 
@@ -420,6 +435,13 @@ export function MapPage() {
                 onLocationClick={handleLocationClick}
                 onToggleFavorite={toggleFavorite}
                 onPOIClick={handlePOIClick}
+                onGlobalPOIClick={handleGlobalPOIClick}
+                onNavigateToLocation={(lat, lng, zoom) => {
+                  setDynamicMapCenter({ lat, lng });
+                  if (mapRef) {
+                    mapRef.setView([lat, lng], zoom || 15);
+                  }
+                }}
                 selectedPOI={selectedPOI}
                 showPOIs={true}
                 hideBadges={showLocationDetail || showPOIDetail || showAddLocationModal || showSearchModal || showSavedLocationsModal}

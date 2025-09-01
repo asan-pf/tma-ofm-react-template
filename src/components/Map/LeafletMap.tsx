@@ -39,6 +39,8 @@ interface LeafletMapProps {
   onMapClick?: (lat: number, lng: number) => void;
   onMarkerClick?: (location: Location) => void;
   onPOIClick?: (poi: POI) => void;
+  onGlobalPOIClick?: (poi: POI) => void; // New prop for global POI clicks
+  onNavigateToLocation?: (lat: number, lng: number, zoom?: number) => void; // New prop for navigation
   locations?: Location[];
   showUserLocation?: boolean;
   selectedLocationId?: number;
@@ -48,7 +50,7 @@ interface LeafletMapProps {
   onSavedLocationsBadgeClick?: () => void;
 }
 
-// Custom icons for different categories
+// Custom icons for database POIs (saved locations) - larger, more prominent style
 const createCategoryIcon = (category: string, isSelected: boolean = false) => {
   const colors = {
     grocery: "#10B981",
@@ -57,14 +59,14 @@ const createCategoryIcon = (category: string, isSelected: boolean = false) => {
   };
 
   const color = colors[category as keyof typeof colors] || colors.other;
-  const size = isSelected ? 35 : 25;
+  const size = isSelected ? 35 : 28;
 
   return L.divIcon({
-    className: "custom-marker",
+    className: "database-poi-marker",
     html: `
       <div style="
         background: ${color};
-        border: 3px solid white;
+        border: 4px solid white;
         border-radius: 50%;
         width: ${size}px;
         height: ${size}px;
@@ -72,52 +74,82 @@ const createCategoryIcon = (category: string, isSelected: boolean = false) => {
         align-items: center;
         justify-content: center;
         font-size: ${size * 0.5}px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        position: relative;
         ${
           isSelected
-            ? "box-shadow: 0 2px 12px rgba(0,0,0,0.4), 0 0 0 3px rgba(255,255,255,0.8);"
+            ? "box-shadow: 0 4px 16px rgba(0,0,0,0.5), 0 0 0 4px rgba(255,255,255,0.9);"
             : ""
         }
       ">
         ${getCategoryIcon(category)}
+        <div style="
+          position: absolute;
+          bottom: -2px;
+          right: -2px;
+          background: #4285f4;
+          border: 2px solid white;
+          border-radius: 50%;
+          width: 12px;
+          height: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 8px;
+        ">💾</div>
       </div>
     `,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
+    iconSize: [size + 4, size + 4],
+    iconAnchor: [(size + 4) / 2, (size + 4) / 2],
   });
 };
 
-// Create POI icon
+// Create POI icon for global POIs (OpenStreetMap) - smaller, more subtle style
 const createPOIIcon = (poi: POI, isSelected: boolean = false) => {
   const color = POIService.getCategoryColor(poi.category);
-  const size = isSelected ? 25 : 20;
+  const size = isSelected ? 22 : 16;
 
   return L.divIcon({
-    className: "custom-poi-marker",
+    className: "global-poi-marker",
     html: `
       <div style="
         background: ${color};
-        border: 2px solid white;
-        border-radius: 50%;
+        border: 1px solid white;
+        border-radius: 4px;
         width: ${size}px;
         height: ${size}px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: ${size * 0.4}px;
-        opacity: 0.85;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        font-size: ${size * 0.6}px;
+        opacity: 0.9;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+        position: relative;
         ${
           isSelected
-            ? "box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 0 0 2px rgba(255,255,255,0.9);"
+            ? "box-shadow: 0 2px 8px rgba(0,0,0,0.4), 0 0 0 2px rgba(255,255,255,0.9); transform: scale(1.1);"
             : ""
         }
       ">
         ${POIService.getCategoryIcon(poi.category)}
+        <div style="
+          position: absolute;
+          top: -2px;
+          right: -2px;
+          background: #ff6b35;
+          border: 1px solid white;
+          border-radius: 50%;
+          width: 8px;
+          height: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 6px;
+        ">🌐</div>
       </div>
     `,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
+    iconSize: [size + 2, size + 2],
+    iconAnchor: [(size + 2) / 2, (size + 2) / 2],
   });
 };
 
@@ -179,10 +211,12 @@ function MapEventHandler({
 function POIManager({
   showPOIs,
   onPOIClick,
+  onGlobalPOIClick,
   selectedPOI,
 }: {
   showPOIs: boolean;
   onPOIClick?: (poi: POI) => void;
+  onGlobalPOIClick?: (poi: POI) => void;
   selectedPOI?: POI | null;
 }) {
   const map = useMap();
@@ -309,7 +343,7 @@ function POIManager({
             position={[poi.latitude, poi.longitude]}
             icon={createPOIIcon(poi, selectedPOI?.id === poi.id)}
             eventHandlers={{
-              click: () => onPOIClick?.(poi),
+              click: () => onGlobalPOIClick?.(poi),
             }}
           >
             <Popup>
@@ -351,10 +385,12 @@ function DatabaseLocationManager({
   locations,
   selectedLocationId,
   onMarkerClick,
+  onNavigateToLocation,
 }: {
   locations: Location[];
   selectedLocationId?: number;
   onMarkerClick?: (location: Location) => void;
+  onNavigateToLocation?: (lat: number, lng: number, zoom?: number) => void;
 }) {
   const map = useMap();
   const [currentZoom, setCurrentZoom] = useState(map.getZoom());
@@ -367,6 +403,11 @@ function DatabaseLocationManager({
       setCurrentZoom(map.getZoom());
     },
   });
+
+  // Function to handle location click - let parent handle navigation
+  const handleLocationClick = (location: Location) => {
+    onMarkerClick?.(location);
+  };
 
   // Only show database locations if zoom level is high enough
   const shouldShowDatabasePOIs = currentZoom >= MIN_DATABASE_POI_ZOOM;
@@ -383,7 +424,7 @@ function DatabaseLocationManager({
               selectedLocationId === location.id
             )}
             eventHandlers={{
-              click: () => onMarkerClick?.(location),
+              click: () => handleLocationClick(location),
             }}
             zIndexOffset={500}
           >
@@ -456,6 +497,8 @@ export function LeafletMap({
   onMapClick,
   onMarkerClick,
   onPOIClick,
+  onGlobalPOIClick,
+  onNavigateToLocation,
   locations = [],
   showUserLocation = true,
   selectedLocationId,
@@ -509,6 +552,7 @@ export function LeafletMap({
         <POIManager
           showPOIs={showPOIs}
           onPOIClick={onPOIClick}
+          onGlobalPOIClick={onGlobalPOIClick}
           selectedPOI={selectedPOI}
         />
 
@@ -535,6 +579,7 @@ export function LeafletMap({
           locations={locations}
           selectedLocationId={selectedLocationId}
           onMarkerClick={onMarkerClick}
+          onNavigateToLocation={onNavigateToLocation}
         />
       </MapContainer>
 

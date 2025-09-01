@@ -22,6 +22,8 @@ interface MapViewProps {
   onLocationClick: (location: Location) => void;
   onToggleFavorite: (locationId: number) => void;
   onPOIClick?: (poi: POI) => void;
+  onGlobalPOIClick?: (poi: POI) => void;
+  onNavigateToLocation?: (lat: number, lng: number, zoom?: number) => void;
   selectedPOI?: POI | null;
   showPOIs?: boolean;
   hideBadges?: boolean;
@@ -35,6 +37,8 @@ export function MapView({
   userLocation,
   onLocationClick,
   onPOIClick,
+  onGlobalPOIClick,
+  onNavigateToLocation,
   selectedPOI,
   showPOIs = true,
   hideBadges = false,
@@ -53,6 +57,8 @@ export function MapView({
       showUserLocation={!!userLocation}
       onMarkerClick={onLocationClick}
       onPOIClick={onPOIClick}
+      onGlobalPOIClick={onGlobalPOIClick}
+      onNavigateToLocation={onNavigateToLocation}
       selectedLocationId={undefined} // You can add this to props if needed
       selectedPOI={selectedPOI}
       showPOIs={showPOIs}
