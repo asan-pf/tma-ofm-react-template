@@ -38,9 +38,7 @@ interface LeafletMapProps {
   height?: string;
   onMapClick?: (lat: number, lng: number) => void;
   onMarkerClick?: (location: Location) => void;
-  onPOIClick?: (poi: POI) => void;
-  onGlobalPOIClick?: (poi: POI) => void; // New prop for global POI clicks
-  onNavigateToLocation?: (lat: number, lng: number, zoom?: number) => void; // New prop for navigation
+  onGlobalPOIClick?: (poi: POI) => void;
   locations?: Location[];
   showUserLocation?: boolean;
   selectedLocationId?: number;
@@ -210,12 +208,10 @@ function MapEventHandler({
 // Component for managing POIs
 function POIManager({
   showPOIs,
-  onPOIClick,
   onGlobalPOIClick,
   selectedPOI,
 }: {
   showPOIs: boolean;
-  onPOIClick?: (poi: POI) => void;
   onGlobalPOIClick?: (poi: POI) => void;
   selectedPOI?: POI | null;
 }) {
@@ -385,12 +381,10 @@ function DatabaseLocationManager({
   locations,
   selectedLocationId,
   onMarkerClick,
-  onNavigateToLocation,
 }: {
   locations: Location[];
   selectedLocationId?: number;
   onMarkerClick?: (location: Location) => void;
-  onNavigateToLocation?: (lat: number, lng: number, zoom?: number) => void;
 }) {
   const map = useMap();
   const [currentZoom, setCurrentZoom] = useState(map.getZoom());
@@ -404,7 +398,7 @@ function DatabaseLocationManager({
     },
   });
 
-  // Function to handle location click - let parent handle navigation
+  // Function to handle location click
   const handleLocationClick = (location: Location) => {
     onMarkerClick?.(location);
   };
@@ -455,39 +449,6 @@ function DatabaseLocationManager({
   );
 }
 
-// Component for showing zoom-based hints
-function ZoomHintManager({
-  locations,
-  showPOIs,
-}: {
-  locations: Location[];
-  showPOIs: boolean;
-}) {
-  const map = useMap();
-  const [currentZoom, setCurrentZoom] = useState(map.getZoom());
-  const [showHint, setShowHint] = useState(false);
-
-  const MIN_DATABASE_POI_ZOOM = 11;
-  const MIN_GLOBAL_POI_ZOOM = 15;
-
-  useMapEvents({
-    zoomend: () => {
-      const newZoom = map.getZoom();
-      setCurrentZoom(newZoom);
-
-      // Show hint temporarily when user might benefit from zooming
-      if (
-        (newZoom < MIN_DATABASE_POI_ZOOM && locations.length > 0) ||
-        (newZoom < MIN_GLOBAL_POI_ZOOM &&
-          newZoom >= MIN_DATABASE_POI_ZOOM &&
-          showPOIs)
-      ) {
-        setShowHint(true);
-        setTimeout(() => setShowHint(false), 3000); // Hide after 3 seconds
-      }
-    },
-  });
-}
 
 export function LeafletMap({
   latitude,
@@ -496,9 +457,7 @@ export function LeafletMap({
   height = "400px",
   onMapClick,
   onMarkerClick,
-  onPOIClick,
   onGlobalPOIClick,
-  onNavigateToLocation,
   locations = [],
   showUserLocation = true,
   selectedLocationId,
@@ -551,7 +510,6 @@ export function LeafletMap({
         {/* POI Manager for global POIs */}
         <POIManager
           showPOIs={showPOIs}
-          onPOIClick={onPOIClick}
           onGlobalPOIClick={onGlobalPOIClick}
           selectedPOI={selectedPOI}
         />
@@ -579,7 +537,6 @@ export function LeafletMap({
           locations={locations}
           selectedLocationId={selectedLocationId}
           onMarkerClick={onMarkerClick}
-          onNavigateToLocation={onNavigateToLocation}
         />
       </MapContainer>
 

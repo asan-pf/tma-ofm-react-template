@@ -278,10 +278,6 @@ export function MapPage() {
     setShowLocationDetail(true);
   };
 
-  const handlePOIClick = (poi: POI) => {
-    setSelectedPOI(poi);
-    setShowPOIDetail(true);
-  };
 
   const handleGlobalPOIClick = (poi: POI) => {
     // Navigate to the POI location on the map
@@ -316,7 +312,7 @@ export function MapPage() {
   const handleGlobalLocationSelect = (
     lat: number,
     lng: number,
-    name: string
+    _name: string
   ) => {
     // Just navigate to the location on the map without opening add modal
     setDynamicMapCenter({ lat, lng });
@@ -434,14 +430,7 @@ export function MapPage() {
                 setMapRef={setMapRef}
                 onLocationClick={handleLocationClick}
                 onToggleFavorite={toggleFavorite}
-                onPOIClick={handlePOIClick}
                 onGlobalPOIClick={handleGlobalPOIClick}
-                onNavigateToLocation={(lat, lng, zoom) => {
-                  setDynamicMapCenter({ lat, lng });
-                  if (mapRef) {
-                    mapRef.setView([lat, lng], zoom || 15);
-                  }
-                }}
                 selectedPOI={selectedPOI}
                 showPOIs={true}
                 hideBadges={showLocationDetail || showPOIDetail || showAddLocationModal || showSearchModal || showSavedLocationsModal}
