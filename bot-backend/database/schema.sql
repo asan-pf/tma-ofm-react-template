@@ -1,4 +1,3 @@
--- supabase exported schema
 CREATE TABLE public.comments (
     id integer NOT NULL DEFAULT nextval('comments_id_seq'::regclass),
     user_id integer,
