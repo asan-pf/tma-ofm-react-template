@@ -1,6 +1,6 @@
-# OpenFreeMap Mini App
+# OpenFreeMap Mini App Template
 
-A Telegram Mini App for discovering and sharing local places. Built with React, TypeScript, and integrated with OpenStreetMap.
+OpenFreeMap (OFM-tg) is an open-source Telegram Mini App (TMA) template for sharing and exploring user-submitted locations. It’s designed as a foundation for building map-based Telegram apps, making it easy to customize for different communities or use cases.
 
 ## Features
 
@@ -8,7 +8,6 @@ A Telegram Mini App for discovering and sharing local places. Built with React, 
 - Location discovery and management
 - User favorites system  
 - Profile management
-- Tab-based navigation (Explore/Favorites)
 - Real-time location services
 
 ## Tech Stack
