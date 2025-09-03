@@ -9,6 +9,9 @@ import {
   AttributionControl,
 } from "react-leaflet";
 import L from "leaflet";
+import "leaflet.markercluster";
+import "leaflet.markercluster/dist/MarkerCluster.css";
+import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import { POI, POIService } from "@/utils/poiService";
 
 // Fix leaflet default icons
@@ -218,7 +221,7 @@ function MapEventHandler({
   return null;
 }
 
-// Component for managing POIs
+// Component for managing POIs with clustering
 function POIManager({
   showPOIs,
   onGlobalPOIClick,
@@ -232,13 +235,56 @@ function POIManager({
   const [pois, setPOIs] = useState<POI[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [currentZoom, setCurrentZoom] = useState(map.getZoom());
+  const [clusterGroup, setClusterGroup] = useState<L.MarkerClusterGroup | null>(null);
 
-  // Zoom level thresholds for performance optimization
-  const MIN_GLOBAL_POI_ZOOM = 15; // Show global POIs only when very zoomed in
-  const CLEAR_POI_ZOOM = 12; // Clear all POIs when zoomed out below this
+  // Zoom level thresholds for performance optimization - more restrictive for global POIs
+  const MIN_GLOBAL_POI_ZOOM = 17; // Only show global POIs at maximum zoom levels
+  const MIN_CLUSTER_POI_ZOOM = 13; // Show clustered POIs from medium zoom
+  const CLEAR_POI_ZOOM = 11; // Clear all POIs when zoomed out below this
+
+  // Initialize cluster group
+  useEffect(() => {
+    const cluster = L.markerClusterGroup({
+      maxClusterRadius: 80,
+      disableClusteringAtZoom: MIN_GLOBAL_POI_ZOOM,
+      spiderfyOnMaxZoom: true,
+      showCoverageOnHover: false,
+      zoomToBoundsOnClick: true,
+      removeOutsideVisibleBounds: true,
+      iconCreateFunction: (cluster) => {
+        const count = cluster.getChildCount();
+        let c = ' marker-cluster-';
+        if (count < 10) {
+          c += 'small';
+        } else if (count < 100) {
+          c += 'medium';
+        } else {
+          c += 'large';
+        }
+        
+        return new L.DivIcon({ 
+          html: `<div><span>${count}</span></div>`, 
+          className: 'marker-cluster' + c, 
+          iconSize: new L.Point(40, 40) 
+        });
+      }
+    });
+    
+    map.addLayer(cluster);
+    setClusterGroup(cluster);
+    
+    return () => {
+      if (map.hasLayer(cluster)) {
+        map.removeLayer(cluster);
+      }
+    };
+  }, [map]);
 
   useEffect(() => {
-    if (!showPOIs) {
+    if (!showPOIs || !clusterGroup) {
+      if (clusterGroup) {
+        clusterGroup.clearLayers();
+      }
       setPOIs([]);
       return;
     }
@@ -247,8 +293,8 @@ function POIManager({
       if (isLoading) return; // Prevent concurrent requests
 
       try {
-        // Only load global POIs if zoomed in enough (high zoom level to avoid lag)
-        if (map.getZoom() < MIN_GLOBAL_POI_ZOOM) {
+        // Only load global POIs if zoomed in enough for clusters or individual markers
+        if (map.getZoom() < MIN_CLUSTER_POI_ZOOM) {
           return;
         }
 
@@ -272,12 +318,40 @@ function POIManager({
 
     const timeoutId = setTimeout(loadPOIs, 300);
     return () => clearTimeout(timeoutId);
-  }, [map, showPOIs, isLoading]);
+  }, [map, showPOIs, isLoading, clusterGroup]);
+
+  // Update cluster markers when POIs change
+  useEffect(() => {
+    if (!clusterGroup) return;
+
+    clusterGroup.clearLayers();
+
+    if (currentZoom >= MIN_CLUSTER_POI_ZOOM) {
+      pois.forEach((poi) => {
+        const marker = L.marker([poi.latitude, poi.longitude], {
+          icon: createPOIIcon(poi, selectedPOI?.id === poi.id),
+        });
+
+        marker.bindPopup(`
+          <div>
+            <strong>${poi.name}</strong><br/>
+            <small style="color: #666">Category: ${poi.category}</small>
+          </div>
+        `);
+
+        marker.on('click', () => {
+          onGlobalPOIClick?.(poi);
+        });
+
+        clusterGroup.addLayer(marker);
+      });
+    }
+  }, [pois, clusterGroup, currentZoom, selectedPOI, onGlobalPOIClick]);
 
   // Listen to map move events
   useMapEvents({
     moveend: () => {
-      if (showPOIs && map.getZoom() >= MIN_GLOBAL_POI_ZOOM && !isLoading) {
+      if (showPOIs && map.getZoom() >= MIN_CLUSTER_POI_ZOOM && !isLoading) {
         const bounds = map.getBounds();
         const fetchBounds = {
           north: bounds.getNorth(),
@@ -301,9 +375,6 @@ function POIManager({
         setPOIs([]);
       }
     },
-    zoomstart: () => {
-      // Keep POIs visible during zoom transition
-    },
     zoomend: () => {
       const newZoom = map.getZoom();
       setCurrentZoom(newZoom);
@@ -316,8 +387,8 @@ function POIManager({
       if (newZoom < CLEAR_POI_ZOOM) {
         // Clear all global POIs when zoomed out significantly
         setPOIs([]);
-      } else if (newZoom >= MIN_GLOBAL_POI_ZOOM && !isLoading) {
-        // Load/reload global POIs for high zoom levels
+      } else if (newZoom >= MIN_CLUSTER_POI_ZOOM && !isLoading) {
+        // Load/reload global POIs for medium to high zoom levels
         const bounds = map.getBounds();
         const fetchBounds = {
           north: bounds.getNorth(),
@@ -336,38 +407,10 @@ function POIManager({
           }
         }, 250);
       }
-      // For zoom levels between CLEAR_POI_ZOOM and MIN_GLOBAL_POI_ZOOM, keep existing POIs visible
     },
   });
 
-  // Only render global POIs if zoom level is high enough
-  const shouldShowGlobalPOIs = currentZoom >= MIN_GLOBAL_POI_ZOOM;
-
-  return (
-    <>
-      {shouldShowGlobalPOIs &&
-        pois.map((poi) => (
-          <Marker
-            key={poi.id}
-            position={[poi.latitude, poi.longitude]}
-            icon={createPOIIcon(poi, selectedPOI?.id === poi.id)}
-            eventHandlers={{
-              click: () => onGlobalPOIClick?.(poi),
-            }}
-          >
-            <Popup>
-              <div>
-                <strong>{poi.name}</strong>
-                <br />
-                <small style={{ color: "#666" }}>
-                  Category: {poi.category}
-                </small>
-              </div>
-            </Popup>
-          </Marker>
-        ))}
-    </>
-  );
+  return null; // All rendering is handled by the cluster group
 }
 
 // Map center updater component
@@ -402,8 +445,8 @@ function DatabaseLocationManager({
   const map = useMap();
   const [currentZoom, setCurrentZoom] = useState(map.getZoom());
 
-  // Zoom level threshold for showing database locations
-  const MIN_DATABASE_POI_ZOOM = 11; // Show database POIs at medium zoom level
+  // Zoom level threshold for showing database locations - much lower zoom to show from farther
+  const MIN_DATABASE_POI_ZOOM = 8; // Show database POIs from farther zoom level
 
   useMapEvents({
     zoomend: () => {

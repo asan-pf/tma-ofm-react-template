@@ -48,6 +48,64 @@ canvas {
   all: revert !important;
 }
 
+/* Custom marker cluster styles */
+.marker-cluster-small {
+  background-color: rgba(181, 226, 140, 0.8);
+  border: 2px solid #4CAF50;
+}
+.marker-cluster-small div {
+  background-color: rgba(110, 204, 57, 0.8);
+  border-radius: 20px;
+  color: white;
+  font-weight: bold;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+}
+
+.marker-cluster-medium {
+  background-color: rgba(241, 211, 87, 0.8);
+  border: 2px solid #FF9800;
+}
+.marker-cluster-medium div {
+  background-color: rgba(240, 194, 12, 0.8);
+  border-radius: 20px;
+  color: white;
+  font-weight: bold;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+}
+
+.marker-cluster-large {
+  background-color: rgba(253, 156, 115, 0.8);
+  border: 2px solid #F44336;
+}
+.marker-cluster-large div {
+  background-color: rgba(241, 128, 23, 0.8);
+  border-radius: 20px;
+  color: white;
+  font-weight: bold;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+}
+
+/* Override default leaflet marker cluster styles */
+.marker-cluster {
+  border-radius: 50% !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+}
+
 /* Nuclear CSS Fix for Leaflet + Telegram UI conflict */
 .leaflet-container {
   background: #f0f0f0 !important;
