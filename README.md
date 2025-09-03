@@ -1,6 +1,6 @@
-# OpenFreeMap Mini App
+# OpenFreeMap - telegram - template
 
-A Telegram Mini App for discovering and sharing local places. Built with React, TypeScript, and integrated with OpenStreetMap.
+A Telegram Mini App integration with OpenFreeMap. for discovering and sharing local places. Share your favorite locations with your friends, discover new places ! 🗺️✈️ 🍜
 
 ## Features
 
@@ -67,7 +67,7 @@ Run the SQL schema in `bot-backend/database/schema.sql` in your Supabase project
 
 ## Deployment
 
-**Frontend:** Deploy to Vercel, Netlify, or GitHub Pages
+**Frontend:** Deploy to Vercel, Netlify, or GitHub Pages  
 **Backend:** Deploy to Railway, Heroku, or Vercel
 
 ## Documentation
@@ -77,4 +77,4 @@ Run the SQL schema in `bot-backend/database/schema.sql` in your Supabase project
 
 ## License
 
-MIT License
+[MIT License](https://opensource.org/licenses/MIT)
