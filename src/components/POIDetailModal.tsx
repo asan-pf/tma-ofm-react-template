@@ -41,8 +41,7 @@ export function POIDetailModal({
   if (!poi) return null;
 
   const formatOpeningHours = (hours: string) => {
-    // Simple formatting - could be enhanced
-    return hours.replace(/;/g, '\n');
+    return hours.replace(/;/g, '\n'); // Replace semicolons with newlines
   };
 
   const formatAddress = () => {

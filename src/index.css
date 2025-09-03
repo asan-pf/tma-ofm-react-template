@@ -132,3 +132,29 @@ canvas {
 .leaflet-zoom-anim .leaflet-tile-container {
   opacity: 1 !important;
 }
+
+.leaflet-control-attribution {
+  background: rgba(255, 255, 255, 0.8) !important;
+  color: #333 !important;
+  font-size: 11px !important;
+  line-height: 1.4 !important;
+  padding: 2px 5px !important;
+  border-radius: 3px !important;
+  pointer-events: auto !important;
+  display: block !important;
+  visibility: visible !important;
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  z-index: 1000 !important;
+}
+
+.leaflet-control-attribution a {
+  color: #0078A8 !important;
+  text-decoration: none !important;
+}
+
+.leaflet-control-attribution a:hover {
+  color: #005580 !important;
+  text-decoration: underline !important;
+}

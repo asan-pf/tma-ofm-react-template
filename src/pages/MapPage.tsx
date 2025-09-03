@@ -13,6 +13,7 @@ import { MapControls } from "@/components/Map/MapControls";
 import { MapCrosshair } from "@/components/Map/MapCrosshair";
 import { SearchModal } from "@/components/Map/SearchModal";
 import { AddLocationModal } from "@/components/Map/AddLocationModal";
+import { AddChoiceModal } from "@/components/Map/AddChoiceModal";
 import { SavedLocationsModal } from "@/components/SavedLocationsModal";
 import { POI } from "@/utils/poiService";
 import "leaflet/dist/leaflet.css";
@@ -50,6 +51,7 @@ export function MapPage() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [favoriteLocations, setFavoriteLocations] = useState<Location[]>([]);
   const [showAddLocationModal, setShowAddLocationModal] = useState(false);
+  const [showAddChoiceModal, setShowAddChoiceModal] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showLocationDetail, setShowLocationDetail] = useState(false);
   const [showSavedLocationsModal, setShowSavedLocationsModal] = useState(false);
@@ -320,7 +322,23 @@ export function MapPage() {
   };
 
   const handleAddLocationModeToggle = () => {
-    setIsAddLocationMode(!isAddLocationMode);
+    if (isAddLocationMode) {
+      setIsAddLocationMode(false);
+      setPendingLocation(null);
+    } else {
+      setShowAddChoiceModal(true);
+    }
+  };
+
+  const handleLocationChoice = () => {
+    setShowAddChoiceModal(false);
+    setIsAddLocationMode(true);
+    setPendingLocation(null);
+  };
+
+  const handleEventChoice = () => {
+    setShowAddChoiceModal(false);
+    setIsAddLocationMode(true);
     setPendingLocation(null);
   };
 
@@ -435,7 +453,7 @@ export function MapPage() {
 
               <MapCrosshair isVisible={isAddLocationMode} />
 
-              {!showLocationDetail && !showPOIDetail && !showAddLocationModal && !showSearchModal && !showSavedLocationsModal && (
+              {!showLocationDetail && !showPOIDetail && !showAddLocationModal && !showAddChoiceModal && !showSearchModal && !showSavedLocationsModal && (
                 <MapControls
                   isAddLocationMode={isAddLocationMode}
                   onAddLocationToggle={handleAddLocationModeToggle}
@@ -463,6 +481,13 @@ export function MapPage() {
             />
           )}
         </div>
+
+        <AddChoiceModal
+          isOpen={showAddChoiceModal}
+          onClose={() => setShowAddChoiceModal(false)}
+          onLocationChoice={handleLocationChoice}
+          onEventChoice={handleEventChoice}
+        />
 
         <AddLocationModal
           isOpen={showAddLocationModal}

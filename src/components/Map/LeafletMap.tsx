@@ -6,6 +6,7 @@ import {
   Popup,
   useMap,
   useMapEvents,
+  AttributionControl,
 } from "react-leaflet";
 import L from "leaflet";
 import { POI, POIService } from "@/utils/poiService";
@@ -501,12 +502,12 @@ export function LeafletMap({
         boxZoom={true}
         keyboard={true}
         dragging={true}
-        attributionControl={true}
+        attributionControl={false}
       >
         {/* OSM Tile Layer */}
         <TileLayer
           url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Powered by <a href="https://leafletjs.com/">Leaflet</a>'
           maxZoom={19}
         />
 
@@ -551,6 +552,9 @@ export function LeafletMap({
           selectedLocationId={selectedLocationId}
           onMarkerClick={onMarkerClick}
         />
+
+        {/* Custom Attribution Control */}
+        <AttributionControl position="bottomleft" />
       </MapContainer>
 
       {/* Location count badge */}

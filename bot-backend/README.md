@@ -42,13 +42,6 @@ Import the schema from `database/schema.sql` into your Supabase project.
 - `POST /api/users/:telegramId/favorites` - Add favorite
 - `DELETE /api/users/:telegramId/favorites/:locationId` - Remove favorite
 
-## Deployment
-
-Deploy to Vercel, Railway, or Heroku. Set webhook after deployment:
-
-```bash
-npm run set-webhook
-```
 
 ## Bot Commands
 

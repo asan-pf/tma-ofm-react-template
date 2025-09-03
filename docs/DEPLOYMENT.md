@@ -117,29 +117,7 @@ If backend is in the same repository (monorepo):
 4. Click **"Save"**
 5. Go to **Deployments** and click **"Redeploy"** on the latest deployment
 
-## Domain Configuration
 
-### Custom Domain Setup
-
-1. **Purchase a Domain** (optional)
-   - Buy a domain from any provider (Namecheap, GoDaddy, etc.)
-   - Or use the free `.vercel.app` domain provided
-
-2. **Add Custom Domain to Vercel**
-   - Go to your project in Vercel dashboard
-   - Navigate to **Settings** → **Domains**
-   - Click **"Add Domain"**
-   - Enter your custom domain (e.g., `yourdomain.com`)
-   - Follow the DNS setup instructions provided by Vercel
-
-3. **Update DNS Records**
-   - Add the DNS records provided by Vercel to your domain provider
-   - Usually an A record pointing to Vercel's IP or CNAME to `cname.vercel-dns.com`
-   - Wait for DNS propagation (can take up to 48 hours)
-
-### SSL Certificate
-
-Vercel automatically provides and manages SSL certificates for all domains (both `.vercel.app` and custom domains). No additional configuration needed.
 
 ## Database Setup
 
@@ -228,18 +206,5 @@ Vercel automatically provides and manages SSL certificates for all domains (both
    }
    ```
 
-### Getting Help
-
-1. **Vercel Logs**: Always check the deployment and function logs first
-2. **Vercel Community**: Visit [vercel.com/community](https://vercel.com/community) for help
-3. **GitHub Issues**: Check your project's GitHub issues for similar problems
-4. **Supabase Docs**: Visit [supabase.com/docs](https://supabase.com/docs) for database-related issues
-
-### Performance Tips
-
-1. **Static Assets**: Vercel automatically optimizes and caches static assets
-2. **Image Optimization**: Use Vercel's built-in image optimization for better performance
-3. **Function Regions**: Deploy functions closer to your users by configuring regions
-4. **Edge Functions**: Consider using Vercel Edge Functions for even faster response times
 
 This guide covers deploying your Telegram Mini App to Vercel using the web interface. The platform handles most infrastructure concerns automatically, letting you focus on building your application.
