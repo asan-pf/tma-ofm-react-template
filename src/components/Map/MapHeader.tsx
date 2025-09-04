@@ -1,8 +1,8 @@
-import { MapPin, Heart, User, Search } from "lucide-react";
+import { MapPin, Heart, User, Search, Bookmark } from "lucide-react";
 
 interface MapHeaderProps {
-  activeTab: "explore" | "favorites";
-  setActiveTab: (tab: "explore" | "favorites") => void;
+  activeTab: "explore" | "favorites" | "saved";
+  setActiveTab: (tab: "explore" | "favorites" | "saved") => void;
   onProfileClick: () => void;
   onSearchClick: () => void;
 }
@@ -93,6 +93,32 @@ export function MapHeader({
           >
             <Heart size={16} />
             Favorites
+          </button>
+          <button
+            onClick={() => setActiveTab("saved")}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "10px 16px",
+              borderRadius: "8px",
+              border: "none",
+              background:
+                activeTab === "saved"
+                  ? "var(--tg-theme-button-color)"
+                  : "transparent",
+              color:
+                activeTab === "saved"
+                  ? "#FFFFFF"
+                  : "var(--tg-theme-text-color)",
+              fontWeight: "600",
+              fontSize: "14px",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+            }}
+          >
+            <Bookmark size={16} />
+            Saved
           </button>
         </div>
 

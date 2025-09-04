@@ -2,10 +2,6 @@
 
 This document describes the REST API endpoints for the Telegram Location Review Bot backend.
 
-## Base URL
-- Development: `http://localhost:5000`
-- Production: `https://tg-reviewbot-718b.vercel.app`
-
 ## Authentication
 
 Most endpoints are currently open for development. Telegram Web App data validation is implemented for production use.
@@ -43,34 +39,6 @@ Check if the API server is running.
 ```json
 {
   "status": "ok"
-}
-```
-
----
-
-### Users
-
-#### POST /api/users/register
-Register or update a Telegram user.
-
-**Request Body:**
-```json
-{
-  "telegramId": "123456789",
-  "nickname": "UserName",
-  "avatarUrl": "https://example.com/avatar.jpg"
-}
-```
-
-**Response:**
-```json
-{
-  "id": 1,
-  "telegram_id": "123456789",
-  "nickname": "UserName",
-  "avatar_url": "https://example.com/avatar.jpg",
-  "role": "user",
-  "created_at": "2024-01-01T00:00:00.000Z"
 }
 ```
 
@@ -256,146 +224,6 @@ Create a new comment for a location.
 ```
 
 ---
-
-## Admin Endpoints
-
-Admin endpoints are used for content moderation. In production, these should be protected with proper authentication.
-
-### Admin Locations
-
-#### GET /api/admin/locations
-Get all locations including pending approval.
-
-**Response:** Same as `/api/locations` but includes unapproved locations.
-
-#### POST /api/admin/locations/:id/approve
-Approve a pending location.
-
-**Response:**
-```json
-{
-  "id": 1,
-  "name": "Approved Location",
-  "is_approved": true,
-  "created_at": "2024-01-01T00:00:00.000Z"
-}
-```
-
-#### DELETE /api/admin/locations/:id
-Delete a location completely.
-
-**Response:**
-```json
-{
-  "success": true
-}
-```
-
-### Admin Comments
-
-#### GET /api/admin/comments
-Get all comments including pending approval.
-
-**Response:** Same as location comments but includes unapproved comments.
-
-#### POST /api/admin/comments/:id/approve
-Approve a pending comment.
-
-**Response:**
-```json
-{
-  "id": 1,
-  "content": "Approved comment",
-  "is_approved": true,
-  "created_at": "2024-01-01T00:00:00.000Z"
-}
-```
-
-#### DELETE /api/admin/comments/:id
-Delete a comment completely.
-
-**Response:**
-```json
-{
-  "success": true
-}
-```
-
----
-
-## Database Schema
-
-### Users Table
-```sql
-CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    telegram_id VARCHAR(64) UNIQUE NOT NULL,
-    nickname VARCHAR(64) NOT NULL,
-    avatar_url TEXT,
-    role VARCHAR(16) DEFAULT 'user',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-### Locations Table
-```sql
-CREATE TABLE locations (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    name VARCHAR(128) NOT NULL,
-    description TEXT,
-    latitude DOUBLE PRECISION NOT NULL,
-    longitude DOUBLE PRECISION NOT NULL,
-    type VARCHAR(16) NOT NULL CHECK (type IN ('permanent', 'temporary')),
-    category VARCHAR(32) NOT NULL CHECK (
-        category IN ('grocery', 'restaurant-bar', 'bike-rent', 'clothing', 'other')
-    ),
-    working_hours TEXT,
-    website_url TEXT,
-    is_approved BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-### Comments Table
-```sql
-CREATE TABLE comments (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    location_id INTEGER REFERENCES locations(id) ON DELETE CASCADE,
-    content TEXT NOT NULL,
-    is_approved BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-### Ratings Table
-```sql
-CREATE TABLE ratings (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    location_id INTEGER REFERENCES locations(id) ON DELETE CASCADE,
-    stars INTEGER NOT NULL CHECK (stars >= 1 AND stars <= 3),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(user_id, location_id)
-);
-```
-
----
-
-## Rate Limiting
-
-Currently no rate limiting is implemented. For production use, consider implementing:
-- Request rate limits per IP address
-- User-specific rate limits for authenticated requests
-- Stricter limits for resource-intensive operations
-
-## CORS Configuration
-
-The API is configured to accept requests from:
-- `https://tg-reviewbot.vercel.app` (production)
-- `http://localhost:3000` (development)
-
 ## Error Handling
 
 The API includes comprehensive error handling:

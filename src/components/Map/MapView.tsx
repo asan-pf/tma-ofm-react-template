@@ -1,4 +1,4 @@
-import { EnhancedMap } from "./EnhancedMap";
+import { LeafletMap } from "./LeafletMap";
 import { POI } from "@/utils/poiService";
 
 interface Location {
@@ -21,7 +21,7 @@ interface MapViewProps {
   setMapRef: (map: any) => void;
   onLocationClick: (location: Location) => void;
   onToggleFavorite: (locationId: number) => void;
-  onPOIClick?: (poi: POI) => void;
+  onGlobalPOIClick?: (poi: POI) => void;
   selectedPOI?: POI | null;
   showPOIs?: boolean;
   hideBadges?: boolean;
@@ -33,18 +33,20 @@ export function MapView({
   center,
   locations,
   userLocation,
+  setMapRef,
   onLocationClick,
-  onPOIClick,
+  onGlobalPOIClick,
   selectedPOI,
   showPOIs = true,
   hideBadges = false,
   onSavedLocationsBadgeClick,
 }: MapViewProps) {
-  // Convert user location for EnhancedMap
-  const mapCenter = userLocation ? { lat: userLocation.lat, lng: userLocation.lng } : center;
+  // Always use the center prop - this allows user to freely navigate
+  // The parent component (MapPage) handles initial GPS positioning
+  const mapCenter = center;
   
   return (
-    <EnhancedMap
+    <LeafletMap
       latitude={mapCenter.lat}
       longitude={mapCenter.lng}
       zoom={13}
@@ -52,12 +54,13 @@ export function MapView({
       locations={locations}
       showUserLocation={!!userLocation}
       onMarkerClick={onLocationClick}
-      onPOIClick={onPOIClick}
+      onGlobalPOIClick={onGlobalPOIClick}
       selectedLocationId={undefined} // You can add this to props if needed
       selectedPOI={selectedPOI}
       showPOIs={showPOIs}
       hideBadges={hideBadges}
       onSavedLocationsBadgeClick={onSavedLocationsBadgeClick}
+      setMapRef={setMapRef}
     />
   );
 }

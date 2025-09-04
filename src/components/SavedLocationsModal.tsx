@@ -113,24 +113,28 @@ export function SavedLocationsModal({
                 fontSize: "18px",
                 color: "white",
               }}
+              aria-hidden="true"
             >
               📍
             </div>
             <div>
-              <div
+              <h2
+                id="saved-locations-title"
                 style={{
                   fontSize: "18px",
                   fontWeight: "600",
                   color: "var(--tg-theme-text-color)",
+                  margin: 0,
                 }}
               >
                 Saved Locations
-              </div>
+              </h2>
               <div
                 style={{
                   fontSize: "14px",
                   color: "var(--tg-theme-hint-color)",
                 }}
+                aria-live="polite"
               >
                 {filteredLocations.length} of {locations.length} locations
               </div>
@@ -143,6 +147,7 @@ export function SavedLocationsModal({
               border: "none",
               color: "var(--tg-theme-hint-color)",
             }}
+            aria-label="Close saved locations modal"
           >
             <X size={20} />
           </Button>
@@ -150,8 +155,10 @@ export function SavedLocationsModal({
       }
       open={isOpen}
       onOpenChange={onClose}
+      aria-labelledby="saved-locations-title"
+      aria-describedby="saved-locations-content"
     >
-      <div style={{ padding: "16px", maxHeight: "70vh", overflow: "auto" }}>
+      <div id="saved-locations-content" style={{ padding: "16px", maxHeight: "70vh", overflow: "auto" }}>
         {/* Search Bar */}
         <div style={{ marginBottom: "16px" }}>
           <div style={{ position: "relative" }}>
@@ -163,6 +170,7 @@ export function SavedLocationsModal({
               style={{
                 paddingLeft: "40px",
               }}
+              aria-label="Search saved locations"
             />
             <Search
               size={20}
@@ -196,6 +204,9 @@ export function SavedLocationsModal({
               alignItems: "center",
               gap: "8px",
             }}
+            aria-expanded={showFilters}
+            aria-controls="category-filters"
+            aria-label={`${showFilters ? 'Hide' : 'Show'} category filters`}
           >
             <Filter size={16} />
             Filter by Category
@@ -204,13 +215,15 @@ export function SavedLocationsModal({
 
         {/* Category Filters */}
         {showFilters && (
-          <div style={{ marginBottom: "16px" }}>
+          <div id="category-filters" style={{ marginBottom: "16px" }}>
             <div
               style={{
                 display: "flex",
                 gap: "8px",
                 flexWrap: "wrap",
               }}
+              role="group"
+              aria-label="Category filter options"
             >
               {categories.map((category) => (
                 <button
@@ -232,6 +245,8 @@ export function SavedLocationsModal({
                     alignItems: "center",
                     gap: "4px",
                   }}
+                  aria-pressed={selectedCategory === category.value}
+                  aria-label={`Filter by ${category.label} category`}
                 >
                   <span>{category.icon}</span>
                   {category.label}

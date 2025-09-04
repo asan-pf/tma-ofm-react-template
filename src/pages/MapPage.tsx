@@ -8,10 +8,12 @@ import { POIDetailModal } from "@/components/POIDetailModal";
 import { MapHeader } from "@/components/Map/MapHeader";
 import { MapView } from "@/components/Map/MapView";
 import { FavoritesView } from "@/components/Map/FavoritesView";
+import { SavedLocationsView } from "@/components/Map/SavedLocationsView";
 import { MapControls } from "@/components/Map/MapControls";
 import { MapCrosshair } from "@/components/Map/MapCrosshair";
 import { SearchModal } from "@/components/Map/SearchModal";
 import { AddLocationModal } from "@/components/Map/AddLocationModal";
+import { AddChoiceModal } from "@/components/Map/AddChoiceModal";
 import { SavedLocationsModal } from "@/components/SavedLocationsModal";
 import { POI } from "@/utils/poiService";
 import "leaflet/dist/leaflet.css";
@@ -40,7 +42,7 @@ interface AddLocationData {
   category: "grocery" | "restaurant-bar" | "other";
 }
 
-type TabType = "explore" | "favorites";
+type TabType = "explore" | "favorites" | "saved";
 type SearchTabType = "db" | "global";
 
 export function MapPage() {
@@ -49,6 +51,7 @@ export function MapPage() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [favoriteLocations, setFavoriteLocations] = useState<Location[]>([]);
   const [showAddLocationModal, setShowAddLocationModal] = useState(false);
+  const [showAddChoiceModal, setShowAddChoiceModal] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showLocationDetail, setShowLocationDetail] = useState(false);
   const [showSavedLocationsModal, setShowSavedLocationsModal] = useState(false);
@@ -84,19 +87,15 @@ export function MapPage() {
     lat: latitude || 40.7128,
     lng: longitude || -74.006,
   });
+  const [hasInitializedLocation, setHasInitializedLocation] = useState(false);
 
+  // Only auto-navigate to user location on first load, not on every location update
   useEffect(() => {
-    if (latitude && longitude) {
+    if (latitude && longitude && !hasInitializedLocation && !isLoading) {
       setDynamicMapCenter({ lat: latitude, lng: longitude });
+      setHasInitializedLocation(true);
     }
-  }, [latitude, longitude]);
-
-  // Auto-navigate to user location on first load
-  useEffect(() => {
-    if (latitude && longitude && !isLoading) {
-      setDynamicMapCenter({ lat: latitude, lng: longitude });
-    }
-  }, [latitude, longitude, isLoading]);
+  }, [latitude, longitude, isLoading, hasInitializedLocation]);
 
   useEffect(() => {
     loadLocations();
@@ -112,14 +111,52 @@ export function MapPage() {
       const response = await fetch(`${BACKEND_URL}/api/locations`);
       if (response.ok) {
         const data = await response.json();
-        setLocations(data);
+        setLocations(data.length > 0 ? data : getSampleLocations());
+      } else {
+        // API not available, use sample data
+        setLocations(getSampleLocations());
       }
     } catch (error) {
       console.error("Error loading locations:", error);
+      // API not available, use sample data
+      setLocations(getSampleLocations());
     } finally {
       setIsLoading(false);
     }
   };
+
+  const getSampleLocations = (): Location[] => [
+    {
+      id: 1,
+      name: "Sample Grocery Store",
+      description: "A demo grocery store location for testing",
+      latitude: latitude || 40.7128,
+      longitude: longitude || -74.0060,
+      category: "grocery" as const,
+      created_at: new Date().toISOString(),
+      is_favorited: false,
+    },
+    {
+      id: 2,
+      name: "Demo Restaurant",
+      description: "A sample restaurant location",
+      latitude: (latitude || 40.7128) + 0.01,
+      longitude: (longitude || -74.0060) + 0.01,
+      category: "restaurant-bar" as const,
+      created_at: new Date(Date.now() - 86400000).toISOString(),
+      is_favorited: true,
+    },
+    {
+      id: 3,
+      name: "Test Shop",
+      description: "Another sample location",
+      latitude: (latitude || 40.7128) - 0.01,
+      longitude: (longitude || -74.0060) - 0.01,
+      category: "other" as const,
+      created_at: new Date(Date.now() - 2 * 86400000).toISOString(),
+      is_favorited: false,
+    },
+  ];
 
   const loadFavorites = async () => {
     if (!telegramUser) return;
@@ -230,11 +267,24 @@ export function MapPage() {
   };
 
   const handleLocationClick = (location: Location) => {
+    // Navigate to location on map
+    setDynamicMapCenter({ lat: location.latitude, lng: location.longitude });
+    if (mapRef) {
+      mapRef.setView([location.latitude, location.longitude], 16);
+    }
+    // Show location detail modal
     setSelectedLocation(location);
     setShowLocationDetail(true);
   };
 
-  const handlePOIClick = (poi: POI) => {
+
+  const handleGlobalPOIClick = (poi: POI) => {
+    // Navigate to the POI location on the map
+    setDynamicMapCenter({ lat: poi.latitude, lng: poi.longitude });
+    if (mapRef) {
+      mapRef.setView([poi.latitude, poi.longitude], 16);
+    }
+    // Show the POI detail modal
     setSelectedPOI(poi);
     setShowPOIDetail(true);
   };
@@ -261,20 +311,34 @@ export function MapPage() {
   const handleGlobalLocationSelect = (
     lat: number,
     lng: number,
-    name: string
+    _name: string
   ) => {
+    // Just navigate to the location on the map without opening add modal
     setDynamicMapCenter({ lat, lng });
     if (mapRef) {
       mapRef.setView([lat, lng], 16);
     }
-    setPendingLocation({ lat, lng });
-    setAddLocationData((prev) => ({ ...prev, lat, lng, name }));
-    setShowAddLocationModal(true);
     setShowSearchModal(false);
   };
 
   const handleAddLocationModeToggle = () => {
-    setIsAddLocationMode(!isAddLocationMode);
+    if (isAddLocationMode) {
+      setIsAddLocationMode(false);
+      setPendingLocation(null);
+    } else {
+      setShowAddChoiceModal(true);
+    }
+  };
+
+  const handleLocationChoice = () => {
+    setShowAddChoiceModal(false);
+    setIsAddLocationMode(true);
+    setPendingLocation(null);
+  };
+
+  const handleEventChoice = () => {
+    setShowAddChoiceModal(false);
+    setIsAddLocationMode(true);
     setPendingLocation(null);
   };
 
@@ -381,16 +445,15 @@ export function MapPage() {
                 setMapRef={setMapRef}
                 onLocationClick={handleLocationClick}
                 onToggleFavorite={toggleFavorite}
-                onPOIClick={handlePOIClick}
+                onGlobalPOIClick={handleGlobalPOIClick}
                 selectedPOI={selectedPOI}
                 showPOIs={true}
-                hideBadges={showLocationDetail || showPOIDetail || showAddLocationModal || showSearchModal || showSavedLocationsModal}
-                onSavedLocationsBadgeClick={() => setShowSavedLocationsModal(true)}
+                hideBadges={true} // Always hide badges now since we have the saved tab
               />
 
               <MapCrosshair isVisible={isAddLocationMode} />
 
-              {!showLocationDetail && !showPOIDetail && !showAddLocationModal && !showSearchModal && !showSavedLocationsModal && (
+              {!showLocationDetail && !showPOIDetail && !showAddLocationModal && !showAddChoiceModal && !showSearchModal && !showSavedLocationsModal && (
                 <MapControls
                   isAddLocationMode={isAddLocationMode}
                   onAddLocationToggle={handleAddLocationModeToggle}
@@ -404,14 +467,27 @@ export function MapPage() {
                 />
               )}
             </>
-          ) : (
+          ) : activeTab === "favorites" ? (
             <FavoritesView
               favoriteLocations={favoriteLocations}
               onLocationClick={handleLocationClick}
               onToggleFavorite={toggleFavorite}
             />
+          ) : (
+            <SavedLocationsView
+              locations={locations}
+              onLocationClick={handleLocationClick}
+              onToggleFavorite={toggleFavorite}
+            />
           )}
         </div>
+
+        <AddChoiceModal
+          isOpen={showAddChoiceModal}
+          onClose={() => setShowAddChoiceModal(false)}
+          onLocationChoice={handleLocationChoice}
+          onEventChoice={handleEventChoice}
+        />
 
         <AddLocationModal
           isOpen={showAddLocationModal}
