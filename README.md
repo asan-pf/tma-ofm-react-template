@@ -1,6 +1,8 @@
 # OpenFreeMap - telegram - template
 
 A Telegram Mini App integration with OpenFreeMap. for discovering and sharing local places. Share your favorite locations with your friends, discover new places ! 🗺️✈️ 🍜
+=======
+
 
 ## Features
 
@@ -8,7 +10,6 @@ A Telegram Mini App integration with OpenFreeMap. for discovering and sharing lo
 - Location discovery and management
 - User favorites system  
 - Profile management
-- Tab-based navigation (Explore/Favorites)
 - Real-time location services
 
 ## Tech Stack
@@ -78,3 +79,4 @@ Run the SQL schema in `bot-backend/database/schema.sql` in your Supabase project
 ## License
 
 [MIT License](https://opensource.org/licenses/MIT)
+
