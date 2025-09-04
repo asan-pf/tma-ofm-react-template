@@ -1,6 +1,6 @@
-# OpenFreeMap - telegram - template
+# Telegram - OpenFreeMap template
 
-A **Telegram Mini App** - **OpenFreeMap** integration. Share your favorite locations with friends, discover new places ! 🗺️✈️ 🍜
+A **Telegram Mini App** - **OpenFreeMap** integration. Share your favorite locations with friends, discover new places ! 🗺️ ✈️ 🍜
 
 ## Learn more about
 
