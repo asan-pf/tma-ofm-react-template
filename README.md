@@ -2,7 +2,11 @@
 
 A **Telegram Mini App** - **OpenFreeMap** integration. Share your favorite locations with friends, discover new places ! 🗺️✈️ 🍜
 
+## Learn more about
 
+- [TelegramMiniApps](https://github.com/Telegram-Mini-Apps)
+- [OpenStreetMap](https://www.openstreetmap.org)
+- [OpenFreeMap](https://openfreemap.org)
 
 ## Features
 
@@ -79,4 +83,3 @@ Run the SQL schema in `bot-backend/database/schema.sql` in your Supabase project
 ## License
 
 [MIT License](https://opensource.org/licenses/MIT)
-
