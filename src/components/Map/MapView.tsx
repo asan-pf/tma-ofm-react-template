@@ -1,5 +1,6 @@
 import { LeafletMap } from "./LeafletMap";
-import { POI } from "@/utils/poiService";
+// Global POI imports commented out to focus on local POIs
+// import { POI } from "@/utils/poiService";
 
 interface Location {
   id: number;
@@ -21,8 +22,9 @@ interface MapViewProps {
   setMapRef: (map: any) => void;
   onLocationClick: (location: Location) => void;
   onToggleFavorite: (locationId: number) => void;
-  onGlobalPOIClick?: (poi: POI) => void;
-  selectedPOI?: POI | null;
+  // Global POI props commented out to focus on local POIs
+  // onGlobalPOIClick?: (poi: POI) => void;
+  // selectedPOI?: POI | null;
   showPOIs?: boolean;
   hideBadges?: boolean;
   onSavedLocationsBadgeClick?: () => void;
@@ -35,8 +37,9 @@ export function MapView({
   userLocation,
   setMapRef,
   onLocationClick,
-  onGlobalPOIClick,
-  selectedPOI,
+  // Global POI props commented out to focus on local POIs
+  // onGlobalPOIClick,
+  // selectedPOI,
   showPOIs = true,
   hideBadges = false,
   onSavedLocationsBadgeClick,
@@ -54,9 +57,10 @@ export function MapView({
       locations={locations}
       showUserLocation={!!userLocation}
       onMarkerClick={onLocationClick}
-      onGlobalPOIClick={onGlobalPOIClick}
+      // Global POI props commented out to focus on local POIs
+      // onGlobalPOIClick={onGlobalPOIClick}
       selectedLocationId={undefined} // You can add this to props if needed
-      selectedPOI={selectedPOI}
+      // selectedPOI={selectedPOI}
       showPOIs={showPOIs}
       hideBadges={hideBadges}
       onSavedLocationsBadgeClick={onSavedLocationsBadgeClick}
