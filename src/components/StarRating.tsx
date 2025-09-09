@@ -1,4 +1,3 @@
-import { Star } from "lucide-react";
 import { useState } from "react";
 
 interface StarRatingProps {
@@ -77,7 +76,7 @@ export function StarRating({
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              e.stopImmediatePropagation();
+              (e as any).stopImmediatePropagation();
               console.log('STAR BUTTON CLICKED:', star, 'readonly:', readonly, 'callback:', !!onRatingChange);
               if (!readonly && onRatingChange) {
                 handleStarClick(star);

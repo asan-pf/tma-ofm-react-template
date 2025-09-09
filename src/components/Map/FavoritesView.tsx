@@ -1,6 +1,5 @@
 import { Heart } from "lucide-react";
 import {
-  Button,
   Caption,
   Subheadline,
   Title,

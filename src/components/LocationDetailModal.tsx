@@ -11,11 +11,8 @@ import {
   MapPin,
   MessageCircle,
   Star,
-  Calendar,
   User,
   Send,
-  Heart,
-  HeartOff,
   ChevronUp,
   X,
 } from "lucide-react";

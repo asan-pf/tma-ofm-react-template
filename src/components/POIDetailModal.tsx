@@ -12,8 +12,6 @@ import {
   Phone,
   Clock,
   Globe,
-  Heart,
-  HeartOff,
   Star,
   Navigation,
 } from "lucide-react";
@@ -51,7 +49,7 @@ export function POIDetailModal({
     console.log('POI Favorite button clicked, toggling to:', !localIsFavorited);
     
     // Call parent handler
-    onToggleFavorite(poi);
+    onToggleFavorite(poi!);
   };
 
   if (!poi) return null;
