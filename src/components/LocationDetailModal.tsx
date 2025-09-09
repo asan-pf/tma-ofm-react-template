@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
-  Modal,
   List,
   Section,
   Cell,
@@ -17,6 +16,8 @@ import {
   Send,
   Heart,
   HeartOff,
+  ChevronUp,
+  X,
 } from "lucide-react";
 import { StarRating } from "./StarRating";
 import { initDataState, useSignal } from "@telegram-apps/sdk-react";
@@ -71,6 +72,12 @@ export function LocationDetailModal({
   const [userRating, setUserRating] = useState(0);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [localIsFavorited, setLocalIsFavorited] = useState(isFavorited);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [startY, setStartY] = useState(0);
+  const [currentY, setCurrentY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   const initData = useSignal(initDataState);
   const telegramUser = initData?.user;
@@ -218,83 +225,281 @@ export function LocationDetailModal({
     }
   }, [isOpen, location]);
 
+  useEffect(() => {
+    setLocalIsFavorited(isFavorited);
+  }, [isFavorited]);
+
+  const handleFavoriteToggle = async () => {
+    if (!onToggleFavorite) return;
+    
+    // Immediate UI feedback
+    setLocalIsFavorited(!localIsFavorited);
+    console.log('Favorite button clicked, toggling to:', !localIsFavorited);
+    
+    // Call parent handler
+    onToggleFavorite(location.id);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    setStartY(touch.clientY);
+    setCurrentY(touch.clientY);
+    setIsDragging(true);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging) return;
+    
+    const touch = e.touches[0];
+    setCurrentY(touch.clientY);
+    
+    const deltaY = touch.clientY - startY;
+    
+    // Prevent default scrolling when at the top and trying to expand
+    if (deltaY < -50 && !isExpanded && modalRef.current) {
+      e.preventDefault();
+    }
+    
+    // Allow closing by dragging down when not expanded or when at top of scroll
+    if (deltaY > 100) {
+      e.preventDefault();
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!isDragging) return;
+    
+    const deltaY = currentY - startY;
+    
+    // Expand if dragged up significantly
+    if (deltaY < -100 && !isExpanded) {
+      setIsExpanded(true);
+    }
+    // Close if dragged down significantly
+    else if (deltaY > 150) {
+      onClose();
+    }
+    
+    setIsDragging(false);
+    setStartY(0);
+    setCurrentY(0);
+  };
+
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
+  if (!isOpen) return null;
+
   return (
-    <Modal
-      header={
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        zIndex: 1000,
+        display: 'flex',
+        alignItems: 'flex-end',
+      }}
+      onClick={handleBackdropClick}
+    >
+      <div
+        ref={modalRef}
+        style={{
+          backgroundColor: 'var(--tg-theme-bg-color)',
+          borderTopLeftRadius: '20px',
+          borderTopRightRadius: '20px',
+          width: '100%',
+          maxHeight: isExpanded ? '90vh' : '60vh',
+          height: isExpanded ? '90vh' : '60vh',
+          display: 'flex',
+          flexDirection: 'column',
+          transition: isDragging ? 'none' : 'all 0.3s ease',
+          transform: isDragging ? `translateY(${Math.max(0, currentY - startY)}px)` : 'none',
+          boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.15)',
+        }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* Header with drag handle */}
         <div
           style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "0 4px",
-            width: "100%",
+            padding: '12px 20px 8px',
+            borderBottom: '1px solid var(--tg-theme-separator-color)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexShrink: 0,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+            {/* Drag handle */}
             <div
               style={{
-                background: getCategoryColor(location.category).includes(
-                  "green"
-                )
-                  ? "#34D399"
-                  : getCategoryColor(location.category).includes("orange")
-                  ? "#F59E0B"
-                  : "#8B5CF6",
-                borderRadius: "12px",
-                padding: "8px",
-                fontSize: "18px",
+                width: '40px',
+                height: '4px',
+                backgroundColor: 'var(--tg-theme-hint-color)',
+                borderRadius: '2px',
+                marginRight: '8px',
               }}
-            >
-              {getCategoryIcon(location.category)}
-            </div>
-            <div>
-              <div
-                style={{
-                  fontSize: "18px",
-                  fontWeight: "600",
-                  color: "var(--tg-theme-text-color)",
-                }}
-              >
-                {location.name}
-              </div>
-              <div
-                style={{
-                  fontSize: "14px",
-                  color: "var(--tg-theme-hint-color)",
-                }}
-              >
-                {formatCategory(location.category)}
-              </div>
-            </div>
-          </div>
-
-          {/* Favorite Button */}
-          {onToggleFavorite && (
-            <Button
-              mode="plain"
-              size="s"
-              onClick={() => onToggleFavorite(location.id)}
+            />
+            <h3
               style={{
-                padding: "8px",
-                minWidth: "unset",
-                color: isFavorited ? "#ef4444" : "var(--tg-theme-hint-color)",
+                margin: 0,
+                fontSize: '18px',
+                fontWeight: '600',
+                color: 'var(--tg-theme-text-color)',
+                flex: 1,
               }}
             >
-              {isFavorited ? (
-                <Heart size={20} fill="currentColor" />
-              ) : (
-                <HeartOff size={20} />
-              )}
-            </Button>
-          )}
+              {location.name}
+            </h3>
+          </div>
+          
+          {/* Expand/Close buttons */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {!isExpanded && (
+              <button
+                onClick={() => setIsExpanded(true)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--tg-theme-accent-text-color)',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  borderRadius: '50%',
+                }}
+                title="Expand"
+              >
+                <ChevronUp size={20} />
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--tg-theme-hint-color)',
+                cursor: 'pointer',
+                padding: '4px',
+                borderRadius: '50%',
+              }}
+              title="Close"
+            >
+              <X size={20} />
+            </button>
+          </div>
         </div>
-      }
-      open={isOpen}
-      onOpenChange={onClose}
-    >
-      <List>
-        {/* Location Info */}
+
+        {/* Scrollable content */}
+        <div
+          style={{
+            flex: 1,
+            overflow: 'auto',
+            padding: '8px 0',
+          }}
+        >
+          <List>
+        {/* Header with Location Info and Favorite Button */}
         <Section>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "16px",
+              background: "var(--tg-theme-secondary-bg-color)",
+              borderRadius: "12px",
+              margin: "8px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <div
+                style={{
+                  background: getCategoryColor(location.category).includes("green")
+                    ? "#10B981"
+                    : getCategoryColor(location.category).includes("orange")
+                    ? "#F59E0B"
+                    : "#8B5CF6",
+                  borderRadius: "12px",
+                  padding: "12px",
+                  fontSize: "24px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minWidth: "48px",
+                  height: "48px",
+                }}
+              >
+                {getCategoryIcon(location.category)}
+              </div>
+              <div>
+                <div
+                  style={{
+                    fontSize: "20px",
+                    fontWeight: "700",
+                    color: "var(--tg-theme-text-color)",
+                    marginBottom: "4px",
+                  }}
+                >
+                  {location.name}
+                </div>
+                <div
+                  style={{
+                    fontSize: "14px",
+                    color: "var(--tg-theme-hint-color)",
+                    textTransform: "capitalize",
+                  }}
+                >
+                  {formatCategory(location.category)}
+                </div>
+                <div
+                  style={{
+                    fontSize: "12px",
+                    color: "var(--tg-theme-hint-color)",
+                    marginTop: "2px",
+                  }}
+                >
+                  Added {formatDate(location.created_at)}
+                </div>
+              </div>
+            </div>
+
+            {/* Favorite Button */}
+            {onToggleFavorite && (
+              <button
+                onClick={handleFavoriteToggle}
+                style={{
+                  background: localIsFavorited ? "#FEE2E2" : "var(--tg-theme-bg-color)",
+                  border: `2px solid ${localIsFavorited ? "#EF4444" : "#D1D5DB"}`,
+                  borderRadius: "50%",
+                  width: "44px",
+                  height: "44px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  fontSize: "20px",
+                  pointerEvents: "auto",
+                  touchAction: "manipulation",
+                  transition: "all 0.2s ease",
+                }}
+                title={localIsFavorited ? "Remove from favorites" : "Add to favorites"}
+              >
+                {localIsFavorited ? "❤️" : "🤍"}
+              </button>
+            )}
+          </div>
+        </Section>
+
+        {/* Location Details */}
+        <Section header="📍 Location Details">
           <Cell
             before={
               <MapPin
@@ -333,17 +538,6 @@ export function LocationDetailModal({
               {location.description}
             </Cell>
           )}
-
-          <Cell
-            before={
-              <Calendar
-                size={20}
-                style={{ color: "var(--tg-theme-accent-text-color)" }}
-              />
-            }
-          >
-            Added {formatDate(location.created_at)}
-          </Cell>
         </Section>
 
         {/* Rating Section */}
@@ -469,7 +663,9 @@ export function LocationDetailModal({
             </Cell>
           )}
         </Section>
-      </List>
-    </Modal>
+          </List>
+        </div>
+      </div>
+    </div>
   );
 }

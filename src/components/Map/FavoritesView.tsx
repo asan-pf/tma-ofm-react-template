@@ -151,21 +151,25 @@ export function FavoritesView({
                         {location.name}
                       </Subheadline>
 
-                      <Button
+                      <button
                         onClick={(e) => {
                           e.stopPropagation();
+                          console.log('FavoritesView: Removing favorite for location:', location.id);
                           onToggleFavorite(location.id);
                         }}
-                        mode="plain"
-                        size="s"
-                        style={{ padding: "4px", minWidth: "unset" }}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          padding: "4px",
+                          cursor: "pointer",
+                          fontSize: "16px",
+                          pointerEvents: "auto",
+                          touchAction: "manipulation",
+                        }}
+                        title="Remove from favorites"
                       >
-                        <Heart
-                          size={16}
-                          style={{ color: "#ef4444" }}
-                          fill="currentColor"
-                        />
-                      </Button>
+                        ❤️
+                      </button>
                     </div>
 
                     {location.description && (

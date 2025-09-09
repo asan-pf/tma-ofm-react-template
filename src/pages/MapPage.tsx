@@ -86,8 +86,8 @@ export function MapPage() {
   const telegramUser = (launchParams?.initDataUnsafe as any)?.user;
 
   const [dynamicMapCenter, setDynamicMapCenter] = useState({
-    lat: latitude || 40.7128,
-    lng: longitude || -74.006,
+    lat: latitude || 48.8566,
+    lng: longitude || 2.3522,
   });
   const [hasInitializedLocation, setHasInitializedLocation] = useState(false);
 
@@ -132,8 +132,8 @@ export function MapPage() {
       id: 1,
       name: "Sample Grocery Store",
       description: "A demo grocery store location for testing",
-      latitude: latitude || 40.7128,
-      longitude: longitude || -74.0060,
+      latitude: latitude || 48.8566,
+      longitude: longitude || 2.3522,
       category: "grocery" as const,
       created_at: new Date().toISOString(),
       is_favorited: false,
@@ -142,8 +142,8 @@ export function MapPage() {
       id: 2,
       name: "Demo Restaurant",
       description: "A sample restaurant location",
-      latitude: (latitude || 40.7128) + 0.01,
-      longitude: (longitude || -74.0060) + 0.01,
+      latitude: (latitude || 48.8566) + 0.01,
+      longitude: (longitude || 2.3522) + 0.01,
       category: "restaurant-bar" as const,
       created_at: new Date(Date.now() - 86400000).toISOString(),
       is_favorited: true,
@@ -152,8 +152,8 @@ export function MapPage() {
       id: 3,
       name: "Test Shop",
       description: "Another sample location",
-      latitude: (latitude || 40.7128) - 0.01,
-      longitude: (longitude || -74.0060) - 0.01,
+      latitude: (latitude || 48.8566) - 0.01,
+      longitude: (longitude || 2.3522) - 0.01,
       category: "other" as const,
       created_at: new Date(Date.now() - 2 * 86400000).toISOString(),
       is_favorited: false,

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Modal,
   List,
@@ -37,6 +37,22 @@ export function POIDetailModal({
   isFavorited = false,
 }: POIDetailModalProps) {
   const [showAllTags, setShowAllTags] = useState(false);
+  const [localIsFavorited, setLocalIsFavorited] = useState(isFavorited);
+
+  useEffect(() => {
+    setLocalIsFavorited(isFavorited);
+  }, [isFavorited]);
+
+  const handleFavoriteToggle = async () => {
+    if (!onToggleFavorite) return;
+    
+    // Immediate UI feedback
+    setLocalIsFavorited(!localIsFavorited);
+    console.log('POI Favorite button clicked, toggling to:', !localIsFavorited);
+    
+    // Call parent handler
+    onToggleFavorite(poi);
+  };
 
   if (!poi) return null;
 
@@ -92,26 +108,27 @@ export function POIDetailModal({
             }
             after={
               onToggleFavorite && (
-                <Button
-                  mode="plain"
-                  size="s"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onToggleFavorite(poi);
-                  }}
+                <button
+                  onClick={handleFavoriteToggle}
                   style={{
-                    padding: "8px",
-                    minWidth: "unset",
-                    color: isFavorited ? "#ef4444" : "var(--tg-theme-hint-color)",
+                    background: localIsFavorited ? "#FEE2E2" : "var(--tg-theme-bg-color)",
+                    border: `2px solid ${localIsFavorited ? "#EF4444" : "#D1D5DB"}`,
+                    borderRadius: "50%",
+                    width: "36px",
+                    height: "36px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    fontSize: "16px",
+                    pointerEvents: "auto",
+                    touchAction: "manipulation",
+                    transition: "all 0.2s ease",
                   }}
+                  title={localIsFavorited ? "Remove from favorites" : "Add to favorites"}
                 >
-                  {isFavorited ? (
-                    <Heart size={20} fill="currentColor" />
-                  ) : (
-                    <HeartOff size={20} />
-                  )}
-                </Button>
+                  {localIsFavorited ? "❤️" : "🤍"}
+                </button>
               )
             }
             subtitle={POIService.formatCategory(poi.category)}
