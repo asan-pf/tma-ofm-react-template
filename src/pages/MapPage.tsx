@@ -4,7 +4,7 @@ import { MapPin } from "lucide-react";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { retrieveLaunchParams } from "@telegram-apps/sdk-react";
 import { LocationDetailModal } from "@/components/LocationDetailModal";
-import { POIDetailModal } from "@/components/POIDetailModal";
+// import { POIDetailModal } from "@/components/POIDetailModal";
 import { MapHeader } from "@/components/Map/MapHeader";
 import { MapView } from "@/components/Map/MapView";
 import { FavoritesView } from "@/components/Map/FavoritesView";
@@ -15,7 +15,8 @@ import { SearchModal } from "@/components/Map/SearchModal";
 import { AddLocationModal } from "@/components/Map/AddLocationModal";
 import { AddChoiceModal } from "@/components/Map/AddChoiceModal";
 import { SavedLocationsModal } from "@/components/SavedLocationsModal";
-import { POI } from "@/utils/poiService";
+// Global POI imports commented out to focus on local POIs
+// import { POI } from "@/utils/poiService";
 import "leaflet/dist/leaflet.css";
 
 interface Location {
@@ -58,9 +59,10 @@ export function MapPage() {
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(
     null
   );
-  const [showPOIDetail, setShowPOIDetail] = useState(false);
-  const [selectedPOI, setSelectedPOI] = useState<POI | null>(null);
-  const [favoritePOIs, setFavoritePOIs] = useState<POI[]>([]);
+  // Global POI functionality commented out to focus on local POIs
+  // const [showPOIDetail, setShowPOIDetail] = useState(false);
+  // const [selectedPOI, setSelectedPOI] = useState<POI | null>(null);
+  // const [favoritePOIs, setFavoritePOIs] = useState<POI[]>([]);
   const [isAddLocationMode, setIsAddLocationMode] = useState(false);
   const [mapRef, setMapRef] = useState<any>(null);
   const [pendingLocation, setPendingLocation] = useState<{
@@ -84,8 +86,8 @@ export function MapPage() {
   const telegramUser = (launchParams?.initDataUnsafe as any)?.user;
 
   const [dynamicMapCenter, setDynamicMapCenter] = useState({
-    lat: latitude || 40.7128,
-    lng: longitude || -74.006,
+    lat: latitude || 48.8566,
+    lng: longitude || 2.3522,
   });
   const [hasInitializedLocation, setHasInitializedLocation] = useState(false);
 
@@ -130,8 +132,8 @@ export function MapPage() {
       id: 1,
       name: "Sample Grocery Store",
       description: "A demo grocery store location for testing",
-      latitude: latitude || 40.7128,
-      longitude: longitude || -74.0060,
+      latitude: latitude || 48.8566,
+      longitude: longitude || 2.3522,
       category: "grocery" as const,
       created_at: new Date().toISOString(),
       is_favorited: false,
@@ -140,8 +142,8 @@ export function MapPage() {
       id: 2,
       name: "Demo Restaurant",
       description: "A sample restaurant location",
-      latitude: (latitude || 40.7128) + 0.01,
-      longitude: (longitude || -74.0060) + 0.01,
+      latitude: (latitude || 48.8566) + 0.01,
+      longitude: (longitude || 2.3522) + 0.01,
       category: "restaurant-bar" as const,
       created_at: new Date(Date.now() - 86400000).toISOString(),
       is_favorited: true,
@@ -150,8 +152,8 @@ export function MapPage() {
       id: 3,
       name: "Test Shop",
       description: "Another sample location",
-      latitude: (latitude || 40.7128) - 0.01,
-      longitude: (longitude || -74.0060) - 0.01,
+      latitude: (latitude || 48.8566) - 0.01,
+      longitude: (longitude || 2.3522) - 0.01,
       category: "other" as const,
       created_at: new Date(Date.now() - 2 * 86400000).toISOString(),
       is_favorited: false,
@@ -278,6 +280,8 @@ export function MapPage() {
   };
 
 
+  // Global POI handlers commented out to focus on local POIs
+  /*
   const handleGlobalPOIClick = (poi: POI) => {
     // Navigate to the POI location on the map
     setDynamicMapCenter({ lat: poi.latitude, lng: poi.longitude });
@@ -297,6 +301,7 @@ export function MapPage() {
       setFavoritePOIs(prev => [...prev, poi]);
     }
   };
+  */
 
   const handleSearchLocationSelect = (location: Location) => {
     setDynamicMapCenter({ lat: location.latitude, lng: location.longitude });
@@ -445,15 +450,16 @@ export function MapPage() {
                 setMapRef={setMapRef}
                 onLocationClick={handleLocationClick}
                 onToggleFavorite={toggleFavorite}
-                onGlobalPOIClick={handleGlobalPOIClick}
-                selectedPOI={selectedPOI}
-                showPOIs={true}
+                // Global POI props commented out to focus on local POIs
+                // onGlobalPOIClick={handleGlobalPOIClick}
+                // selectedPOI={selectedPOI}
+                showPOIs={false} // Disabled global POIs to focus on local ones
                 hideBadges={true} // Always hide badges now since we have the saved tab
               />
 
               <MapCrosshair isVisible={isAddLocationMode} />
 
-              {!showLocationDetail && !showPOIDetail && !showAddLocationModal && !showAddChoiceModal && !showSearchModal && !showSavedLocationsModal && (
+              {!showLocationDetail && !showAddLocationModal && !showAddChoiceModal && !showSearchModal && !showSavedLocationsModal && (
                 <MapControls
                   isAddLocationMode={isAddLocationMode}
                   onAddLocationToggle={handleAddLocationModeToggle}
@@ -531,6 +537,7 @@ export function MapPage() {
           />
         )}
 
+        {/* Global POI Detail Modal commented out to focus on local POIs
         {selectedPOI && (
           <POIDetailModal
             poi={selectedPOI}
@@ -552,6 +559,7 @@ export function MapPage() {
             )}
           />
         )}
+        */}
 
         <SavedLocationsModal
           locations={locations}

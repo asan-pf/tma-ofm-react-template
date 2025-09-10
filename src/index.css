@@ -20,9 +20,96 @@ html, body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Override any possible Telegram UI pointer events blocking */
+div[data-telegram-ui] * {
+  pointer-events: auto !important;
+}
+
+/* Override any Telegram modal or cell pointer events */
+.tg-modal *, .tg-cell *, .tg-section * {
+  pointer-events: auto !important;
+}
+
 /* Allow text selection where needed */
 input, textarea {
   -webkit-user-select: text;
+}
+
+/* Allow button interactions and clicks */
+button {
+  -webkit-user-select: none !important;
+  -webkit-touch-callout: none !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  touch-action: manipulation !important;
+}
+
+/* Nuclear option for star rating buttons */
+button[title*="Rate"], button[title*="star"] {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  touch-action: manipulation !important;
+  -webkit-tap-highlight-color: rgba(0,0,0,0.2) !important;
+  z-index: 99999 !important;
+  position: relative !important;
+  border: none !important;
+  background: none !important;
+  outline: none !important;
+}
+
+/* Override Telegram UI pointer events on star containers */
+div[style*="z-index: 9999"] * {
+  pointer-events: auto !important;
+}
+
+/* Force all star related elements to be clickable */
+*[title*="Rate"] {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  z-index: 99999 !important;
+}
+
+/* Allow star rating interactions */
+button[type="button"] {
+  -webkit-user-select: none !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  touch-action: manipulation !important;
+}
+
+/* Star rating spans - force clickability */
+span[title*="Rate"] {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  touch-action: manipulation !important;
+  -webkit-tap-highlight-color: rgba(0,0,0,0.1) !important;
+  z-index: 9999 !important;
+  position: relative !important;
+}
+
+span[title*="Rate"]:hover {
+  transform: scale(1.1) !important;
+}
+
+/* Override any Telegram UI that might block stars */
+.tgui--cell * span[title*="Rate"] {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  z-index: 9999 !important;
+}
+
+/* Force star rating container to be clickable */
+div[style*="display: flex"] span {
+  pointer-events: auto !important;
+}
+
+/* Ensure all custom buttons work */
+button[title*="favorite"], button[title*="Favorite"] {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  touch-action: manipulation !important;
+  border: none !important;
+  background: none !important;
 }
 
 /* Allow map canvas to handle its own touch events */

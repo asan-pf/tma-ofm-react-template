@@ -1,4 +1,3 @@
-import { Star } from "lucide-react";
 import { useState } from "react";
 
 interface StarRatingProps {
@@ -27,7 +26,9 @@ export function StarRating({
   const starSize = sizes[size];
 
   const handleStarClick = (starValue: number) => {
+    console.log('Star clicked:', starValue, 'readonly:', readonly, 'hasCallback:', !!onRatingChange);
     if (!readonly && onRatingChange) {
+      console.log('Calling onRatingChange with:', starValue);
       onRatingChange(starValue);
     }
   };
@@ -47,27 +48,81 @@ export function StarRating({
   const displayRating = hoverRating || rating;
 
   return (
-    <div className="flex items-center gap-1">
-      <div className="flex items-center" onMouseLeave={handleMouseLeave}>
+    <div 
+      style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+      onClick={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+      }}
+    >
+      <div 
+        style={{ 
+          display: 'flex', 
+          alignItems: 'center',
+          isolation: 'isolate',
+          zIndex: 9999,
+          position: 'relative'
+        }} 
+        onMouseLeave={handleMouseLeave}
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+        }}
+      >
         {[1, 2, 3, 4, 5].map((star) => (
           <button
             key={star}
             type="button"
-            className={`${readonly ? "cursor-default" : "cursor-pointer"} ${
-              !readonly ? "hover:scale-110 transition-transform" : ""
-            }`}
-            onClick={() => handleStarClick(star)}
-            onMouseEnter={() => handleStarHover(star)}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              (e as any).stopImmediatePropagation();
+              console.log('STAR BUTTON CLICKED:', star, 'readonly:', readonly, 'callback:', !!onRatingChange);
+              if (!readonly && onRatingChange) {
+                handleStarClick(star);
+              }
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('STAR BUTTON MOUSE DOWN:', star);
+              if (!readonly && onRatingChange) {
+                handleStarClick(star);
+              }
+            }}
+            onTouchStart={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('STAR BUTTON TOUCH START:', star);
+              if (!readonly && onRatingChange) {
+                handleStarClick(star);
+              }
+            }}
+            onMouseEnter={() => {
+              console.log('STAR HOVER:', star);
+              handleStarHover(star);
+            }}
             disabled={readonly}
+            style={{
+              fontSize: starSize + 'px',
+              color: star <= displayRating ? "#fbbf24" : "#d1d5db",
+              cursor: readonly ? 'default' : 'pointer',
+              userSelect: 'none',
+              padding: '8px',
+              margin: '0 2px',
+              display: 'inline-block',
+              transition: 'all 0.2s ease',
+              pointerEvents: 'auto',
+              touchAction: 'manipulation',
+              background: 'none',
+              border: 'none',
+              zIndex: 10000,
+              position: 'relative',
+              outline: 'none',
+            }}
+            title={readonly ? '' : `Rate ${star} star${star > 1 ? 's' : ''}`}
           >
-            <Star
-              size={starSize}
-              className={`${
-                star <= displayRating
-                  ? "text-yellow-400 fill-yellow-400"
-                  : "text-gray-300 dark:text-gray-600"
-              } transition-colors`}
-            />
+            {star <= displayRating ? "⭐" : "☆"}
           </button>
         ))}
       </div>
