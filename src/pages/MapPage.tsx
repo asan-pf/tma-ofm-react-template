@@ -24,6 +24,7 @@ interface Location {
   user_id?: number;
   name: string;
   description: string;
+  image_url?: string;
   latitude: number;
   longitude: number;
   type?: "permanent" | "temporary";
@@ -39,6 +40,7 @@ interface AddLocationData {
   lng: number;
   name: string;
   description: string;
+  image_url: string;
   type: "permanent" | "temporary";
   category: "grocery" | "restaurant-bar" | "other";
 }
@@ -74,6 +76,7 @@ export function MapPage() {
     lng: 0,
     name: "",
     description: "",
+    image_url: "",
     type: "permanent",
     category: "other",
   });
@@ -200,6 +203,7 @@ export function MapPage() {
           telegramId: effectiveUser.id.toString(),
           name: addLocationData.name,
           description: addLocationData.description,
+          image_url: addLocationData.image_url || null,
           latitude: addLocationData.lat,
           longitude: addLocationData.lng,
           type: addLocationData.type,
@@ -215,6 +219,7 @@ export function MapPage() {
           lng: 0,
           name: "",
           description: "",
+          image_url: "",
           type: "permanent",
           category: "other",
         });

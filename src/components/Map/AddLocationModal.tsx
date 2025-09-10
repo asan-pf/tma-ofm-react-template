@@ -6,6 +6,7 @@ interface AddLocationData {
   lng: number;
   name: string;
   description: string;
+  image_url: string;
   type: "permanent" | "temporary";
   category: "grocery" | "restaurant-bar" | "other";
 }
@@ -171,6 +172,33 @@ export function AddLocationModal({
                     outline: "none",
                     resize: "none",
                     fontFamily: "inherit",
+                  }}
+                />
+              </div>
+
+              <div>
+                <Subheadline style={{ marginBottom: 8, color: "#e2e8f0" }}>
+                  Image URL (Optional)
+                </Subheadline>
+                <input
+                  type="url"
+                  value={addLocationData.image_url}
+                  onChange={(e) =>
+                    setAddLocationData((prev) => ({
+                      ...prev,
+                      image_url: e.target.value,
+                    }))
+                  }
+                  placeholder="https://gateway.pinata.cloud/ipfs/... or GitHub image URL"
+                  style={{
+                    width: "100%",
+                    padding: "12px 16px",
+                    border: "1px solid #475569",
+                    borderRadius: "12px",
+                    backgroundColor: "#475569",
+                    color: "#f1f5f9",
+                    fontSize: "16px",
+                    outline: "none",
                   }}
                 />
               </div>
