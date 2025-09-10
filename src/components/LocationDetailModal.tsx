@@ -33,6 +33,7 @@ interface Location {
 interface Comment {
   id: number;
   content: string;
+  image_url?: string;
   created_at: string;
   users?: {
     id: number;
@@ -66,6 +67,7 @@ export function LocationDetailModal({
   const [comments, setComments] = useState<Comment[]>([]);
   const [rating, setRating] = useState<Rating>({ average: 0, count: 0 });
   const [newComment, setNewComment] = useState("");
+  const [newCommentImage, setNewCommentImage] = useState("");
   const [userRating, setUserRating] = useState(0);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -148,6 +150,10 @@ export function LocationDetailModal({
     }
   };
 
+  const clearImage = () => {
+    setNewCommentImage("");
+  };
+
   const submitComment = async () => {
     if (!newComment.trim() || !telegramUser) return;
 
@@ -169,11 +175,13 @@ export function LocationDetailModal({
           location_id: location.id,
           user_id: user.id,
           content: newComment,
+          image_url: newCommentImage || null,
         }),
       });
 
       if (response.ok) {
         setNewComment("");
+        setNewCommentImage("");
         loadComments(); // Refresh comments
       }
     } catch (error) {
@@ -590,6 +598,63 @@ export function LocationDetailModal({
                   placeholder="Share your experience..."
                   header=""
                 />
+                
+                <Input
+                  value={newCommentImage}
+                  onChange={(e) => setNewCommentImage(e.target.value)}
+                  placeholder="Image URL (optional)"
+                  header=""
+                  type="url"
+                />
+                
+                {/* Image Preview */}
+                {newCommentImage && (
+                  <div
+                    style={{
+                      position: "relative",
+                      display: "inline-block",
+                      alignSelf: "flex-start",
+                    }}
+                  >
+                    <img
+                      src={newCommentImage}
+                      alt="Preview"
+                      style={{
+                        maxWidth: "150px",
+                        maxHeight: "100px",
+                        objectFit: "cover",
+                        borderRadius: "8px",
+                        border: "2px solid var(--tg-theme-accent-text-color)",
+                      }}
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
+                    />
+                    <button
+                      onClick={clearImage}
+                      style={{
+                        position: "absolute",
+                        top: "-8px",
+                        right: "-8px",
+                        background: "var(--tg-theme-destructive-text-color)",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "50%",
+                        width: "24px",
+                        height: "24px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        fontSize: "14px",
+                      }}
+                      title="Remove image"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
+                
                 <Button
                   size="s"
                   onClick={submitComment}
@@ -643,6 +708,24 @@ export function LocationDetailModal({
                   >
                     {comment.content}
                   </div>
+                  {comment.image_url && (
+                    <div style={{ marginTop: "8px" }}>
+                      <img
+                        src={comment.image_url}
+                        alt="Comment image"
+                        style={{
+                          maxWidth: "100%",
+                          height: "auto",
+                          borderRadius: "8px",
+                          maxHeight: "200px",
+                          objectFit: "cover",
+                        }}
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
               </Cell>
             ))

@@ -14,6 +14,7 @@ CREATE TABLE public.locations (
     description text,
     latitude double precision NOT NULL,
     longitude double precision NOT NULL,
+    image_url text,
     type character varying NOT NULL CHECK (
         type::text = ANY (
             ARRAY ['permanent'::character varying, 'temporary'::character varying]::text []
@@ -34,6 +35,7 @@ CREATE TABLE public.comments (
     user_id integer,
     location_id integer,
     content text NOT NULL,
+    image_url text,
     is_approved boolean DEFAULT true,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT comments_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),

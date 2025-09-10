@@ -160,7 +160,7 @@ app.get('/api/comments', async (req, res) => {
 
 app.post('/api/comments', async (req, res) => {
   try {
-    const { location_id, user_id, content } = req.body;
+    const { location_id, user_id, content, image_url } = req.body;
     
     const { data, error } = await supabase
       .from('comments')
@@ -168,6 +168,7 @@ app.post('/api/comments', async (req, res) => {
         location_id,
         user_id: user_id || null,
         content,
+        image_url: image_url || null,
         is_approved: true
       }])
       .select(`
