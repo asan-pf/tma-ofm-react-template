@@ -47,7 +47,7 @@ npm run dev:https
 ### Backend Setup
 
 ```bash
-cd bot-backend
+cd backend
 npm install
 cp .env.example .env
 # Configure environment variables

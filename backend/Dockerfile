@@ -7,7 +7,8 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN apk add --no-cache curl \
+  && npm install --only=production --quiet
 
 # Copy source code
 COPY . .

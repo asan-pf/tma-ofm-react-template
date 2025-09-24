@@ -2,9 +2,11 @@ version: '3.8'
 
 services:
   frontend:
-    build: .
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     ports:
-      - "3000:80"
+      - "80:80"
     environment:
       - VITE_BACKEND_URL=http://backend:3000
     depends_on:
@@ -13,9 +15,9 @@ services:
       - app-network
 
   backend:
-    build: ./bot-backend
-    ports:
-      - "3001:3000"
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     environment:
       - NODE_ENV=production
       - PORT=3000
@@ -28,13 +30,8 @@ services:
     networks:
       - app-network
     volumes:
-      - ./bot-backend/logs:/app/logs
+      - ./backend/logs:/app/logs
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
   db:
     image: postgres:15-alpine
@@ -42,26 +39,9 @@ services:
       - POSTGRES_DB=${POSTGRES_DB:-tma_locations}
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./bot-backend/database/schema.sql:/docker-entrypoint-initdb.d/schema.sql
-    networks:
-      - app-network
-    restart: unless-stopped
-
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./nginx/ssl:/etc/nginx/ssl
-    depends_on:
-      - frontend
-      - backend
+      - ./backend/database/schema.sql:/docker-entrypoint-initdb.d/schema.sql
     networks:
       - app-network
     restart: unless-stopped
