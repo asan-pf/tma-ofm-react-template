@@ -1,5 +1,5 @@
 {
-  "name": "tma-bot-backend",
+  "name": "tma-backend",
   "version": "1.0.0",
   "description": "Telegram Bot Backend for OpenFreeMap Mini App",
   "main": "src/index.js",

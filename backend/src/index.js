@@ -2,7 +2,7 @@ import { Telegraf, Markup } from 'telegraf';
 import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase.js';
 
 dotenv.config();
 
@@ -13,11 +13,7 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Supabase client
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
+// Supabase client is provided via lib with fallback to local PostgREST
 
 // Health check endpoint
 app.get('/health', (req, res) => {

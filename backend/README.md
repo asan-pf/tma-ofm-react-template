@@ -1,4 +1,4 @@
-# OpenFreeMap Bot Backend
+# OpenFreeMap Backend
 
 Backend API and Telegram bot for the OpenFreeMap Mini App.
 
@@ -17,14 +17,21 @@ npm run dev
 BOT_TOKEN=your_telegram_bot_token
 FRONTEND_URL=https://your-frontend-url
 BACKEND_URL=https://your-backend-url
+
+# Hosted Supabase (preferred)
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your_supabase_key
+
+# Local fallback (used automatically when SUPABASE_* are not set)
+LOCAL_SUPABASE_URL=http://localhost:8000
+LOCAL_SUPABASE_ANON_KEY=dev-local-noauth
 PORT=3000
 ```
 
 ## Database
 
-Import the schema from `database/schema.sql` into your Supabase project.
+- Hosted Supabase: Import the schema from `database/schema.sql` into your Supabase project.
+- Local Docker: From repo root, run `docker compose up --build`. This starts Postgres + PostgREST and applies the schema automatically. The backend will connect to `http://localhost:8000/rest/v1` via the proxy.
 
 ## API Endpoints
 
@@ -33,7 +40,7 @@ Import the schema from `database/schema.sql` into your Supabase project.
 - `POST /api/users` - Create user
 - `PUT /api/users/update/:id` - Update user
 
-### Locations  
+### Locations
 - `GET /api/locations` - Get all locations
 - `POST /api/locations` - Create location
 
@@ -41,7 +48,6 @@ Import the schema from `database/schema.sql` into your Supabase project.
 - `GET /api/users/:telegramId/favorites` - Get user favorites
 - `POST /api/users/:telegramId/favorites` - Add favorite
 - `DELETE /api/users/:telegramId/favorites/:locationId` - Remove favorite
-
 
 ## Bot Commands
 
