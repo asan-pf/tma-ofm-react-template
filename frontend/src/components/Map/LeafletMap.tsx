@@ -12,7 +12,8 @@ import L from "leaflet";
 import "leaflet.markercluster";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
-import { POI, POIService } from "@/utils/poiService";
+// Global POI imports commented out to focus on local POIs
+// import { POI, POIService } from "@/utils/poiService";
 
 // Fix leaflet default icons
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -42,12 +43,12 @@ interface LeafletMapProps {
   height?: string;
   onMapClick?: (lat: number, lng: number) => void;
   onMarkerClick?: (location: Location) => void;
-  onGlobalPOIClick?: (poi: POI) => void;
+  // onGlobalPOIClick?: (poi: POI) => void;
   locations?: Location[];
   showUserLocation?: boolean;
   selectedLocationId?: number;
   showPOIs?: boolean;
-  selectedPOI?: POI | null;
+  // selectedPOI?: POI | null;
   hideBadges?: boolean;
   onSavedLocationsBadgeClick?: () => void;
   setMapRef?: (map: any) => void;
@@ -107,7 +108,8 @@ const createCategoryIcon = (category: string, isSelected: boolean = false) => {
   });
 };
 
-// Create POI icon for global POIs (OpenStreetMap) - smaller, more subtle style
+// Create POI icon for global POIs (OpenStreetMap) - COMMENTED OUT TO FOCUS ON LOCAL POIs
+/*
 const createPOIIcon = (poi: POI, isSelected: boolean = false) => {
   const color = POIService.getCategoryColor(poi.category);
   const size = isSelected ? 22 : 16;
@@ -155,6 +157,7 @@ const createPOIIcon = (poi: POI, isSelected: boolean = false) => {
     iconAnchor: [(size + 2) / 2, (size + 2) / 2],
   });
 };
+*/
 
 // Create user location icon
 const createUserLocationIcon = () => {
@@ -221,15 +224,16 @@ function MapEventHandler({
   return null;
 }
 
-// Component for managing POIs with clustering
+// Component for managing POIs with clustering - COMMENTED OUT TO FOCUS ON LOCAL POIs
+/*
 function POIManager({
   showPOIs,
-  onGlobalPOIClick,
+  // onGlobalPOIClick,
   selectedPOI,
 }: {
   showPOIs: boolean;
-  onGlobalPOIClick?: (poi: POI) => void;
-  selectedPOI?: POI | null;
+  // onGlobalPOIClick?: (poi: POI) => void;
+  // selectedPOI?: POI | null;
 }) {
   const map = useMap();
   const [pois, setPOIs] = useState<POI[]>([]);
@@ -412,6 +416,7 @@ function POIManager({
 
   return null; // All rendering is handled by the cluster group
 }
+*/
 
 // Map center updater component
 function MapCenterUpdater({
@@ -513,12 +518,12 @@ export function LeafletMap({
   height = "400px",
   onMapClick,
   onMarkerClick,
-  onGlobalPOIClick,
+  // onGlobalPOIClick,
   locations = [],
   showUserLocation = true,
   selectedLocationId,
-  showPOIs = true,
-  selectedPOI = null,
+  // showPOIs = true, // Commented out since global POIs are disabled
+  // selectedPOI = null,
   hideBadges = false,
   onSavedLocationsBadgeClick,
   setMapRef,
@@ -564,12 +569,12 @@ export function LeafletMap({
           zoom={zoom}
         />
 
-        {/* POI Manager for global POIs */}
-        <POIManager
+        {/* POI Manager for global POIs - COMMENTED OUT TO FOCUS ON LOCAL POIs */}
+        {/* <POIManager
           showPOIs={showPOIs}
           onGlobalPOIClick={onGlobalPOIClick}
           selectedPOI={selectedPOI}
-        />
+        /> */}
 
         {/* User Location Marker */}
         {showUserLocation && (

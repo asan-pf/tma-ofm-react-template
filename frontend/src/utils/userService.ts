@@ -19,12 +19,13 @@ export class UserService {
 
   /**
    * Get or create user - handles the duplicate key error gracefully
+   * Now uses hashed IDs and random nicknames for privacy
    */
   static async getOrCreateUser(telegramUser: TelegramUser): Promise<UserProfile | null> {
     try {
       const telegramId = telegramUser.id.toString();
       
-      // First try to get existing user
+      // First try to get existing user (backend will hash the ID)
       try {
         const response = await fetch(`${this.baseUrl}/api/users/${telegramUser.id}`);
         if (response.ok) {
@@ -35,13 +36,13 @@ export class UserService {
         console.log('User not found, will create new user');
       }
 
-      // Create new user
+      // Create new user (backend will hash ID and generate random nickname)
       const createResponse = await fetch(`${this.baseUrl}/api/users`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           telegramId,
-          nickname: telegramUser.first_name + (telegramUser.last_name ? ` ${telegramUser.last_name}` : ''),
+          nickname: '', // Backend will generate random nickname
           avatarUrl: null
         })
       });
