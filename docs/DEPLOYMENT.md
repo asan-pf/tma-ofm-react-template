@@ -84,12 +84,12 @@ If your backend is in a separate repository:
 If backend is in the same repository (monorepo):
 1. Click **"New Project"** 
 2. Import the same repository again
-3. Set **Root Directory** to `bot-backend/` or wherever your backend code is located
+3. Set **Root Directory** to `backend/` or wherever your backend code is located
 
 ### Step 2: Configure Backend Build Settings
 
 1. **Framework Preset**: Select "Other"
-2. **Root Directory**: Set to `bot-backend/` (or your backend folder)
+2. **Root Directory**: Set to `backend/` (or your backend folder)
 3. **Build Command**: `npm ci` or leave empty
 4. **Output Directory**: Leave empty (not needed for serverless functions)
 5. **Install Command**: `npm ci`
@@ -137,7 +137,7 @@ If backend is in the same repository (monorepo):
 
 3. **Set Up Database Schema**
    - Navigate to **SQL Editor** in your Supabase dashboard
-   - Copy the content from `bot-backend/database/schema.sql` in your project
+   - Copy the content from `backend/database/schema.sql` in your project
    - Paste and run the SQL schema in the editor
    - Your database tables will be created automatically
 

@@ -1,23 +1,29 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
-
-// Debug environment variables
-console.log('Environment check:', {
-  hasSupabaseUrl: !!supabaseUrl,
-  hasSupabaseKey: !!supabaseKey,
-  supabaseUrlPrefix: supabaseUrl ? `${supabaseUrl.substring(0, 20)}...` : 'undefined',
-  supabaseKeyPrefix: supabaseKey ? `${supabaseKey.substring(0, 20)}...` : 'undefined'
-});
+// Prefer explicit Supabase env; otherwise default to local PostgREST proxy
+let supabaseUrl = process.env.SUPABASE_URL;
+let supabaseKey = process.env.SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-  console.error('Missing environment variables:', {
-    SUPABASE_URL: supabaseUrl ? 'SET' : 'MISSING',
-    SUPABASE_ANON_KEY: supabaseKey ? 'SET' : 'MISSING',
-    allEnvKeys: Object.keys(process.env).filter(key => key.includes('SUPABASE'))
-  });
-  throw new Error(`Missing Supabase environment variables. URL: ${!!supabaseUrl}, Key: ${!!supabaseKey}`);
+  // Fallback defaults for local dev via docker-compose (proxy at http://localhost:8000/rest/v1)
+  const localUrl = process.env.LOCAL_SUPABASE_URL || 'http://localhost:8000';
+  const localKey = process.env.LOCAL_SUPABASE_ANON_KEY || 'dev-local-noauth';
+  supabaseUrl = localUrl;
+  supabaseKey = localKey;
 }
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+// Debug environment snapshot (truncated)
+console.log('Supabase config:', {
+  usingFallback: !process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY,
+  url: supabaseUrl ? `${String(supabaseUrl).slice(0, 30)}...` : 'undefined',
+  key: supabaseKey ? `${String(supabaseKey).slice(0, 6)}...` : 'undefined'
+});
+
+export const supabase = createClient(String(supabaseUrl), String(supabaseKey), {
+  auth: {
+    // Local PostgREST has no auth; avoid auth calls in dev
+    autoRefreshToken: false,
+    persistSession: false,
+    detectSessionInUrl: false
+  }
+});

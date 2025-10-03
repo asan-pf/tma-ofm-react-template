@@ -2,8 +2,7 @@ import { Telegraf, Markup } from 'telegraf';
 import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
-import { createClient } from '@supabase/supabase-js';
-import crypto from 'crypto';
+import { supabase } from '../lib/supabase.js';
 
 dotenv.config();
 
@@ -14,43 +13,7 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Supabase client
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
-
-// Utility functions
-const adjectives = [
-  'Happy', 'Sunny', 'Brave', 'Clever', 'Swift', 'Bright', 'Kind', 'Wise', 'Cool', 'Smart',
-  'Bold', 'Quick', 'Calm', 'Wild', 'Free', 'Pure', 'True', 'Fair', 'Warm', 'Fresh',
-  'Lucky', 'Magic', 'Noble', 'Royal', 'Silent', 'Strong', 'Gentle', 'Mystic', 'Golden', 'Silver'
-];
-
-const animals = [
-  'Lion', 'Eagle', 'Tiger', 'Wolf', 'Bear', 'Fox', 'Hawk', 'Owl', 'Deer', 'Rabbit',
-  'Panda', 'Dolphin', 'Whale', 'Shark', 'Cat', 'Dog', 'Bird', 'Fish', 'Bee', 'Butterfly',
-  'Dragon', 'Phoenix', 'Unicorn', 'Falcon', 'Raven', 'Swan', 'Turtle', 'Penguin', 'Koala', 'Seal'
-];
-
-function hashUserId(telegramId) {
-  return crypto.createHash('sha256').update(telegramId.toString()).digest('hex').substring(0, 16);
-}
-
-function generateConsistentNickname(hashedUserId) {
-  const seed = parseInt(hashedUserId.substring(0, 8), 16);
-  
-  const seededRandom = (seed) => {
-    const x = Math.sin(seed) * 10000;
-    return x - Math.floor(x);
-  };
-  
-  const adjIndex = Math.floor(seededRandom(seed) * adjectives.length);
-  const animalIndex = Math.floor(seededRandom(seed + 1) * animals.length);
-  const number = Math.floor(seededRandom(seed + 2) * 100).toString().padStart(2, '0');
-  
-  return `${adjectives[adjIndex]}${animals[animalIndex]}${number}`;
-}
+// Supabase client is provided via lib with fallback to local PostgREST
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -60,12 +23,10 @@ app.get('/health', (req, res) => {
 // API Routes for the frontend
 app.get('/api/users/:telegramId', async (req, res) => {
   try {
-    const hashedId = hashUserId(req.params.telegramId);
-    
     const { data, error } = await supabase
       .from('users')
       .select('*')
-      .eq('telegram_id', hashedId)
+      .eq('telegram_id', req.params.telegramId)
       .single();
 
     if (error) {
@@ -85,16 +46,10 @@ app.get('/api/users/:telegramId', async (req, res) => {
 app.post('/api/users', async (req, res) => {
   try {
     const { telegramId, nickname, avatarUrl } = req.body;
-    const hashedId = hashUserId(telegramId);
-    const randomNickname = generateConsistentNickname(hashedId);
 
     const { data, error } = await supabase
       .from('users')
-      .insert([{ 
-        telegram_id: hashedId, 
-        nickname: randomNickname, 
-        avatar_url: avatarUrl 
-      }])
+      .insert([{ telegram_id: telegramId, nickname, avatar_url: avatarUrl }])
       .select()
       .single();
 
@@ -201,7 +156,7 @@ app.get('/api/comments', async (req, res) => {
 
 app.post('/api/comments', async (req, res) => {
   try {
-    const { location_id, user_id, content, image_url } = req.body;
+    const { location_id, user_id, content } = req.body;
     
     const { data, error } = await supabase
       .from('comments')
@@ -209,7 +164,6 @@ app.post('/api/comments', async (req, res) => {
         location_id,
         user_id: user_id || null,
         content,
-        image_url: image_url || null,
         is_approved: true
       }])
       .select(`
@@ -305,27 +259,11 @@ app.post('/api/ratings', async (req, res) => {
 app.put('/api/users/update/:id', async (req, res) => {
   try {
     const { avatar_url } = req.body;
-    const userId = parseInt(req.params.id);
 
-    // First check if user exists
-    const { data: existingUser, error: fetchError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('id', userId)
-      .single();
-
-    if (fetchError) {
-      if (fetchError.code === 'PGRST116') {
-        return res.status(404).json({ error: 'User not found' });
-      }
-      throw fetchError;
-    }
-
-    // Update the user
     const { data, error } = await supabase
       .from('users')
       .update({ avatar_url })
-      .eq('id', userId)
+      .eq('id', req.params.id)
       .select()
       .single();
 
