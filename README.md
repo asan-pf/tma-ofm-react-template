@@ -105,6 +105,24 @@ LOCAL_SUPABASE_ANON_KEY=dev-local-noauth
 - [API Documentation](docs/API.md)
 - [Deployment Guide](docs/DEPLOYMENT.md)
 
+## Add Locations via API
+
+1. Start the backend (`npm run dev` or `docker compose up`).
+2. Create a place with:
+```bash
+curl -X POST http://localhost:3000/api/locations \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Cafe 58",
+    "description": "Sunny patio",
+    "latitude": 40.715,
+    "longitude": -74.0,
+    "category": "restaurant-bar",
+    "userId": 1
+  }'
+```
+3. Verify with `GET http://localhost:3000/api/locations`.
+
 ## License
 
 [MIT License](https://opensource.org/licenses/MIT)
