@@ -9,6 +9,25 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+async function findUserByTelegramId(telegramId) {
+  if (!telegramId) {
+    return null;
+  }
+
+  const cleanId = String(telegramId);
+
+  const { data, error } = await supabase
+    .from('users')
+    .select('id')
+    .eq('telegram_id', cleanId)
+    .limit(1);
+
+  if (error) {
+    throw error;
+  }
+
+  return data?.[0] ?? null;
+}
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -100,20 +119,37 @@ app.get('/api/locations', async (req, res) => {
 
 app.post('/api/locations', async (req, res) => {
   try {
-    const { name, description, latitude, longitude, category, userId } = req.body;
+    const {
+      telegramId,
+      name,
+      description,
+      latitude,
+      longitude,
+      category,
+      type = 'permanent',
+    } = req.body;
+
+    if (typeof latitude !== 'number' || typeof longitude !== 'number' || !name || !category) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const userRecord = await findUserByTelegramId(telegramId);
+    const userId = userRecord?.id ?? null;
+
+    const locationPayload = {
+      name,
+      description: description ?? null,
+      latitude,
+      longitude,
+      category,
+      type,
+      user_id: userId,
+      is_approved: true,
+    };
 
     const { data, error } = await supabase
       .from('locations')
-      .insert([{
-        name,
-        description,
-        latitude,
-        longitude,
-        category,
-        user_id: userId,
-        type: 'permanent',
-        is_approved: true // Auto-approve all locations
-      }])
+      .insert([locationPayload])
       .select()
       .single();
 
@@ -122,6 +158,140 @@ app.post('/api/locations', async (req, res) => {
     res.status(201).json(data);
   } catch (error) {
     console.error('Error creating location:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/users/:telegramId/favorites', async (req, res) => {
+  try {
+    const userRecord = await findUserByTelegramId(req.params.telegramId);
+
+    if (!userRecord) {
+      return res.json([]);
+    }
+
+    const { data, error } = await supabase
+      .from('favorites')
+      .select(`
+        id,
+        location_id,
+        locations (
+          id,
+          name,
+          description,
+          latitude,
+          longitude,
+          category,
+          type,
+          created_at,
+          user_id
+        )
+      `)
+      .eq('user_id', userRecord.id);
+
+    if (error) throw error;
+
+    const locations = (data ?? [])
+      .map((entry) => entry.locations)
+      .filter(Boolean);
+
+    res.json(locations);
+  } catch (error) {
+    console.error('Error fetching favorites:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/users/:telegramId/favorites', async (req, res) => {
+  try {
+    const { telegramId } = req.params;
+    const { locationId } = req.body;
+
+    const parsedLocationId = Number(locationId);
+
+    if (!Number.isInteger(parsedLocationId)) {
+      return res.status(400).json({ error: 'Valid locationId is required' });
+    }
+
+    const userRecord = await findUserByTelegramId(telegramId);
+
+    if (!userRecord) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const { data: locationData, error: locationError } = await supabase
+      .from('locations')
+      .select('id')
+      .eq('id', parsedLocationId)
+      .limit(1);
+
+    if (locationError) throw locationError;
+
+    if (!locationData || locationData.length === 0) {
+      return res.status(404).json({ error: 'Location not found' });
+    }
+
+    const { data, error } = await supabase
+      .from('favorites')
+      .upsert(
+        [{ user_id: userRecord.id, location_id: parsedLocationId }],
+        { onConflict: 'user_id,location_id' }
+      )
+      .select(`
+        id,
+        location_id,
+        locations (
+          id,
+          name,
+          description,
+          latitude,
+          longitude,
+          category,
+          type,
+          created_at,
+          user_id
+        )
+      `)
+      .single();
+
+    if (error) throw error;
+
+    res.status(201).json(data?.locations ?? null);
+  } catch (error) {
+    console.error('Error creating favorite:', error);
+    if (error?.code === '23503') {
+      return res.status(400).json({ error: 'Invalid user or location reference' });
+    }
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.delete('/api/users/:telegramId/favorites/:locationId', async (req, res) => {
+  try {
+    const { telegramId, locationId } = req.params;
+    const parsedLocationId = Number(locationId);
+
+    if (!Number.isInteger(parsedLocationId)) {
+      return res.status(400).json({ error: 'Invalid locationId' });
+    }
+
+    const userRecord = await findUserByTelegramId(telegramId);
+
+    if (!userRecord) {
+      return res.status(204).send();
+    }
+
+    const { error } = await supabase
+      .from('favorites')
+      .delete()
+      .eq('user_id', userRecord.id)
+      .eq('location_id', parsedLocationId);
+
+    if (error) throw error;
+
+    return res.status(204).send();
+  } catch (error) {
+    console.error('Error removing favorite:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
