@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { createClient } from '@supabase/supabase-js';
 
 // Prefer explicit Supabase env; otherwise default to local PostgREST proxy
