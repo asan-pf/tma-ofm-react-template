@@ -428,16 +428,35 @@ app.post('/api/ratings', async (req, res) => {
 // Update user profile route
 app.put('/api/users/update/:id', async (req, res) => {
   try {
-    const { avatar_url } = req.body;
+    const { nickname, avatarUrl } = req.body;
+
+    const updates = {};
+
+    if (nickname !== undefined) {
+      updates.nickname = nickname;
+    }
+
+    if (avatarUrl !== undefined) {
+      updates.avatar_url = avatarUrl;
+    }
+
+    if (!Object.keys(updates).length) {
+      return res.status(400).json({ error: 'No updates provided' });
+    }
 
     const { data, error } = await supabase
       .from('users')
-      .update({ avatar_url })
+      .update(updates)
       .eq('id', req.params.id)
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      throw error;
+    }
 
     res.json(data);
   } catch (error) {
