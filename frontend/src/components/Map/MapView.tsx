@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { LeafletMap } from "./LeafletMap";
 // Global POI imports commented out to focus on local POIs
 // import { POI } from "@/utils/poiService";
@@ -47,6 +48,12 @@ export function MapView({
   // Always use the center prop - this allows user to freely navigate
   // The parent component (MapPage) handles initial GPS positioning
   const mapCenter = center;
+
+  useEffect(() => {
+    return () => {
+      setMapRef(null);
+    };
+  }, [setMapRef]);
   
   return (
     <LeafletMap
