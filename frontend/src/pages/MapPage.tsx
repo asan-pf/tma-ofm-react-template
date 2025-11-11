@@ -15,6 +15,7 @@ import { SearchModal } from "@/components/Map/SearchModal";
 import { AddLocationModal } from "@/components/Map/AddLocationModal";
 import { AddChoiceModal } from "@/components/Map/AddChoiceModal";
 import { SavedLocationsModal } from "@/components/SavedLocationsModal";
+import { UserService } from "@/utils/userService";
 // Global POI imports commented out to focus on local POIs
 // import { POI } from "@/utils/poiService";
 import "leaflet/dist/leaflet.css";
@@ -47,6 +48,32 @@ interface AddLocationData {
 
 type TabType = "explore" | "favorites" | "saved";
 type SearchTabType = "db" | "global";
+type NormalizedTelegramUser = {
+  id: number;
+  first_name: string;
+  last_name?: string;
+  username?: string;
+};
+
+const DEV_FALLBACK_TELEGRAM_USER: NormalizedTelegramUser = {
+  id: 123456789,
+  first_name: "Test",
+  last_name: "User",
+  username: "testuser",
+};
+
+const normalizeTelegramUser = (user: any): NormalizedTelegramUser | null => {
+  if (!user) {
+    return null;
+  }
+
+  return {
+    id: Number(user.id),
+    first_name: user.first_name ?? "User",
+    last_name: user.last_name ?? undefined,
+    username: user.username ?? undefined,
+  };
+};
 
 export function MapPage() {
   const [activeTab, setActiveTab] = useState<TabType>("explore");
@@ -67,6 +94,10 @@ export function MapPage() {
   // const [favoritePOIs, setFavoritePOIs] = useState<POI[]>([]);
   const [isAddLocationMode, setIsAddLocationMode] = useState(false);
   const [mapRef, setMapRef] = useState<any>(null);
+  const [pendingMapFocus, setPendingMapFocus] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
   const [pendingLocation, setPendingLocation] = useState<{
     lat: number;
     lng: number;
@@ -86,7 +117,10 @@ export function MapPage() {
   const navigate = useNavigate();
   const { latitude, longitude } = useGeolocation();
   const launchParams = retrieveLaunchParams();
-  const telegramUser = (launchParams?.initDataUnsafe as any)?.user;
+  const telegramUser = normalizeTelegramUser(
+    (launchParams?.initDataUnsafe as any)?.user ??
+      (import.meta.env.DEV ? DEV_FALLBACK_TELEGRAM_USER : null)
+  );
 
   const [dynamicMapCenter, setDynamicMapCenter] = useState({
     lat: latitude || 48.8566,
@@ -106,8 +140,44 @@ export function MapPage() {
     loadLocations();
     if (telegramUser) {
       loadFavorites();
+    } else {
+      setFavoriteLocations([]);
     }
-  }, [telegramUser]);
+  }, [telegramUser?.id]);
+
+  useEffect(() => {
+    if (mapRef && pendingMapFocus) {
+      try {
+        mapRef.setView([pendingMapFocus.lat, pendingMapFocus.lng], 16);
+      } catch (error) {
+        console.error("Error focusing map:", error);
+      } finally {
+        setPendingMapFocus(null);
+      }
+    }
+  }, [mapRef, pendingMapFocus]);
+
+  useEffect(() => {
+    setLocations((prev) => {
+      if (prev.length === 0) {
+        return prev;
+      }
+
+      const favoriteIds = new Set(favoriteLocations.map((fav) => fav.id));
+      let changed = false;
+
+      const next = prev.map((location) => {
+        const nextIsFavorite = favoriteIds.has(location.id);
+        if (location.is_favorited !== nextIsFavorite) {
+          changed = true;
+          return { ...location, is_favorited: nextIsFavorite };
+        }
+        return location;
+      });
+
+      return changed ? next : prev;
+    });
+  }, [favoriteLocations]);
 
   const loadLocations = async () => {
     try {
@@ -167,6 +237,12 @@ export function MapPage() {
     if (!telegramUser) return;
 
     try {
+      const userProfile = await UserService.getOrCreateUser(telegramUser);
+      if (!userProfile) {
+        console.warn("Unable to ensure user profile before loading favorites");
+        return;
+      }
+
       const BACKEND_URL =
         import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
       const response = await fetch(
@@ -174,7 +250,7 @@ export function MapPage() {
       );
       if (response.ok) {
         const data = await response.json();
-        setFavoriteLocations(data);
+        setFavoriteLocations(Array.isArray(data) ? data : []);
       }
     } catch (error) {
       console.error("Error loading favorites:", error);
@@ -182,12 +258,7 @@ export function MapPage() {
   };
 
   const handleAddLocation = async () => {
-    const effectiveUser = telegramUser || {
-      id: 123456789,
-      first_name: "Test",
-      last_name: "User",
-      username: "testuser",
-    };
+    const effectiveUser = telegramUser ?? DEV_FALLBACK_TELEGRAM_USER;
 
     if (!addLocationData.name.trim()) return;
 
@@ -235,10 +306,59 @@ export function MapPage() {
     }
   };
 
+  const centerMapAtCoordinates = (coords: { lat: number; lng: number }) => {
+    setDynamicMapCenter(coords);
+
+    const container = mapRef?.getContainer?.();
+    if (mapRef && container) {
+      try {
+        mapRef.setView([coords.lat, coords.lng], 16);
+        setPendingMapFocus(null);
+      } catch (error) {
+        console.error("Error focusing map:", error);
+        setPendingMapFocus(coords);
+      }
+    } else {
+      setPendingMapFocus(coords);
+    }
+  };
+
+  const focusLocationOnMap = (
+    location: Location,
+    options: { showDetail?: boolean; closeSavedModal?: boolean } = {}
+  ) => {
+    const { showDetail = true, closeSavedModal = false } = options;
+    const coords = { lat: location.latitude, lng: location.longitude };
+
+    centerMapAtCoordinates(coords);
+
+    if (activeTab !== "explore") {
+      setActiveTab("explore");
+    }
+
+    if (closeSavedModal) {
+      setShowSavedLocationsModal(false);
+    }
+
+    if (showDetail) {
+      setSelectedLocation(location);
+      setShowLocationDetail(true);
+    } else {
+      setSelectedLocation(null);
+      setShowLocationDetail(false);
+    }
+  };
+
   const toggleFavorite = async (locationId: number) => {
     if (!telegramUser) return;
 
     try {
+      const userProfile = await UserService.getOrCreateUser(telegramUser);
+      if (!userProfile) {
+        console.warn("Unable to ensure user profile before toggling favorites");
+        return;
+      }
+
       const BACKEND_URL =
         import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
       const isFavorited = favoriteLocations.some(
@@ -250,9 +370,15 @@ export function MapPage() {
           `${BACKEND_URL}/api/users/${telegramUser.id}/favorites/${locationId}`,
           { method: "DELETE" }
         );
+
         if (response.ok) {
           setFavoriteLocations((prev) =>
             prev.filter((fav) => fav.id !== locationId)
+          );
+          setLocations((prev) =>
+            prev.map((loc) =>
+              loc.id === locationId ? { ...loc, is_favorited: false } : loc
+            )
           );
         }
       } else {
@@ -264,7 +390,27 @@ export function MapPage() {
             body: JSON.stringify({ locationId }),
           }
         );
+
         if (response.ok) {
+          const matchingLocation = locations.find(
+            (location) => location.id === locationId
+          );
+
+          if (matchingLocation) {
+            setFavoriteLocations((prev) => {
+              if (prev.some((fav) => fav.id === locationId)) {
+                return prev;
+              }
+              return [...prev, matchingLocation];
+            });
+          }
+
+          setLocations((prev) =>
+            prev.map((loc) =>
+              loc.id === locationId ? { ...loc, is_favorited: true } : loc
+            )
+          );
+
           loadFavorites();
         }
       }
@@ -274,16 +420,8 @@ export function MapPage() {
   };
 
   const handleLocationClick = (location: Location) => {
-    // Navigate to location on map
-    setDynamicMapCenter({ lat: location.latitude, lng: location.longitude });
-    if (mapRef) {
-      mapRef.setView([location.latitude, location.longitude], 16);
-    }
-    // Show location detail modal
-    setSelectedLocation(location);
-    setShowLocationDetail(true);
+    focusLocationOnMap(location);
   };
-
 
   // Global POI handlers commented out to focus on local POIs
   /*
@@ -309,12 +447,7 @@ export function MapPage() {
   */
 
   const handleSearchLocationSelect = (location: Location) => {
-    setDynamicMapCenter({ lat: location.latitude, lng: location.longitude });
-    if (mapRef) {
-      mapRef.setView([location.latitude, location.longitude], 16);
-    }
-    setSelectedLocation(location);
-    setShowLocationDetail(true);
+    focusLocationOnMap(location);
     setShowSearchModal(false);
   };
 
@@ -323,11 +456,15 @@ export function MapPage() {
     lng: number,
     _name: string
   ) => {
-    // Just navigate to the location on the map without opening add modal
-    setDynamicMapCenter({ lat, lng });
-    if (mapRef) {
-      mapRef.setView([lat, lng], 16);
+    const coords = { lat, lng };
+    centerMapAtCoordinates(coords);
+
+    if (activeTab !== "explore") {
+      setActiveTab("explore");
     }
+
+    setSelectedLocation(null);
+    setShowLocationDetail(false);
     setShowSearchModal(false);
   };
 
@@ -353,12 +490,7 @@ export function MapPage() {
   };
 
   const handleSavedLocationClick = (location: Location) => {
-    setDynamicMapCenter({ lat: location.latitude, lng: location.longitude });
-    if (mapRef) {
-      mapRef.setView([location.latitude, location.longitude], 16);
-    }
-    setSelectedLocation(location);
-    setShowLocationDetail(true);
+    focusLocationOnMap(location, { closeSavedModal: true });
   };
 
   const handleMapCenterAdd = () => {
@@ -464,19 +596,23 @@ export function MapPage() {
 
               <MapCrosshair isVisible={isAddLocationMode} />
 
-              {!showLocationDetail && !showAddLocationModal && !showAddChoiceModal && !showSearchModal && !showSavedLocationsModal && (
-                <MapControls
-                  isAddLocationMode={isAddLocationMode}
-                  onAddLocationToggle={handleAddLocationModeToggle}
-                  onMapCenterAdd={handleMapCenterAdd}
-                  onCurrentLocationClick={() => {
-                    if (latitude && longitude) {
-                      setDynamicMapCenter({ lat: latitude, lng: longitude });
-                    }
-                  }}
-                  hasCurrentLocation={!!(latitude && longitude)}
-                />
-              )}
+              {!showLocationDetail &&
+                !showAddLocationModal &&
+                !showAddChoiceModal &&
+                !showSearchModal &&
+                !showSavedLocationsModal && (
+                  <MapControls
+                    isAddLocationMode={isAddLocationMode}
+                    onAddLocationToggle={handleAddLocationModeToggle}
+                    onMapCenterAdd={handleMapCenterAdd}
+                    onCurrentLocationClick={() => {
+                      if (latitude && longitude) {
+                        setDynamicMapCenter({ lat: latitude, lng: longitude });
+                      }
+                    }}
+                    hasCurrentLocation={!!(latitude && longitude)}
+                  />
+                )}
             </>
           ) : activeTab === "favorites" ? (
             <FavoritesView

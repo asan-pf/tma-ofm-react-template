@@ -6,29 +6,19 @@ Thanks for helping improve the OpenFreeMap Telegram Mini App! This guide explain
 
 We support two main workflows. Pick the one that matches the tools you already have.
 
-### Option A – Docker-backed local Supabase
+### Option A – One-command Docker stack
 1. Install Docker Desktop (or Docker Engine) and Docker Compose.
-2. From the repo root copy the backend environment template: `cp backend/.env.example backend/.env`.
-   - You only *must* set `BOT_TOKEN` (a Telegram bot token) and `FRONTEND_URL` (usually `https://<your-ngrok-or-localtunnel>` for Mini App testing).
-   - When you just want to exercise the HTTP API, you can set `BOT_TOKEN=000000:dev-placeholder` and ignore bot errors; the REST endpoints will still work.
-3. Start the database and PostgREST proxy:
+2. Copy the backend environment template: `cp backend/.env.example backend/.env` and set `BOT_TOKEN` plus any overrides you need.
+3. Run everything with one command:
    ```bash
    docker compose up --build
    ```
-   This launches Postgres + PostgREST + an Nginx proxy on `http://localhost:8000/rest/v1`.
-4. In another terminal install dependencies and run the backend against the Docker stack:
+   This boots Postgres, the API, the Vite frontend, and an Nginx proxy. Hot reloads are wired in, so contributors do not need separate `npm run dev` windows.
+4. To share the stack with Telegram, expose the Nginx port using your tunnel of choice:
    ```bash
-   cd backend
-   npm install
-   npm run dev
+   ngrok http http://localhost:8000
    ```
-   The backend automatically falls back to `LOCAL_SUPABASE_URL=http://localhost:8000` when hosted Supabase credentials are missing.
-5. In a third terminal install and start the frontend:
-   ```bash
-   npm install
-   npm run dev:https
-   ```
-   The HTTPS dev server is required for Telegram Mini App testing. Use `npm run dev` if you only need a local browser preview.
+   Register the public URL with BotFather and you are ready to test the Mini App end-to-end.
 
 ### Option B – Hosted Supabase + Node
 1. Create a Supabase project and obtain your `SUPABASE_URL` and `SUPABASE_ANON_KEY`.
@@ -60,11 +50,15 @@ We support two main workflows. Pick the one that matches the tools you already h
 
 ## Development Workflow
 - Fork the repository or create a feature branch.
+- Unsure about scope? [Open an issue](https://github.com/Telegram-Mini-Apps/tma-ofm-react-template/issues) so we can help refine the work before you code.
 - Keep commits small and descriptive; we follow [Conventional Commits](https://www.conventionalcommits.org/) (e.g. `feat: add poi clustering`).
 - Run `npm run lint` from the project root before opening a pull request. Please fix any reported issues (`npm run lint:fix`).
 - If you touch backend code, run the backend locally and exercise the `/health` endpoint to ensure there are no runtime errors.
 - Update documentation (README, docs, or this file) when behaviour or setup changes.
 - Include screenshots or recordings for UI changes in your pull request description.
+
+## License
+Contributions are released under the project MIT License (`LICENSE`). By submitting a pull request you confirm you have the right to license your code under these terms.
 
 ## Pull Request Checklist
 - [ ] Feature branch or fork created
