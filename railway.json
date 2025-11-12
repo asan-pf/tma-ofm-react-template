@@ -1,0 +1,18 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "services": {
+    "backend": {
+      "rootDir": "backend",
+      "build": {
+        "builder": "NIXPACKS"
+      },
+      "deploy": {
+        "numReplicas": 1,
+        "startCommand": "npm run start",
+        "healthcheckPath": "/health",
+        "healthcheckTimeout": 120,
+        "restartPolicyType": "ON_FAILURE"
+      }
+    }
+  }
+}
