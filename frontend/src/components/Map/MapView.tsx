@@ -63,6 +63,7 @@ export function MapView({
       height="100%"
       locations={locations}
       showUserLocation={!!userLocation}
+      userLocation={userLocation}
       onMarkerClick={onLocationClick}
       // Global POI props commented out to focus on local POIs
       // onGlobalPOIClick={onGlobalPOIClick}

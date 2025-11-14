@@ -46,6 +46,7 @@ interface LeafletMapProps {
   // onGlobalPOIClick?: (poi: POI) => void;
   locations?: Location[];
   showUserLocation?: boolean;
+  userLocation?: { lat: number; lng: number } | null;
   selectedLocationId?: number;
   showPOIs?: boolean;
   // selectedPOI?: POI | null;
@@ -521,6 +522,7 @@ export function LeafletMap({
   // onGlobalPOIClick,
   locations = [],
   showUserLocation = true,
+  userLocation,
   selectedLocationId,
   // showPOIs = true, // Commented out since global POIs are disabled
   // selectedPOI = null,
@@ -577,9 +579,9 @@ export function LeafletMap({
         /> */}
 
         {/* User Location Marker */}
-        {showUserLocation && (
+        {showUserLocation && userLocation && (
           <Marker
-            position={[latitude, longitude]}
+            position={[userLocation.lat, userLocation.lng]}
             icon={createUserLocationIcon()}
             zIndexOffset={1000}
           >
@@ -587,7 +589,7 @@ export function LeafletMap({
               <div>
                 <strong>📍 Your Location</strong>
                 <p>
-                  {latitude.toFixed(6)}, {longitude.toFixed(6)}
+                  {userLocation.lat.toFixed(6)}, {userLocation.lng.toFixed(6)}
                 </p>
               </div>
             </Popup>
