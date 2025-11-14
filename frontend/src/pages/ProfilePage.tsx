@@ -3,14 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { User, Camera, Save, X, MapPin } from "lucide-react";
 import {
   Button,
-  Cell,
-  Section,
-  List,
   Avatar,
   Caption,
-  Subheadline,
   Title,
-  Text,
   IconButton,
   Badge,
   Placeholder,
@@ -65,7 +60,6 @@ export function ProfilePage() {
         }
       } catch (error) {
         console.error("Error loading user profile:", error);
-        // Create new user if not found
         const createResponse = await fetch(`${BACKEND_URL}/api/users`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -130,23 +124,18 @@ export function ProfilePage() {
   };
 
   const handleCancel = () => {
+    if (!profile) return;
+
     setEditData({
-      nickname: profile?.nickname || "",
-      avatar_url: profile?.avatar_url || "",
+      nickname: profile.nickname,
+      avatar_url: profile.avatar_url || "",
     });
     setIsEditing(false);
   };
 
   if (isLoading) {
     return (
-      <div
-        style={{
-          height: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
+      <div className="profile-page__loading">
         <Placeholder
           header="Loading Profile..."
           description="Please wait while we load your profile information"
@@ -159,14 +148,7 @@ export function ProfilePage() {
 
   if (!profile) {
     return (
-      <div
-        style={{
-          height: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
+      <div className="profile-page__loading">
         <Placeholder
           header="Profile Error"
           description="Failed to load profile information"
@@ -182,300 +164,176 @@ export function ProfilePage() {
     );
   }
 
+  const currentAvatar =
+    editData.avatar_url || profile.avatar_url || telegramUser?.photo_url || undefined;
+
   return (
-    <div style={{ minHeight: "100vh" }}>
-      {/* Header */}
-      <Section
-        style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 10,
-          borderBottom: "1px solid var(--tg-color-separator)",
-          padding: 16,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <Avatar
-              size={24}
-              style={{ backgroundColor: "var(--tg-color-accent)" }}
-            >
-              <User size={16} />
+    <div className="profile-page">
+      <div className="profile-hero">
+        <div className="profile-hero__header">
+          <div className="profile-hero__title">
+            <Avatar size={32} style={{ backgroundColor: "var(--tg-color-accent)" }}>
+              <User size={18} />
             </Avatar>
             <div>
               <Title level="2">Profile</Title>
               <Caption>Manage your account settings</Caption>
             </div>
           </div>
-          <IconButton mode="outline" size="s" onClick={() => navigate("/")}>
-            <X size={16} />
-          </IconButton>
-        </div>
-      </Section>
-
-      {/* Content */}
-      <div style={{ maxWidth: 480, margin: "0 auto", padding: 16 }}>
-        {/* Profile Card */}
-        <Section style={{ marginBottom: 16 }}>
-          {/* Avatar Section */}
-          <div style={{ textAlign: "center", padding: 24 }}>
-            <div style={{ position: "relative", display: "inline-block" }}>
-              <Avatar
-                size={96}
-                src={
-                  editData.avatar_url ||
-                  profile.avatar_url ||
-                  telegramUser?.photo_url ||
-                  undefined
-                }
-                style={{
-                  border: "4px solid var(--tg-color-bg)",
-                  boxShadow: "0 4px 16px rgba(0, 0, 0, 0.1)",
-                }}
-              />
-              {isEditing && (
-                <div
-                  style={{
-                    position: "absolute",
-                    bottom: -4,
-                    right: -4,
-                    width: 32,
-                    height: 32,
-                    backgroundColor: "var(--tg-color-accent)",
-                    borderRadius: "50%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
-                  }}
-                >
-                  <Camera size={16} color="white" />
-                </div>
-              )}
-            </div>
-
-            {/* Display name under avatar */}
+          <div className="profile-hero__actions">
             {!isEditing && (
-              <div style={{ marginTop: 16 }}>
-                <Title level="1" style={{ marginBottom: 4 }}>
-                  {profile.nickname}
-                </Title>
-                {telegramUser?.username && (
-                  <Caption>@{telegramUser.username}</Caption>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Profile Form */}
-          <List>
-            {isEditing && (
-              <Cell
-                Component="label"
-                multiline
-                subtitle={
-                  <input
-                    type="url"
-                    value={editData.avatar_url}
-                    onChange={(e) =>
-                      setEditData((prev) => ({
-                        ...prev,
-                        avatar_url: e.target.value,
-                      }))
-                    }
-                    placeholder="https://example.com/avatar.jpg"
-                    style={{
-                      width: "100%",
-                      padding: 12,
-                      border: "1px solid var(--tg-color-separator)",
-                      borderRadius: 8,
-                      backgroundColor: "var(--tg-color-bg-secondary)",
-                      color: "var(--tg-color-text)",
-                      fontSize: 14,
-                    }}
-                  />
-                }
-              >
-                <Subheadline>Avatar URL</Subheadline>
-              </Cell>
-            )}
-
-            <Cell
-              Component="label"
-              multiline
-              subtitle={
-                isEditing ? (
-                  <input
-                    type="text"
-                    value={editData.nickname}
-                    onChange={(e) =>
-                      setEditData((prev) => ({
-                        ...prev,
-                        nickname: e.target.value,
-                      }))
-                    }
-                    style={{
-                      width: "100%",
-                      padding: 12,
-                      border: "1px solid var(--tg-color-separator)",
-                      borderRadius: 8,
-                      backgroundColor: "var(--tg-color-bg-secondary)",
-                      color: "var(--tg-color-text)",
-                      fontSize: 16,
-                    }}
-                  />
-                ) : (
-                  <Text>{profile.nickname}</Text>
-                )
-              }
-            >
-              <Subheadline>Display Name</Subheadline>
-            </Cell>
-
-            <Cell subtitle={<Caption>{profile.telegram_id}</Caption>}>
-              <Subheadline>Telegram ID</Subheadline>
-            </Cell>
-
-            <Cell
-              subtitle={
-                <Badge
-                  type="number"
-                  mode="secondary"
-                  style={{ textTransform: "capitalize" }}
-                >
-                  {profile.role}
-                </Badge>
-              }
-            >
-              <Subheadline>Role</Subheadline>
-            </Cell>
-
-            <Cell
-              subtitle={
-                <Caption>
-                  {new Date(profile.created_at).toLocaleDateString()}
-                </Caption>
-              }
-            >
-              <Subheadline>Member Since</Subheadline>
-            </Cell>
-          </List>
-
-          {/* Action Buttons */}
-          <div style={{ padding: 16 }}>
-            {isEditing ? (
-              <div style={{ display: "flex", gap: 12 }}>
-                <Button
-                  mode="filled"
-                  size="l"
-                  onClick={handleSave}
-                  disabled={isSaving || !editData.nickname.trim()}
-                  style={{ flex: 1 }}
-                >
-                  {isSaving ? (
-                    "Saving..."
-                  ) : (
-                    <>
-                      <Save size={16} style={{ marginRight: 8 }} />
-                      Save Changes
-                    </>
-                  )}
-                </Button>
-                <Button
-                  mode="outline"
-                  size="l"
-                  onClick={handleCancel}
-                  disabled={isSaving}
-                >
-                  Cancel
-                </Button>
-              </div>
-            ) : (
-              <Button
-                mode="filled"
-                size="l"
-                onClick={() => setIsEditing(true)}
-                style={{ width: "100%" }}
-              >
+              <Button size="s" mode="outline" onClick={() => setIsEditing(true)}>
                 Edit Profile
               </Button>
             )}
+            <IconButton mode="outline" size="s" onClick={() => navigate("/")}>
+              <X size={16} />
+            </IconButton>
           </div>
-        </Section>
+        </div>
 
-        {/* Stats Card */}
-        <Section>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              padding: 16,
-              paddingBottom: 8,
-            }}
-          >
+        <div className="profile-hero__body">
+          <div className="profile-avatar">
             <Avatar
-              size={28}
-              style={{ backgroundColor: "var(--tg-color-accent)" }}
-            >
-              <MapPin size={16} />
-            </Avatar>
-            <Title level="2">Your Activity</Title>
+              size={120}
+              src={currentAvatar}
+              style={{
+                border: "4px solid rgba(255,255,255,0.9)",
+                boxShadow: "0 12px 30px rgba(0,0,0,0.18)",
+              }}
+            />
+            {isEditing && (
+              <button className="profile-avatar__edit" aria-label="Change avatar">
+                <Camera size={16} />
+              </button>
+            )}
+          </div>
+          <div className="profile-identity">
+            <Title level="1">{profile.nickname}</Title>
+            {telegramUser?.username && (
+              <Caption>@{telegramUser.username}</Caption>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="profile-content">
+        <div className="profile-card">
+          <div className="profile-card__header">
+            <Title level="3">Account Details</Title>
+            <Caption>Keep your profile information up to date</Caption>
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 16,
-              padding: 16,
-            }}
-          >
-            <div
-              style={{
-                textAlign: "center",
-                padding: 16,
-                backgroundColor: "var(--tg-color-bg-secondary)",
-                borderRadius: 12,
-                border: "1px solid var(--tg-color-separator)",
-              }}
-            >
-              <Title
-                level="1"
-                style={{ color: "var(--tg-color-accent)", marginBottom: 4 }}
+          <div className="profile-field">
+            <label>Display Name</label>
+            {isEditing ? (
+              <input
+                type="text"
+                value={editData.nickname}
+                onChange={(e) =>
+                  setEditData((prev) => ({
+                    ...prev,
+                    nickname: e.target.value,
+                  }))
+                }
+                className="profile-input"
+                placeholder="Enter your name"
+              />
+            ) : (
+              <p className="profile-value">{profile.nickname}</p>
+            )}
+          </div>
+
+          {isEditing && (
+            <div className="profile-field">
+              <label>Avatar URL</label>
+              <input
+                type="url"
+                value={editData.avatar_url}
+                onChange={(e) =>
+                  setEditData((prev) => ({
+                    ...prev,
+                    avatar_url: e.target.value,
+                  }))
+                }
+                className="profile-input"
+                placeholder="https://example.com/avatar.jpg"
+              />
+            </div>
+          )}
+
+          <div className="profile-field">
+            <label>Telegram ID</label>
+            <p className="profile-value muted">{profile.telegram_id}</p>
+          </div>
+
+          <div className="profile-field">
+            <label>Role</label>
+            <Badge mode="secondary" type="number" style={{ textTransform: "capitalize" }}>
+              {profile.role}
+            </Badge>
+          </div>
+
+          <div className="profile-field">
+            <label>Member Since</label>
+            <p className="profile-value">
+              {new Date(profile.created_at).toLocaleDateString()}
+            </p>
+          </div>
+
+          {isEditing && (
+            <div className="profile-actions">
+              <Button
+                mode="filled"
+                size="l"
+                onClick={handleSave}
+                disabled={isSaving || !editData.nickname.trim()}
+                className="profile-actions__primary"
               >
-                0
-              </Title>
+                {isSaving ? (
+                  "Saving..."
+                ) : (
+                  <span className="profile-actions__primary-content">
+                    <Save size={16} />
+                    Save Changes
+                  </span>
+                )}
+              </Button>
+              <Button
+                mode="outline"
+                size="l"
+                onClick={handleCancel}
+                disabled={isSaving}
+                className="profile-actions__secondary"
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
+        </div>
+
+        <div className="profile-card">
+          <div className="profile-card__header">
+            <div className="profile-card__icon">
+              <MapPin size={18} />
+            </div>
+            <div>
+              <Title level="3">Your Activity</Title>
+              <Caption>Track locations you add and favorite</Caption>
+            </div>
+          </div>
+
+          <div className="profile-stats">
+            <div className="profile-stat">
+              <Title level="1">0</Title>
               <Caption>Locations Added</Caption>
             </div>
-            <div
-              style={{
-                textAlign: "center",
-                padding: 16,
-                backgroundColor: "var(--tg-color-bg-secondary)",
-                borderRadius: 12,
-                border: "1px solid var(--tg-color-separator)",
-              }}
-            >
-              <Title
-                level="1"
-                style={{
-                  color: "var(--tg-color-destructive)",
-                  marginBottom: 4,
-                }}
-              >
-                0
-              </Title>
+            <div className="profile-stat">
+              <Title level="1">0</Title>
               <Caption>Favorites</Caption>
             </div>
           </div>
-        </Section>
+        </div>
       </div>
     </div>
   );
