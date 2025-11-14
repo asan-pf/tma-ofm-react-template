@@ -172,7 +172,7 @@ export function ProfilePage() {
       <div className="profile-hero">
         <div className="profile-hero__header">
           <div className="profile-hero__title">
-            <Avatar size={32} style={{ backgroundColor: "var(--tg-color-accent)" }}>
+            <Avatar size={28} style={{ backgroundColor: "var(--tg-color-accent)" }}>
               <User size={18} />
             </Avatar>
             <div>
@@ -195,7 +195,7 @@ export function ProfilePage() {
         <div className="profile-hero__body">
           <div className="profile-avatar">
             <Avatar
-              size={120}
+              size={96}
               src={currentAvatar}
               style={{
                 border: "4px solid rgba(255,255,255,0.9)",
