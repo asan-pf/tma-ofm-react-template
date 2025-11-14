@@ -5,10 +5,10 @@ export default async function handler(req, res) {
   const allowedOrigins = [
     'https://openfreemap-frontend.vercel.app',
     'https://tma-ofm-react-template.vercel.app',
+    'https://ofm-staging-frontend-git-master-ashharamirs-projects.vercel.app',
     'http://localhost:5173',
     'http://localhost:3000'
   ];
-  
   const origin = req.headers.origin;
   if (allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
