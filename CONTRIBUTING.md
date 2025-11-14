@@ -66,3 +66,6 @@ Contributions are released under the project MIT License (`LICENSE`). By submitt
 - [ ] Relevant documentation updated
 - [ ] Manual verification notes provided (backend endpoints tested, UI flows exercised)
 - [ ] For bot changes: describe how you validated Telegram interactions
+
+## Contact us
+If you want to contribute to this project as a QA manager or have questions you are welcome to contact us, my telegram nickname: `@AcademMisfit`

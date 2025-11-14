@@ -13,165 +13,48 @@ export function MapHeader({
   onProfileClick,
   onSearchClick,
 }: MapHeaderProps) {
-  return (
-    <div
-      style={{
-        position: "sticky",
-        top: 0,
-        zIndex: 1000,
-        background: "var(--tg-theme-bg-color)",
-        borderBottom: "1px solid var(--tg-theme-section-separator-color)",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-      }}
-    >
-      {/* Main Navigation Tabs */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "12px 16px 8px 16px",
-        }}
+  const tabButton = (tab: MapHeaderProps["activeTab"], label: string, Icon: typeof MapPin) => {
+    const isActive = activeTab === tab;
+    return (
+      <button
+        key={tab}
+        onClick={() => setActiveTab(tab)}
+        className={`map-header-tab${isActive ? " is-active" : ""}`}
       >
-        <div
-          style={{
-            display: "flex",
-            background: "var(--tg-theme-section-bg-color)",
-            borderRadius: "12px",
-            padding: "4px",
-            border: "1px solid var(--tg-theme-section-separator-color)",
-          }}
-        >
-          <button
-            onClick={() => setActiveTab("explore")}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "10px 16px",
-              borderRadius: "8px",
-              border: "none",
-              background:
-                activeTab === "explore"
-                  ? "var(--tg-theme-button-color)"
-                  : "transparent",
-              color:
-                activeTab === "explore"
-                  ? "#FFFFFF"
-                  : "var(--tg-theme-text-color)",
-              fontWeight: "600",
-              fontSize: "14px",
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-            }}
-          >
-            <MapPin size={16} />
-            Explore
-          </button>
-          <button
-            onClick={() => setActiveTab("favorites")}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "10px 16px",
-              borderRadius: "8px",
-              border: "none",
-              background:
-                activeTab === "favorites"
-                  ? "var(--tg-theme-button-color)"
-                  : "transparent",
-              color:
-                activeTab === "favorites"
-                  ? "#FFFFFF"
-                  : "var(--tg-theme-text-color)",
-              fontWeight: "600",
-              fontSize: "14px",
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-            }}
-          >
-            <Heart size={16} />
-            Favorites
-          </button>
-          <button
-            onClick={() => setActiveTab("saved")}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "10px 16px",
-              borderRadius: "8px",
-              border: "none",
-              background:
-                activeTab === "saved"
-                  ? "var(--tg-theme-button-color)"
-                  : "transparent",
-              color:
-                activeTab === "saved"
-                  ? "#FFFFFF"
-                  : "var(--tg-theme-text-color)",
-              fontWeight: "600",
-              fontSize: "14px",
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-            }}
-          >
-            <Bookmark size={16} />
-            Saved
-          </button>
+        <Icon size={16} />
+        <span>{label}</span>
+      </button>
+    );
+  };
+
+  return (
+    <div className="map-header">
+      <div className="map-header-bar">
+        <div className="map-header-tabs">
+          {tabButton("explore", "Explore", MapPin)}
+          {tabButton("favorites", "Favorites", Heart)}
+          {tabButton("saved", "Saved", Bookmark)}
         </div>
 
         <button
           onClick={onProfileClick}
-          style={{
-            background: "var(--tg-theme-section-bg-color)",
-            border: "1px solid var(--tg-theme-section-separator-color)",
-            borderRadius: "50%",
-            width: 40,
-            height: 40,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            color: "var(--tg-theme-text-color)",
-            transition: "all 0.2s ease",
-          }}
+          className="map-header-profile-btn"
+          aria-label="Open profile"
         >
           <User size={16} />
         </button>
       </div>
 
-      {/* Search Bar for Explore Tab */}
       {activeTab === "explore" && (
-        <div
-          style={{
-            padding: "0 16px 12px 16px",
-          }}
-        >
+        <div className="map-header-search-row">
           <button
             onClick={onSearchClick}
-            style={{
-              width: "100%",
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              padding: "14px 20px",
-              background: "var(--tg-theme-bg-color)",
-              border: "2px solid var(--tg-theme-section-separator-color)",
-              borderRadius: "28px",
-              color: "var(--tg-theme-hint-color)",
-              fontSize: "16px",
-              cursor: "pointer",
-              textAlign: "left",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-              transition: "all 0.2s ease",
-            }}
+            className="map-header-search"
+            aria-label="Search locations"
           >
             <Search size={20} />
             <span>Search for places, locations...</span>
           </button>
-
         </div>
       )}
     </div>
