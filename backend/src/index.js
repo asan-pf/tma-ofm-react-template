@@ -34,6 +34,11 @@ app.use(express.json());
 
 // Supabase client is provided via lib with fallback to local PostgREST
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.send('OpenFreeMap Backend is running! 🚀<br>Check <a href="/health">/health</a> for status.');
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
