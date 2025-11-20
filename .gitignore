@@ -25,5 +25,6 @@ dist-ssr
 
 *.pem
 .env
+.env.docker
 /.claude
 /.claude
