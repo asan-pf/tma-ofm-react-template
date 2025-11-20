@@ -34,8 +34,9 @@ services:
       PGRST_SERVER_PORT: 3000
       # Optional: enable detailed error messages during dev
       PGRST_LOG_LEVEL: info
-      # Random secret for JWT (required by PostgREST)
-      PGRST_JWT_SECRET: "reallyreallreallyreallyreallyreallyreallyreallyreallyreallylongsecret"
+      # Disable JWT authentication for local development
+      PGRST_JWT_SECRET: "reallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallysecret"
+      PGRST_JWT_SECRET_IS_BASE64: "false"
     expose:
       - "3000"
 

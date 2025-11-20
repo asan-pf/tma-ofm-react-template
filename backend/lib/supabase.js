@@ -26,5 +26,11 @@ export const supabase = createClient(String(supabaseUrl), String(supabaseKey), {
     autoRefreshToken: false,
     persistSession: false,
     detectSessionInUrl: false
+  },
+  global: {
+    headers: {
+      // Don't send apikey header for local PostgREST
+      ...(supabaseUrl?.includes('localhost') || supabaseUrl?.includes('proxy') ? {} : { apikey: supabaseKey })
+    }
   }
 });
