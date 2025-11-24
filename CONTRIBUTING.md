@@ -6,21 +6,52 @@ Thanks for helping improve the OpenFreeMap Telegram Mini App! This guide explain
 
 We support two main workflows. Pick the one that matches the tools you already have.
 
-### Option A – One-command Docker stack
-1. Install Docker Desktop (or Docker Engine) and Docker Compose.
-2. Copy the backend environment template: `cp backend/.env.example backend/.env` and set `BOT_TOKEN` plus any overrides you need.
-3. Run everything with one command:
+### Option A – Automated Docker Setup (Recommended)
+
+This is the easiest way to get started. Everything is automated!
+
+1. **Install Prerequisites:**
+   - Docker Desktop (or Docker Engine + Docker Compose)
+   - ngrok (sign up at https://ngrok.com and configure your authtoken)
+   - Get a Telegram Bot Token from [@BotFather](https://t.me/BotFather)
+
+2. **Configure Environment:**
    ```bash
-   docker compose up --build
+   cp backend/.env.example backend/.env
+   # Edit backend/.env and set your BOT_TOKEN
    ```
-   This boots Postgres, the API, the Vite frontend, and an Nginx proxy. Hot reloads are wired in, so contributors do not need separate `npm run dev` windows.
-4. To share the stack with Telegram, expose the Nginx port using your tunnel of choice:
+
+3. **Run the automated script:**
+   
+   **Windows (PowerShell):**
+   ```powershell
+   .\start-dev.ps1
+   ```
+   
+   **Linux/Mac (Bash):**
    ```bash
-   ngrok http http://localhost:8000
+   chmod +x start-dev.sh
+   ./start-dev.sh
    ```
-   Register the public URL with BotFather and you are ready to test the Mini App end-to-end.
+
+   The script will:
+   - ✅ Start Docker Compose (PostgreSQL + PostgREST + Backend)
+   - ✅ Wait for services to be healthy
+   - ✅ Start ngrok tunnel on port 3000
+   - ✅ Automatically update your Telegram bot webhook
+   - ✅ Display all service URLs
+
+4. **Test your setup:**
+   - Open your Telegram bot and send `/start`
+   - Test the API: `curl http://localhost:3000/health`
+   - View logs: `docker compose logs -f backend`
+
+For detailed instructions, see **[docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md)**.
 
 ### Option B – Hosted Supabase + Node
+
+If you prefer not to use Docker:
+
 1. Create a Supabase project and obtain your `SUPABASE_URL` and `SUPABASE_ANON_KEY`.
 2. Run the schema found at `backend/database/schema.sql` in the Supabase SQL editor.
 3. Configure backend environment variables (`backend/.env`):

@@ -30,31 +30,40 @@ A **Telegram Mini App** - **OpenFreeMap** integration. Share your favorite locat
 - Supabase PostgreSQL
 - Telegram Bot integration
 
-## Local Database via Docker (no Supabase required)
+## 🚀 Local Development Setup
 
-If `SUPABASE_URL` and `SUPABASE_ANON_KEY` are not provided, the backend can talk to a local Postgres through PostgREST that mimics the Supabase REST endpoint.
+**New contributors**: We've created an automated setup process! See the **[Local Development Guide](docs/LOCAL_DEVELOPMENT.md)** for detailed instructions.
 
-Quick start:
+### Quick Start (Automated)
 
-- From the repo root: `docker compose up --build`
-- This launches Postgres + PostgREST + a tiny proxy on `http://localhost:8000/rest/v1`.
-- The backend auto-falls back to `LOCAL_SUPABASE_URL=http://localhost:8000` with a dev key.
-- First-run initializes tables from `backend/database/schema.sql`.
-
-To force local mode, or customize:
-
-```env
-# backend/.env
-LOCAL_SUPABASE_URL=http://localhost:8000
-LOCAL_SUPABASE_ANON_KEY=dev-local-noauth
+**Windows (PowerShell):**
+```powershell
+.\start-dev.ps1
 ```
 
-## Quick Start
+**Linux/Mac (Bash):**
+```bash
+chmod +x start-dev.sh
+./start-dev.sh
+```
+
+This will automatically:
+- ✅ Start Docker Compose (PostgreSQL + Backend)
+- ✅ Start ngrok tunnel
+- ✅ Update Telegram webhook
+- ✅ Display all service URLs
 
 ### Prerequisites
-- Node.js 18+
+- Docker Desktop
+- ngrok (with authtoken configured)
 - Telegram Bot Token
-- Supabase account
+- Frontend deployed to Vercel (optional for backend testing)
+
+For detailed setup instructions, troubleshooting, and manual setup options, see **[docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md)**.
+
+## Alternative: Hosted Setup
+
+If you prefer not to use Docker locally:
 
 ### Frontend Setup
 
@@ -69,9 +78,10 @@ npm run dev:https
 cd backend
 npm install
 cp .env.example .env
-# Configure environment variables (use hosted Supabase or rely on Docker local DB)
+# Configure environment variables with hosted Supabase
 npm run dev
 ```
+
 
 ### Environment Variables
 
