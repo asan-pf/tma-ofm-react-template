@@ -6,9 +6,9 @@ Thanks for helping improve the OpenFreeMap Telegram Mini App! This guide explain
 
 We support two main workflows. Pick the one that matches the tools you already have.
 
-### Option A – Automated Docker Setup (Recommended)
+### Option A – Docker-based Local Development (Recommended)
 
-This is the easiest way to get started. Everything is automated!
+This setup runs the entire stack (Database, PostgREST, Backend) locally using Docker.
 
 1. **Install Prerequisites:**
    - Docker Desktop (or Docker Engine + Docker Compose)
@@ -18,35 +18,31 @@ This is the easiest way to get started. Everything is automated!
 2. **Configure Environment:**
    ```bash
    cp backend/.env.example backend/.env
-   # Edit backend/.env and set your BOT_TOKEN
    ```
+   Edit `backend/.env` and set your `BOT_TOKEN` and `FRONTEND_URL`.
 
-3. **Run the automated script:**
-   
-   **Windows (PowerShell):**
-   ```powershell
-   .\start-dev.ps1
-   ```
-   
-   **Linux/Mac (Bash):**
+3. **Start Docker Services:**
    ```bash
-   chmod +x start-dev.sh
-   ./start-dev.sh
+   docker compose up -d --build
+   ```
+   This starts PostgreSQL (5432), PostgREST (8000), and the Backend (3000).
+
+4. **Start ngrok:**
+   ```bash
+   ngrok http 3000
+   ```
+   Copy the HTTPS URL (e.g., `https://abc1234.ngrok-free.app`).
+
+5. **Update Telegram Webhook:**
+   Run this command (replace `<TOKEN>` and `<NGROK_URL>`):
+   ```bash
+   curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=<NGROK_URL>/webhook"
    ```
 
-   The script will:
-   - ✅ Start Docker Compose (PostgreSQL + PostgREST + Backend)
-   - ✅ Wait for services to be healthy
-   - ✅ Start ngrok tunnel on port 3000
-   - ✅ Automatically update your Telegram bot webhook
-   - ✅ Display all service URLs
-
-4. **Test your setup:**
+6. **Test your setup:**
    - Open your Telegram bot and send `/start`
-   - Test the API: `curl http://localhost:3000/health`
+   - Test the API: `curl http://localhost:3000/api/health`
    - View logs: `docker compose logs -f backend`
-
-For detailed instructions, see **[docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md)**.
 
 ### Option B – Hosted Supabase + Node
 

@@ -32,34 +32,9 @@ A **Telegram Mini App** - **OpenFreeMap** integration. Share your favorite locat
 
 ## 🚀 Local Development Setup
 
-**New contributors**: We've created an automated setup process! See the **[Local Development Guide](docs/LOCAL_DEVELOPMENT.md)** for detailed instructions.
+We support both Docker-based local development and hosted Supabase setups.
 
-### Quick Start (Automated)
-
-**Windows (PowerShell):**
-```powershell
-.\start-dev.ps1
-```
-
-**Linux/Mac (Bash):**
-```bash
-chmod +x start-dev.sh
-./start-dev.sh
-```
-
-This will automatically:
-- ✅ Start Docker Compose (PostgreSQL + Backend)
-- ✅ Start ngrok tunnel
-- ✅ Update Telegram webhook
-- ✅ Display all service URLs
-
-### Prerequisites
-- Docker Desktop
-- ngrok (with authtoken configured)
-- Telegram Bot Token
-- Frontend deployed to Vercel (optional for backend testing)
-
-For detailed setup instructions, troubleshooting, and manual setup options, see **[docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md)**.
+For detailed instructions on how to set up the project locally, please see **[CONTRIBUTING.md](CONTRIBUTING.md)**.
 
 ## Alternative: Hosted Setup
 
