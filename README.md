@@ -30,31 +30,15 @@ A **Telegram Mini App** - **OpenFreeMap** integration. Share your favorite locat
 - Supabase PostgreSQL
 - Telegram Bot integration
 
-## Local Database via Docker (no Supabase required)
+## 🚀 Local Development Setup
 
-If `SUPABASE_URL` and `SUPABASE_ANON_KEY` are not provided, the backend can talk to a local Postgres through PostgREST that mimics the Supabase REST endpoint.
+We support both Docker-based local development and hosted Supabase setups.
 
-Quick start:
+For detailed instructions on how to set up the project locally, please see **[CONTRIBUTING.md](CONTRIBUTING.md)**.
 
-- From the repo root: `docker compose up --build`
-- This launches Postgres + PostgREST + a tiny proxy on `http://localhost:8000/rest/v1`.
-- The backend auto-falls back to `LOCAL_SUPABASE_URL=http://localhost:8000` with a dev key.
-- First-run initializes tables from `backend/database/schema.sql`.
+## Alternative: Hosted Setup
 
-To force local mode, or customize:
-
-```env
-# backend/.env
-LOCAL_SUPABASE_URL=http://localhost:8000
-LOCAL_SUPABASE_ANON_KEY=dev-local-noauth
-```
-
-## Quick Start
-
-### Prerequisites
-- Node.js 18+
-- Telegram Bot Token
-- Supabase account
+If you prefer not to use Docker locally:
 
 ### Frontend Setup
 
@@ -69,9 +53,10 @@ npm run dev:https
 cd backend
 npm install
 cp .env.example .env
-# Configure environment variables (use hosted Supabase or rely on Docker local DB)
+# Configure environment variables with hosted Supabase
 npm run dev
 ```
+
 
 ### Environment Variables
 

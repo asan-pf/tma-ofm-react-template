@@ -34,8 +34,8 @@ app.use(express.json());
 
 // Supabase client is provided via lib with fallback to local PostgREST
 
-// Health check endpoint
-app.get('/health', (req, res) => {
+// API health check endpoint
+app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
