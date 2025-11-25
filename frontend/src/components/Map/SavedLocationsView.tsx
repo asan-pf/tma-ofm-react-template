@@ -21,14 +21,12 @@ interface SavedLocationsViewProps {
   onLocationClick: (location: Location) => void;
   onToggleFavorite: (locationId: number) => void;
   onAddLocationRequest?: () => void;
-  canAddLocation?: boolean;
 }
 
 export function SavedLocationsView({
   locations,
   onLocationClick,
   onAddLocationRequest,
-  canAddLocation = true,
 }: SavedLocationsViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -150,22 +148,17 @@ export function SavedLocationsView({
             <button
               type="button"
               onClick={onAddLocationRequest}
-              disabled={!canAddLocation}
               style={{
                 padding: "12px 16px",
                 borderRadius: 12,
                 border: "none",
-                background: canAddLocation
-                  ? "var(--tg-theme-button-color)"
-                  : "var(--tg-theme-section-separator-color)",
-                color: canAddLocation
-                  ? "var(--tg-theme-button-text-color, #fff)"
-                  : "var(--tg-theme-hint-color)",
+                background: "var(--tg-theme-button-color)",
+                color: "var(--tg-theme-button-text-color, #fff)",
                 fontWeight: 600,
-                cursor: canAddLocation ? "pointer" : "not-allowed",
+                cursor: "pointer",
               }}
             >
-              {canAddLocation ? "Add location" : "Location limit reached"}
+              Add location
             </button>
           </div>
         )}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapPin } from "lucide-react";
 import { useGeolocation } from "@/hooks/useGeolocation";
@@ -118,6 +118,7 @@ export function MapPage() {
   const [showTapActionSheet, setShowTapActionSheet] = useState(false);
   const [showTapHint, setShowTapHint] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [isPlacementMode, setIsPlacementMode] = useState(false);
 
   const navigate = useNavigate();
   const { latitude, longitude } = useGeolocation();
@@ -126,13 +127,6 @@ export function MapPage() {
     (launchParams?.initDataUnsafe as any)?.user ??
       (import.meta.env.DEV ? DEV_FALLBACK_TELEGRAM_USER : null)
   );
-
-  const userHasLocation = useMemo(() => {
-    if (!userProfile) return false;
-    return locations.some((location) => location.user_id === userProfile.id);
-  }, [locations, userProfile]);
-
-  const canAddLocation = !!telegramUser && !userHasLocation;
 
   const [dynamicMapCenter, setDynamicMapCenter] = useState({
     lat: latitude || 48.8566,
@@ -197,13 +191,18 @@ export function MapPage() {
     }
   }, [mapRef, pendingMapFocus]);
 
+  const exitPlacementMode = useCallback(() => {
+    setIsPlacementMode(false);
+    setShowTapHint(false);
+    setShowTapActionSheet(false);
+    setMapTapLocation(null);
+  }, []);
+
   useEffect(() => {
     if (activeTab !== "explore") {
-      setShowTapHint(false);
-      setShowTapActionSheet(false);
-      setMapTapLocation(null);
+      exitPlacementMode();
     }
-  }, [activeTab]);
+  }, [activeTab, exitPlacementMode]);
 
   useEffect(() => {
     setLocations((prev) => {
@@ -309,10 +308,6 @@ export function MapPage() {
     const effectiveUser = telegramUser ?? DEV_FALLBACK_TELEGRAM_USER;
 
     if (!addLocationData.name.trim()) return;
-    if (!canAddLocation) {
-      alert("You can only create one location.");
-      return;
-    }
 
     setIsSubmitting(true);
     try {
@@ -338,6 +333,7 @@ export function MapPage() {
 
       if (response.ok) {
         setShowAddLocationModal(false);
+        exitPlacementMode();
         setMapTapLocation(null);
         setAddLocationData({
           lat: 0,
@@ -350,11 +346,7 @@ export function MapPage() {
           type: "permanent",
           category: "other",
         });
-        setShowTapActionSheet(false);
-        setShowTapHint(false);
         loadLocations();
-      } else if (response.status === 409) {
-        alert("You can only create one location.");
       } else {
         throw new Error("Failed to add location");
       }
@@ -529,7 +521,13 @@ export function MapPage() {
   };
 
   const handleMapClick = (lat: number, lng: number) => {
-    if (showAddLocationModal || showSearchModal || showLocationDetail) {
+    if (
+      !isPlacementMode ||
+      showAddLocationModal ||
+      showSearchModal ||
+      showLocationDetail ||
+      showTapActionSheet
+    ) {
       return;
     }
 
@@ -541,17 +539,12 @@ export function MapPage() {
   const handleMapTapAdd = () => {
     if (!mapTapLocation) return;
 
-    if (!canAddLocation) {
-      setShowTapActionSheet(false);
-      alert("You can only create one location.");
-      return;
-    }
-
     setAddLocationData((prev) => ({
       ...prev,
       lat: mapTapLocation.lat,
       lng: mapTapLocation.lng,
     }));
+    setIsPlacementMode(false);
     setShowAddLocationModal(true);
     setShowTapActionSheet(false);
     setMapTapLocation(null);
@@ -695,14 +688,12 @@ export function MapPage() {
               onLocationClick={handleLocationClick}
               onToggleFavorite={toggleFavorite}
               onAddLocationRequest={() => {
-                if (!canAddLocation) {
-                  alert("You can only create one location.");
-                  return;
-                }
                 setActiveTab("explore");
+                setIsPlacementMode(true);
                 setShowTapHint(true);
+                setShowTapActionSheet(false);
+                setMapTapLocation(null);
               }}
-              canAddLocation={canAddLocation}
             />
           )}
         </div>
@@ -712,6 +703,7 @@ export function MapPage() {
           onClose={() => {
             setShowAddLocationModal(false);
             setMapTapLocation(null);
+            exitPlacementMode();
           }}
           addLocationData={addLocationData}
           setAddLocationData={setAddLocationData}
@@ -785,11 +777,7 @@ export function MapPage() {
           isOpen={showTapActionSheet}
           coordinates={mapTapLocation}
           onAddLocation={handleMapTapAdd}
-          onClose={() => {
-            setShowTapActionSheet(false);
-            setMapTapLocation(null);
-          }}
-          canAddLocation={canAddLocation}
+          onClose={exitPlacementMode}
         />
       </div>
     </>

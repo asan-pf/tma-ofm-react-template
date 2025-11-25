@@ -5,7 +5,6 @@ interface MapTapActionSheetProps {
   coordinates: { lat: number; lng: number } | null;
   onAddLocation: () => void;
   onClose: () => void;
-  canAddLocation: boolean;
 }
 
 export function MapTapActionSheet({
@@ -13,7 +12,6 @@ export function MapTapActionSheet({
   coordinates,
   onAddLocation,
   onClose,
-  canAddLocation,
 }: MapTapActionSheetProps) {
   if (!isOpen || !coordinates) {
     return null;
@@ -96,13 +94,11 @@ export function MapTapActionSheet({
             marginBottom: 20,
           }}
         >
-          Tap the button below to create a location for this point. You can only submit
-          one location per user.
+          Tap the button below to create a location for this point.
         </p>
 
         <button
           onClick={onAddLocation}
-          disabled={!canAddLocation}
           style={{
             width: "100%",
             padding: "14px 20px",
@@ -110,15 +106,13 @@ export function MapTapActionSheet({
             border: "none",
             fontSize: 16,
             fontWeight: 600,
-            backgroundColor: canAddLocation
-              ? "var(--tg-theme-button-color, #2563eb)"
-              : "var(--tg-theme-section-separator-color, #1e293b)",
-            color: canAddLocation ? "var(--tg-theme-button-text-color, #fff)" : "#94a3b8",
-            cursor: canAddLocation ? "pointer" : "not-allowed",
+            backgroundColor: "var(--tg-theme-button-color, #2563eb)",
+            color: "var(--tg-theme-button-text-color, #fff)",
+            cursor: "pointer",
             transition: "opacity 0.2s ease",
           }}
         >
-          {canAddLocation ? "Add location here" : "Location limit reached"}
+          Add location here
         </button>
       </div>
     </div>
