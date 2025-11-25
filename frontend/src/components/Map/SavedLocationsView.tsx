@@ -20,11 +20,15 @@ interface SavedLocationsViewProps {
   locations: Location[];
   onLocationClick: (location: Location) => void;
   onToggleFavorite: (locationId: number) => void;
+  onAddLocationRequest?: () => void;
+  canAddLocation?: boolean;
 }
 
 export function SavedLocationsView({
   locations,
   onLocationClick,
+  onAddLocationRequest,
+  canAddLocation = true,
 }: SavedLocationsViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -125,6 +129,46 @@ export function SavedLocationsView({
         >
           {filteredLocations.length} of {locations.length} locations
         </p>
+
+        {onAddLocationRequest && (
+          <div
+            style={{
+              marginTop: 16,
+              padding: "16px",
+              borderRadius: 16,
+              background: "var(--tg-theme-bg-color)",
+              border: "1px dashed var(--tg-theme-section-separator-color)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+            }}
+          >
+            <div style={{ fontWeight: 600 }}>Share your favorite place</div>
+            <div style={{ fontSize: 13, color: "var(--tg-theme-hint-color)" }}>
+              Tap anywhere on the map after clicking the button below to start the form.
+            </div>
+            <button
+              type="button"
+              onClick={onAddLocationRequest}
+              disabled={!canAddLocation}
+              style={{
+                padding: "12px 16px",
+                borderRadius: 12,
+                border: "none",
+                background: canAddLocation
+                  ? "var(--tg-theme-button-color)"
+                  : "var(--tg-theme-section-separator-color)",
+                color: canAddLocation
+                  ? "var(--tg-theme-button-text-color, #fff)"
+                  : "var(--tg-theme-hint-color)",
+                fontWeight: 600,
+                cursor: canAddLocation ? "pointer" : "not-allowed",
+              }}
+            >
+              {canAddLocation ? "Add location" : "Location limit reached"}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Search and Filters */}

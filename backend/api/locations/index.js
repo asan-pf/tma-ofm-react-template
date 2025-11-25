@@ -39,7 +39,29 @@ export default async function handler(req, res) {
     }
   } else if (req.method === 'POST') {
     try {
-      const { name, description, latitude, longitude, category, userId } = req.body;
+      const {
+        name,
+        description,
+        latitude,
+        longitude,
+        category,
+        userId,
+        websiteUrl,
+        imageUrl,
+        schedules,
+      } = req.body;
+
+      if (userId) {
+        const { count: existingCount, error: existingCountError } = await supabase
+          .from('locations')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', userId);
+
+        if (existingCountError) throw existingCountError;
+        if ((existingCount ?? 0) > 0) {
+          return res.status(409).json({ error: 'User has already created a location' });
+        }
+      }
       
       const { data, error } = await supabase
         .from('locations')
@@ -51,7 +73,10 @@ export default async function handler(req, res) {
           category,
           user_id: userId,
           type: 'permanent',
-          is_approved: false
+          is_approved: false,
+          website_url: websiteUrl ?? null,
+          image_url: imageUrl ?? null,
+          schedules: schedules ?? null
         }])
         .select()
         .single();
