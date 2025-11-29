@@ -6,21 +6,55 @@ Thanks for helping improve the OpenFreeMap Telegram Mini App! This guide explain
 
 We support two main workflows. Pick the one that matches the tools you already have.
 
-### Option A – One-command Docker stack
-1. Install Docker Desktop (or Docker Engine) and Docker Compose.
-2. Copy the backend environment template: `cp backend/.env.example backend/.env` and set `BOT_TOKEN` plus any overrides you need.
-3. Run everything with one command:
+### Option A – Docker-based Local Development (Recommended)
+
+This setup runs the entire stack (Frontend, Backend, Database, PostgREST) locally using Docker.
+
+1. **Install Prerequisites:**
+   - Docker Desktop (or Docker Engine + Docker Compose)
+   - ngrok (sign up at https://ngrok.com and configure your authtoken)
+   - Get a Telegram Bot Token from [@BotFather](https://t.me/BotFather)
+
+2. **Start ngrok:**
+   Start ngrok to expose your local frontend (port 80) via HTTPS. This is required for Telegram Mini Apps.
    ```bash
-   docker compose up --build
+   ngrok http 80
    ```
-   This boots Postgres, the API, the Vite frontend, and an Nginx proxy. Hot reloads are wired in, so contributors do not need separate `npm run dev` windows.
-4. To share the stack with Telegram, expose the Nginx port using your tunnel of choice:
+   Copy the HTTPS URL (e.g., `https://abc1234.ngrok-free.app`).
+   
+   > **Tip:** If you have a static domain, use:
+   > ```bash
+   > ngrok http --domain=your-domain.ngrok-free.app 80
+   > ```
+
+3. **Configure Environment:**
    ```bash
-   ngrok http http://localhost:8000
+   cp backend/.env.example backend/.env
    ```
-   Register the public URL with BotFather and you are ready to test the Mini App end-to-end.
+   Edit `backend/.env`:
+   - Set `BOT_TOKEN` to your Telegram Bot Token.
+   - Set `FRONTEND_URL` to the ngrok URL you copied in step 2.
+
+4. **Start Docker Services:**
+   ```bash
+   docker compose up -d --build
+   ```
+   This starts:
+   - Frontend (Nginx) on port 80
+   - Backend (Node.js) on port 3000
+   - PostgreSQL (5432)
+   - PostgREST (8000)
+
+5. **Test your setup:**
+   - Open your Telegram bot and send `/start`.
+   - Click "Open Map". It should load the Mini App via the ngrok URL.
+   - The Mini App will communicate with the backend via the same ngrok URL (proxied by Nginx).
+   - View logs: `docker compose logs -f`
 
 ### Option B – Hosted Supabase + Node
+
+If you prefer not to use Docker:
+
 1. Create a Supabase project and obtain your `SUPABASE_URL` and `SUPABASE_ANON_KEY`.
 2. Run the schema found at `backend/database/schema.sql` in the Supabase SQL editor.
 3. Configure backend environment variables (`backend/.env`):
