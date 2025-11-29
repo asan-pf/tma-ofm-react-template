@@ -544,7 +544,11 @@ process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
 
 // Start bot
-bot.launch().then(() => {
+// Delete webhook before launching to ensure polling works
+bot.telegram.deleteWebhook().then(() => {
+  console.log('Webhook deleted, starting polling...');
+  return bot.launch();
+}).then(() => {
   console.log('Bot started successfully');
   console.log('Frontend URL:', FRONTEND_URL);
 }).catch(err => {

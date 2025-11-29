@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { BACKEND_URL } from "../config";
 import { useNavigate } from "react-router-dom";
 import { MapPin } from "lucide-react";
 import { useGeolocation } from "@/hooks/useGeolocation";
@@ -119,7 +120,7 @@ export function MapPage() {
   const launchParams = retrieveLaunchParams();
   const telegramUser = normalizeTelegramUser(
     (launchParams?.initDataUnsafe as any)?.user ??
-      (import.meta.env.DEV ? DEV_FALLBACK_TELEGRAM_USER : null)
+    (import.meta.env.DEV ? DEV_FALLBACK_TELEGRAM_USER : null)
   );
 
   const [dynamicMapCenter, setDynamicMapCenter] = useState({
@@ -181,8 +182,7 @@ export function MapPage() {
 
   const loadLocations = async () => {
     try {
-      const BACKEND_URL =
-        import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+
       const response = await fetch(`${BACKEND_URL}/api/locations`);
       if (response.ok) {
         const data = await response.json();
@@ -243,8 +243,7 @@ export function MapPage() {
         return;
       }
 
-      const BACKEND_URL =
-        import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+
       const response = await fetch(
         `${BACKEND_URL}/api/users/${telegramUser.id}/favorites`
       );
@@ -264,8 +263,7 @@ export function MapPage() {
 
     setIsSubmitting(true);
     try {
-      const BACKEND_URL =
-        import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+
 
       const response = await fetch(`${BACKEND_URL}/api/locations`, {
         method: "POST",
@@ -359,8 +357,7 @@ export function MapPage() {
         return;
       }
 
-      const BACKEND_URL =
-        import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+
       const isFavorited = favoriteLocations.some(
         (fav) => fav.id === locationId
       );

@@ -8,41 +8,48 @@ We support two main workflows. Pick the one that matches the tools you already h
 
 ### Option A – Docker-based Local Development (Recommended)
 
-This setup runs the entire stack (Database, PostgREST, Backend) locally using Docker.
+This setup runs the entire stack (Frontend, Backend, Database, PostgREST) locally using Docker.
 
 1. **Install Prerequisites:**
    - Docker Desktop (or Docker Engine + Docker Compose)
    - ngrok (sign up at https://ngrok.com and configure your authtoken)
    - Get a Telegram Bot Token from [@BotFather](https://t.me/BotFather)
 
-2. **Configure Environment:**
+2. **Start ngrok:**
+   Start ngrok to expose your local frontend (port 80) via HTTPS. This is required for Telegram Mini Apps.
+   ```bash
+   ngrok http 80
+   ```
+   Copy the HTTPS URL (e.g., `https://abc1234.ngrok-free.app`).
+   
+   > **Tip:** If you have a static domain, use:
+   > ```bash
+   > ngrok http --domain=your-domain.ngrok-free.app 80
+   > ```
+
+3. **Configure Environment:**
    ```bash
    cp backend/.env.example backend/.env
    ```
-   Edit `backend/.env` and set your `BOT_TOKEN` and `FRONTEND_URL`.
+   Edit `backend/.env`:
+   - Set `BOT_TOKEN` to your Telegram Bot Token.
+   - Set `FRONTEND_URL` to the ngrok URL you copied in step 2.
 
-3. **Start Docker Services:**
+4. **Start Docker Services:**
    ```bash
    docker compose up -d --build
    ```
-   This starts PostgreSQL (5432), PostgREST (8000), and the Backend (3000).
+   This starts:
+   - Frontend (Nginx) on port 80
+   - Backend (Node.js) on port 3000
+   - PostgreSQL (5432)
+   - PostgREST (8000)
 
-4. **Start ngrok:**
-   ```bash
-   ngrok http 3000
-   ```
-   Copy the HTTPS URL (e.g., `https://abc1234.ngrok-free.app`).
-
-5. **Update Telegram Webhook:**
-   Run this command (replace `<TOKEN>` and `<NGROK_URL>`):
-   ```bash
-   curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=<NGROK_URL>/webhook"
-   ```
-
-6. **Test your setup:**
-   - Open your Telegram bot and send `/start`
-   - Test the API: `curl http://localhost:3000/api/health`
-   - View logs: `docker compose logs -f backend`
+5. **Test your setup:**
+   - Open your Telegram bot and send `/start`.
+   - Click "Open Map". It should load the Mini App via the ngrok URL.
+   - The Mini App will communicate with the backend via the same ngrok URL (proxied by Nginx).
+   - View logs: `docker compose logs -f`
 
 ### Option B – Hosted Supabase + Node
 
