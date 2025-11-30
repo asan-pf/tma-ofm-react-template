@@ -119,7 +119,7 @@ export function MapPage() {
   const launchParams = retrieveLaunchParams();
   const telegramUser = normalizeTelegramUser(
     (launchParams?.initDataUnsafe as any)?.user ??
-      (import.meta.env.DEV ? DEV_FALLBACK_TELEGRAM_USER : null)
+    (import.meta.env.DEV ? DEV_FALLBACK_TELEGRAM_USER : null)
   );
 
   const [dynamicMapCenter, setDynamicMapCenter] = useState({
@@ -182,7 +182,7 @@ export function MapPage() {
   const loadLocations = async () => {
     try {
       const BACKEND_URL =
-        import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+        import.meta.env.VITE_BACKEND_URL || "";
       const response = await fetch(`${BACKEND_URL}/api/locations`);
       if (response.ok) {
         const data = await response.json();
@@ -244,7 +244,7 @@ export function MapPage() {
       }
 
       const BACKEND_URL =
-        import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+        import.meta.env.VITE_BACKEND_URL || "";
       const response = await fetch(
         `${BACKEND_URL}/api/users/${telegramUser.id}/favorites`
       );
@@ -265,7 +265,7 @@ export function MapPage() {
     setIsSubmitting(true);
     try {
       const BACKEND_URL =
-        import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+        import.meta.env.VITE_BACKEND_URL || "";
 
       const response = await fetch(`${BACKEND_URL}/api/locations`, {
         method: "POST",
@@ -360,7 +360,7 @@ export function MapPage() {
       }
 
       const BACKEND_URL =
-        import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+        import.meta.env.VITE_BACKEND_URL || "";
       const isFavorited = favoriteLocations.some(
         (fav) => fav.id === locationId
       );

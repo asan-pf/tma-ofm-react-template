@@ -46,7 +46,7 @@ export function ProfilePage() {
 
     try {
       const BACKEND_URL =
-        import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+        import.meta.env.VITE_BACKEND_URL || "";
 
       let profileData;
       try {
@@ -67,9 +67,8 @@ export function ProfilePage() {
             telegramId: telegramUser.id.toString(),
             nickname:
               telegramUser.username ||
-              `${telegramUser.first_name} ${
-                telegramUser.last_name || ""
-              }`.trim(),
+              `${telegramUser.first_name} ${telegramUser.last_name || ""
+                }`.trim(),
             avatarUrl: null,
           }),
         });
@@ -94,7 +93,7 @@ export function ProfilePage() {
     setIsSaving(true);
     try {
       const BACKEND_URL =
-        import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+        import.meta.env.VITE_BACKEND_URL || "";
 
       const response = await fetch(
         `${BACKEND_URL}/api/users/update/${profile.id}`,

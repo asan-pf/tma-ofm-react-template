@@ -15,7 +15,7 @@ interface UserProfile {
 }
 
 export class UserService {
-  private static baseUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+  private static baseUrl = import.meta.env.VITE_BACKEND_URL || '';
 
   /**
    * Get or create user - handles the duplicate key error gracefully
@@ -24,7 +24,7 @@ export class UserService {
   static async getOrCreateUser(telegramUser: TelegramUser): Promise<UserProfile | null> {
     try {
       const telegramId = telegramUser.id.toString();
-      
+
       // First try to get existing user (backend will hash the ID)
       try {
         const response = await fetch(`${this.baseUrl}/api/users/${telegramUser.id}`);

@@ -22,18 +22,18 @@ interface DatabaseLocationSearchProps {
   currentLocation?: { lat: number; lng: number } | null;
 }
 
-export function DatabaseLocationSearch({ 
-  onLocationSelect, 
+export function DatabaseLocationSearch({
+  onLocationSelect,
   placeholder = "Search locations...",
   showCurrentLocation = true,
-  currentLocation 
+  currentLocation
 }: DatabaseLocationSearchProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<LocationWithRating[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
-  
+
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>();
   const searchRef = useRef<HTMLDivElement>(null);
 
@@ -59,20 +59,20 @@ export function DatabaseLocationSearch({
     }
 
     setIsSearching(true);
-    
+
     // Debounce search
     searchTimeout.current = setTimeout(async () => {
       try {
-        const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
-        
+        const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
+
         // Search in database locations
         const response = await fetch(`${BACKEND_URL}/api/locations`);
         if (!response.ok) throw new Error('Failed to fetch locations');
-        
+
         const allLocations: Location[] = await response.json();
-        
+
         // Filter locations based on query
-        const filteredLocations = allLocations.filter(location => 
+        const filteredLocations = allLocations.filter(location =>
           location.name.toLowerCase().includes(query.toLowerCase()) ||
           location.description.toLowerCase().includes(query.toLowerCase()) ||
           getCategoryDisplayName(location.category).toLowerCase().includes(query.toLowerCase())
@@ -107,7 +107,7 @@ export function DatabaseLocationSearch({
             return a.name.localeCompare(b.name);
           })
           .slice(0, 8); // Limit to 8 results
-        
+
         setResults(sortedResults);
         setShowResults(true);
       } catch (error) {
@@ -130,7 +130,7 @@ export function DatabaseLocationSearch({
     const newRecentSearches = [location.name, ...recentSearches.filter(s => s !== location.name)].slice(0, 5);
     setRecentSearches(newRecentSearches);
     localStorage.setItem('recentLocationSearches', JSON.stringify(newRecentSearches));
-    
+
     onLocationSelect(location);
     setQuery('');
     setShowResults(false);
@@ -202,7 +202,7 @@ export function DatabaseLocationSearch({
         }}>
           <Search size={18} />
         </div>
-        
+
         <input
           type="text"
           value={query}
@@ -224,7 +224,7 @@ export function DatabaseLocationSearch({
             transition: 'all 0.2s ease'
           }}
         />
-        
+
         {query && (
           <button
             onClick={clearQuery}
@@ -261,7 +261,7 @@ export function DatabaseLocationSearch({
           maxHeight: '400px',
           overflowY: 'auto'
         }}>
-          
+
           {/* Current Location Option */}
           {showCurrentLocation && currentLocation && (
             <button
@@ -303,11 +303,11 @@ export function DatabaseLocationSearch({
           {/* Recent Searches */}
           {query.length < 1 && recentSearches.length > 0 && (
             <>
-              <div style={{ 
-                padding: '16px 16px 8px 16px', 
-                fontSize: '14px', 
+              <div style={{
+                padding: '16px 16px 8px 16px',
+                fontSize: '14px',
                 fontWeight: '500',
-                color: 'var(--tg-theme-hint-color)' 
+                color: 'var(--tg-theme-hint-color)'
               }}>
                 Recent Searches
               </div>
@@ -338,10 +338,10 @@ export function DatabaseLocationSearch({
 
           {/* Search Results */}
           {isSearching && (
-            <div style={{ 
-              padding: '20px', 
+            <div style={{
+              padding: '20px',
               textAlign: 'center',
-              color: 'var(--tg-theme-hint-color)' 
+              color: 'var(--tg-theme-hint-color)'
             }}>
               Searching locations...
             </div>
@@ -349,11 +349,11 @@ export function DatabaseLocationSearch({
 
           {!isSearching && query.length >= 1 && results.length > 0 && (
             <>
-              <div style={{ 
-                padding: '16px 16px 8px 16px', 
-                fontSize: '14px', 
+              <div style={{
+                padding: '16px 16px 8px 16px',
+                fontSize: '14px',
                 fontWeight: '500',
-                color: 'var(--tg-theme-hint-color)' 
+                color: 'var(--tg-theme-hint-color)'
               }}>
                 Found {results.length} location{results.length !== 1 ? 's' : ''}
               </div>
@@ -387,15 +387,15 @@ export function DatabaseLocationSearch({
                     {getCategoryIcon(location.category)}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ 
-                      fontWeight: '600', 
+                    <div style={{
+                      fontWeight: '600',
                       color: 'var(--tg-theme-text-color)',
                       marginBottom: '2px'
                     }}>
                       {location.name}
                     </div>
-                    <div style={{ 
-                      fontSize: '12px', 
+                    <div style={{
+                      fontSize: '12px',
                       color: 'var(--tg-theme-hint-color)',
                       display: 'flex',
                       alignItems: 'center',
@@ -417,20 +417,20 @@ export function DatabaseLocationSearch({
                       )}
                     </div>
                     {location.description && (
-                      <div style={{ 
-                        fontSize: '12px', 
+                      <div style={{
+                        fontSize: '12px',
                         color: 'var(--tg-theme-text-color)',
                         lineHeight: '1.3',
                         marginTop: '2px'
                       }}>
-                        {location.description.length > 60 
-                          ? `${location.description.substring(0, 60)}...` 
+                        {location.description.length > 60
+                          ? `${location.description.substring(0, 60)}...`
                           : location.description
                         }
                       </div>
                     )}
                   </div>
-                  <div style={{ 
+                  <div style={{
                     color: 'var(--tg-theme-hint-color)',
                     fontSize: '20px',
                     marginTop: '4px'
@@ -443,10 +443,10 @@ export function DatabaseLocationSearch({
           )}
 
           {!isSearching && query.length >= 1 && results.length === 0 && (
-            <div style={{ 
-              padding: '20px', 
+            <div style={{
+              padding: '20px',
               textAlign: 'center',
-              color: 'var(--tg-theme-hint-color)' 
+              color: 'var(--tg-theme-hint-color)'
             }}>
               No locations found for "{query}"
             </div>

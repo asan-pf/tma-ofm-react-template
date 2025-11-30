@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { 
-  Modal, 
-  List, 
-  Section, 
-  Cell, 
-  Button, 
+import {
+  Modal,
+  List,
+  Section,
+  Cell,
+  Button,
   Input,
   Banner
 } from '@telegram-apps/telegram-ui';
@@ -30,11 +30,11 @@ interface LocationAddedModalProps {
   onViewLocation?: (location: Location) => void;
 }
 
-export function LocationAddedModal({ 
-  location, 
-  isOpen, 
+export function LocationAddedModal({
+  location,
+  isOpen,
   onClose,
-  onViewLocation 
+  onViewLocation
 }: LocationAddedModalProps) {
   const [userRating, setUserRating] = useState(0);
   const [comment, setComment] = useState('');
@@ -42,7 +42,7 @@ export function LocationAddedModal({
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
   const [commentSubmitted, setCommentSubmitted] = useState(false);
-  
+
   const initData = useSignal(initDataState);
   const telegramUser = initData?.user;
 
@@ -64,11 +64,11 @@ export function LocationAddedModal({
 
   const submitRating = async (stars: number) => {
     if (!telegramUser) return;
-    
+
     try {
       setIsSubmittingRating(true);
-      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
-      
+      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
+
       // Get or create user
       const user = await UserService.getOrCreateUser(telegramUser);
       if (!user) {
@@ -98,11 +98,11 @@ export function LocationAddedModal({
 
   const submitComment = async () => {
     if (!comment.trim() || !telegramUser) return;
-    
+
     try {
       setIsSubmittingComment(true);
-      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
-      
+      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
+
       // Get or create user
       const user = await UserService.getOrCreateUser(telegramUser);
       if (!user) {
@@ -141,9 +141,9 @@ export function LocationAddedModal({
   return (
     <Modal
       header={
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
           justifyContent: 'space-between',
           width: '100%',
           padding: '0 8px'
@@ -203,9 +203,9 @@ export function LocationAddedModal({
               </div>
             }
             after={
-              <Button 
-                size="s" 
-                mode="filled" 
+              <Button
+                size="s"
+                mode="filled"
                 onClick={() => onViewLocation?.(location)}
               >
                 <MapPin size={14} style={{ marginRight: '4px' }} />
@@ -222,8 +222,8 @@ export function LocationAddedModal({
                   {location.description}
                 </div>
               )}
-              <div style={{ 
-                color: 'var(--tg-theme-hint-color)', 
+              <div style={{
+                color: 'var(--tg-theme-hint-color)',
                 fontSize: '12px',
                 marginTop: '4px'
               }}>
@@ -244,8 +244,8 @@ export function LocationAddedModal({
                   <div style={{ fontSize: '14px', color: 'var(--tg-theme-text-color)' }}>
                     How would you rate {location.name}?
                   </div>
-                  <StarRating 
-                    rating={userRating} 
+                  <StarRating
+                    rating={userRating}
                     onRatingChange={submitRating}
                     size="lg"
                   />
@@ -256,9 +256,9 @@ export function LocationAddedModal({
                   )}
                 </>
               ) : (
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
                   gap: '8px',
                   color: '#10B981'
                 }}>
@@ -284,8 +284,8 @@ export function LocationAddedModal({
                   header=""
                 />
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <Button 
-                    size="s" 
+                  <Button
+                    size="s"
                     mode="filled"
                     onClick={submitComment}
                     disabled={!comment.trim() || isSubmittingComment}
@@ -300,8 +300,8 @@ export function LocationAddedModal({
                       </div>
                     )}
                   </Button>
-                  <Button 
-                    size="s" 
+                  <Button
+                    size="s"
                     mode="plain"
                     onClick={() => setComment('')}
                     disabled={isSubmittingComment}
@@ -311,9 +311,9 @@ export function LocationAddedModal({
                 </div>
               </div>
             ) : (
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
                 gap: '8px',
                 color: '#10B981',
                 padding: '12px',
@@ -332,8 +332,8 @@ export function LocationAddedModal({
         {/* Action Buttons */}
         <Section>
           <div style={{ padding: '16px', display: 'flex', gap: '12px' }}>
-            <Button 
-              size="l" 
+            <Button
+              size="l"
               mode="filled"
               onClick={() => onViewLocation?.(location)}
               style={{ flex: 1 }}
@@ -341,8 +341,8 @@ export function LocationAddedModal({
               <MapPin size={16} style={{ marginRight: '8px' }} />
               View on Map
             </Button>
-            <Button 
-              size="l" 
+            <Button
+              size="l"
               mode="plain"
               onClick={handleClose}
               style={{ flex: 1 }}

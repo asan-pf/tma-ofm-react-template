@@ -28,6 +28,12 @@ export default defineConfig({
   server: {
     // Allow network access to dev server
     host: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+    },
   },
 });
 

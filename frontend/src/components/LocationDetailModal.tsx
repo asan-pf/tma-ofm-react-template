@@ -119,7 +119,7 @@ export function LocationDetailModal({
     try {
       setIsLoadingComments(true);
       const BACKEND_URL =
-        import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+        import.meta.env.VITE_BACKEND_URL || "";
       const response = await fetch(
         `${BACKEND_URL}/api/comments?location_id=${location.id}`
       );
@@ -137,7 +137,7 @@ export function LocationDetailModal({
   const loadRating = async () => {
     try {
       const BACKEND_URL =
-        import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+        import.meta.env.VITE_BACKEND_URL || "";
       const response = await fetch(
         `${BACKEND_URL}/api/ratings?location_id=${location.id}`
       );
@@ -160,7 +160,7 @@ export function LocationDetailModal({
     try {
       setIsSubmitting(true);
       const BACKEND_URL =
-        import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+        import.meta.env.VITE_BACKEND_URL || "";
 
       // Get or create user
       const user = await UserService.getOrCreateUser(telegramUser);
@@ -196,7 +196,7 @@ export function LocationDetailModal({
 
     try {
       const BACKEND_URL =
-        import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+        import.meta.env.VITE_BACKEND_URL || "";
 
       // Get or create user
       const user = await UserService.getOrCreateUser(telegramUser);
@@ -236,11 +236,11 @@ export function LocationDetailModal({
 
   const handleFavoriteToggle = async () => {
     if (!onToggleFavorite) return;
-    
+
     // Immediate UI feedback
     setLocalIsFavorited(!localIsFavorited);
     console.log('Favorite button clicked, toggling to:', !localIsFavorited);
-    
+
     // Call parent handler
     onToggleFavorite(location.id);
   };
@@ -254,17 +254,17 @@ export function LocationDetailModal({
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!isDragging) return;
-    
+
     const touch = e.touches[0];
     setCurrentY(touch.clientY);
-    
+
     const deltaY = touch.clientY - startY;
-    
+
     // Prevent default scrolling when at the top and trying to expand
     if (deltaY < -50 && !isExpanded && modalRef.current) {
       e.preventDefault();
     }
-    
+
     // Allow closing by dragging down when not expanded or when at top of scroll
     if (deltaY > 100) {
       e.preventDefault();
@@ -273,9 +273,9 @@ export function LocationDetailModal({
 
   const handleTouchEnd = () => {
     if (!isDragging) return;
-    
+
     const deltaY = currentY - startY;
-    
+
     // Expand if dragged up significantly
     if (deltaY < -100 && !isExpanded) {
       setIsExpanded(true);
@@ -284,7 +284,7 @@ export function LocationDetailModal({
     else if (deltaY > 150) {
       onClose();
     }
-    
+
     setIsDragging(false);
     setStartY(0);
     setCurrentY(0);
@@ -366,7 +366,7 @@ export function LocationDetailModal({
               {location.name}
             </h3>
           </div>
-          
+
           {/* Expand/Close buttons */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {!isExpanded && (
@@ -411,338 +411,338 @@ export function LocationDetailModal({
           }}
         >
           <List>
-        {/* Header with Location Info and Favorite Button */}
-        <Section>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "16px",
-              background: "var(--tg-theme-secondary-bg-color)",
-              borderRadius: "12px",
-              margin: "8px",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            {/* Header with Location Info and Favorite Button */}
+            <Section>
               <div
                 style={{
-                  background: getCategoryColor(location.category).includes("green")
-                    ? "#10B981"
-                    : getCategoryColor(location.category).includes("orange")
-                    ? "#F59E0B"
-                    : "#8B5CF6",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "16px",
+                  background: "var(--tg-theme-secondary-bg-color)",
                   borderRadius: "12px",
-                  padding: "12px",
-                  fontSize: "24px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  minWidth: "48px",
-                  height: "48px",
+                  margin: "8px",
                 }}
               >
-                {getCategoryIcon(location.category)}
-              </div>
-              <div>
-                <div
-                  style={{
-                    fontSize: "20px",
-                    fontWeight: "700",
-                    color: "var(--tg-theme-text-color)",
-                    marginBottom: "4px",
-                  }}
-                >
-                  {location.name}
-                </div>
-                <div
-                  style={{
-                    fontSize: "14px",
-                    color: "var(--tg-theme-hint-color)",
-                    textTransform: "capitalize",
-                  }}
-                >
-                  {formatCategory(location.category)}
-                </div>
-                <div
-                  style={{
-                    fontSize: "12px",
-                    color: "var(--tg-theme-hint-color)",
-                    marginTop: "2px",
-                  }}
-                >
-                  Added {formatDate(location.created_at)}
-                </div>
-              </div>
-            </div>
-
-            {/* Favorite Button */}
-            {onToggleFavorite && (
-              <button
-                onClick={handleFavoriteToggle}
-                style={{
-                  background: localIsFavorited ? "#FEE2E2" : "var(--tg-theme-bg-color)",
-                  border: `2px solid ${localIsFavorited ? "#EF4444" : "#D1D5DB"}`,
-                  borderRadius: "50%",
-                  width: "44px",
-                  height: "44px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: "pointer",
-                  fontSize: "20px",
-                  pointerEvents: "auto",
-                  touchAction: "manipulation",
-                  transition: "all 0.2s ease",
-                }}
-                title={localIsFavorited ? "Remove from favorites" : "Add to favorites"}
-              >
-                {localIsFavorited ? "❤️" : "🤍"}
-              </button>
-            )}
-          </div>
-        </Section>
-
-        {/* Location Details */}
-        <Section header="📍 Location Details">
-          <Cell
-            before={
-              <MapPin
-                size={20}
-                style={{ color: "var(--tg-theme-accent-text-color)" }}
-              />
-            }
-            subtitle={`${location.latitude.toFixed(
-              6
-            )}, ${location.longitude.toFixed(6)}`}
-            after={
-              <Button
-                size="s"
-                mode="plain"
-                onClick={() =>
-                  onLocationClick?.(location.latitude, location.longitude)
-                }
-              >
-                View
-              </Button>
-            }
-          >
-            Location
-          </Cell>
-
-          {location.description && (
-            <Cell
-              before={
-                <MessageCircle
-                  size={20}
-                  style={{ color: "var(--tg-theme-accent-text-color)" }}
-                />
-              }
-              multiline
-            >
-              {location.description}
-            </Cell>
-          )}
-        </Section>
-
-        {/* Rating Section */}
-        <Section header="⭐ Rating & Reviews">
-          <Cell before={<Star size={20} style={{ color: "#F59E0B" }} />}>
-            <div
-              style={{ display: "flex", flexDirection: "column", gap: "8px" }}
-            >
-              <StarRating
-                rating={rating.average}
-                readonly
-                size="md"
-                count={rating.count}
-              />
-
-              {telegramUser && (
-                <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                   <div
                     style={{
-                      fontSize: "14px",
-                      marginBottom: "8px",
-                      color: "var(--tg-theme-text-color)",
+                      background: getCategoryColor(location.category).includes("green")
+                        ? "#10B981"
+                        : getCategoryColor(location.category).includes("orange")
+                          ? "#F59E0B"
+                          : "#8B5CF6",
+                      borderRadius: "12px",
+                      padding: "12px",
+                      fontSize: "24px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minWidth: "48px",
+                      height: "48px",
                     }}
                   >
-                    Your Rating:
+                    {getCategoryIcon(location.category)}
                   </div>
-                  <StarRating
-                    rating={userRating}
-                    onRatingChange={submitRating}
-                    size="md"
-                  />
-                </div>
-              )}
-            </div>
-          </Cell>
-        </Section>
-
-        {/* Comments Section */}
-        <Section header="💬 Comments">
-          {telegramUser && (
-            <Cell>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "12px",
-                  width: "100%",
-                }}
-              >
-                <Input
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  placeholder="Share your experience..."
-                  header=""
-                />
-                
-                <Input
-                  value={newCommentImage}
-                  onChange={(e) => setNewCommentImage(e.target.value)}
-                  placeholder="Image URL (optional)"
-                  header=""
-                  type="url"
-                />
-                
-                {/* Image Preview */}
-                {newCommentImage && (
-                  <div
-                    style={{
-                      position: "relative",
-                      display: "inline-block",
-                      alignSelf: "flex-start",
-                    }}
-                  >
-                    <img
-                      src={newCommentImage}
-                      alt="Preview"
-                      style={{
-                        maxWidth: "150px",
-                        maxHeight: "100px",
-                        objectFit: "cover",
-                        borderRadius: "8px",
-                        border: "2px solid var(--tg-theme-accent-text-color)",
-                      }}
-                      onError={(e) => {
-                        e.currentTarget.style.display = "none";
-                      }}
-                    />
-                    <button
-                      onClick={clearImage}
-                      style={{
-                        position: "absolute",
-                        top: "-8px",
-                        right: "-8px",
-                        background: "var(--tg-theme-destructive-text-color)",
-                        color: "white",
-                        border: "none",
-                        borderRadius: "50%",
-                        width: "24px",
-                        height: "24px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        cursor: "pointer",
-                        fontSize: "14px",
-                      }}
-                      title="Remove image"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                )}
-                
-                <Button
-                  size="s"
-                  onClick={submitComment}
-                  disabled={!newComment.trim() || isSubmitting}
-                  style={{ alignSelf: "flex-start" }}
-                >
-                  {isSubmitting ? (
-                    "Posting..."
-                  ) : (
+                  <div>
                     <div
                       style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
+                        fontSize: "20px",
+                        fontWeight: "700",
+                        color: "var(--tg-theme-text-color)",
+                        marginBottom: "4px",
                       }}
                     >
-                      <Send size={14} />
-                      Post Comment
+                      {location.name}
                     </div>
-                  )}
-                </Button>
-              </div>
-            </Cell>
-          )}
+                    <div
+                      style={{
+                        fontSize: "14px",
+                        color: "var(--tg-theme-hint-color)",
+                        textTransform: "capitalize",
+                      }}
+                    >
+                      {formatCategory(location.category)}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: "var(--tg-theme-hint-color)",
+                        marginTop: "2px",
+                      }}
+                    >
+                      Added {formatDate(location.created_at)}
+                    </div>
+                  </div>
+                </div>
 
-          {isLoadingComments ? (
-            <Cell>Loading comments...</Cell>
-          ) : comments.length > 0 ? (
-            comments.map((comment) => (
+                {/* Favorite Button */}
+                {onToggleFavorite && (
+                  <button
+                    onClick={handleFavoriteToggle}
+                    style={{
+                      background: localIsFavorited ? "#FEE2E2" : "var(--tg-theme-bg-color)",
+                      border: `2px solid ${localIsFavorited ? "#EF4444" : "#D1D5DB"}`,
+                      borderRadius: "50%",
+                      width: "44px",
+                      height: "44px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: "pointer",
+                      fontSize: "20px",
+                      pointerEvents: "auto",
+                      touchAction: "manipulation",
+                      transition: "all 0.2s ease",
+                    }}
+                    title={localIsFavorited ? "Remove from favorites" : "Add to favorites"}
+                  >
+                    {localIsFavorited ? "❤️" : "🤍"}
+                  </button>
+                )}
+              </div>
+            </Section>
+
+            {/* Location Details */}
+            <Section header="📍 Location Details">
               <Cell
-                key={comment.id}
                 before={
-                  <Avatar
-                    size={28}
-                    src={comment.users?.avatar_url || undefined}
-                    fallbackIcon={<User size={16} />}
+                  <MapPin
+                    size={20}
+                    style={{ color: "var(--tg-theme-accent-text-color)" }}
                   />
                 }
-                subtitle={formatDate(comment.created_at)}
-                multiline
-              >
-                <div>
-                  <div style={{ fontWeight: "500", marginBottom: "4px" }}>
-                    {comment.users?.nickname || "Anonymous"}
-                  </div>
-                  <div
-                    style={{
-                      color: "var(--tg-theme-text-color)",
-                      lineHeight: "1.4",
-                    }}
+                subtitle={`${location.latitude.toFixed(
+                  6
+                )}, ${location.longitude.toFixed(6)}`}
+                after={
+                  <Button
+                    size="s"
+                    mode="plain"
+                    onClick={() =>
+                      onLocationClick?.(location.latitude, location.longitude)
+                    }
                   >
-                    {comment.content}
-                  </div>
-                  {comment.image_url && (
-                    <div style={{ marginTop: "8px" }}>
-                      <img
-                        src={comment.image_url}
-                        alt="Comment image"
+                    View
+                  </Button>
+                }
+              >
+                Location
+              </Cell>
+
+              {location.description && (
+                <Cell
+                  before={
+                    <MessageCircle
+                      size={20}
+                      style={{ color: "var(--tg-theme-accent-text-color)" }}
+                    />
+                  }
+                  multiline
+                >
+                  {location.description}
+                </Cell>
+              )}
+            </Section>
+
+            {/* Rating Section */}
+            <Section header="⭐ Rating & Reviews">
+              <Cell before={<Star size={20} style={{ color: "#F59E0B" }} />}>
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+                >
+                  <StarRating
+                    rating={rating.average}
+                    readonly
+                    size="md"
+                    count={rating.count}
+                  />
+
+                  {telegramUser && (
+                    <div>
+                      <div
                         style={{
-                          maxWidth: "100%",
-                          height: "auto",
-                          borderRadius: "8px",
-                          maxHeight: "200px",
-                          objectFit: "cover",
+                          fontSize: "14px",
+                          marginBottom: "8px",
+                          color: "var(--tg-theme-text-color)",
                         }}
-                        onError={(e) => {
-                          e.currentTarget.style.display = "none";
-                        }}
+                      >
+                        Your Rating:
+                      </div>
+                      <StarRating
+                        rating={userRating}
+                        onRatingChange={submitRating}
+                        size="md"
                       />
                     </div>
                   )}
                 </div>
               </Cell>
-            ))
-          ) : (
-            <Cell>
-              <div
-                style={{
-                  textAlign: "center",
-                  color: "var(--tg-theme-hint-color)",
-                  padding: "20px 0",
-                }}
-              >
-                No comments yet. Be the first to share your experience!
-              </div>
-            </Cell>
-          )}
-        </Section>
+            </Section>
+
+            {/* Comments Section */}
+            <Section header="💬 Comments">
+              {telegramUser && (
+                <Cell>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "12px",
+                      width: "100%",
+                    }}
+                  >
+                    <Input
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Share your experience..."
+                      header=""
+                    />
+
+                    <Input
+                      value={newCommentImage}
+                      onChange={(e) => setNewCommentImage(e.target.value)}
+                      placeholder="Image URL (optional)"
+                      header=""
+                      type="url"
+                    />
+
+                    {/* Image Preview */}
+                    {newCommentImage && (
+                      <div
+                        style={{
+                          position: "relative",
+                          display: "inline-block",
+                          alignSelf: "flex-start",
+                        }}
+                      >
+                        <img
+                          src={newCommentImage}
+                          alt="Preview"
+                          style={{
+                            maxWidth: "150px",
+                            maxHeight: "100px",
+                            objectFit: "cover",
+                            borderRadius: "8px",
+                            border: "2px solid var(--tg-theme-accent-text-color)",
+                          }}
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                          }}
+                        />
+                        <button
+                          onClick={clearImage}
+                          style={{
+                            position: "absolute",
+                            top: "-8px",
+                            right: "-8px",
+                            background: "var(--tg-theme-destructive-text-color)",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "50%",
+                            width: "24px",
+                            height: "24px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                          }}
+                          title="Remove image"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    )}
+
+                    <Button
+                      size="s"
+                      onClick={submitComment}
+                      disabled={!newComment.trim() || isSubmitting}
+                      style={{ alignSelf: "flex-start" }}
+                    >
+                      {isSubmitting ? (
+                        "Posting..."
+                      ) : (
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                          }}
+                        >
+                          <Send size={14} />
+                          Post Comment
+                        </div>
+                      )}
+                    </Button>
+                  </div>
+                </Cell>
+              )}
+
+              {isLoadingComments ? (
+                <Cell>Loading comments...</Cell>
+              ) : comments.length > 0 ? (
+                comments.map((comment) => (
+                  <Cell
+                    key={comment.id}
+                    before={
+                      <Avatar
+                        size={28}
+                        src={comment.users?.avatar_url || undefined}
+                        fallbackIcon={<User size={16} />}
+                      />
+                    }
+                    subtitle={formatDate(comment.created_at)}
+                    multiline
+                  >
+                    <div>
+                      <div style={{ fontWeight: "500", marginBottom: "4px" }}>
+                        {comment.users?.nickname || "Anonymous"}
+                      </div>
+                      <div
+                        style={{
+                          color: "var(--tg-theme-text-color)",
+                          lineHeight: "1.4",
+                        }}
+                      >
+                        {comment.content}
+                      </div>
+                      {comment.image_url && (
+                        <div style={{ marginTop: "8px" }}>
+                          <img
+                            src={comment.image_url}
+                            alt="Comment image"
+                            style={{
+                              maxWidth: "100%",
+                              height: "auto",
+                              borderRadius: "8px",
+                              maxHeight: "200px",
+                              objectFit: "cover",
+                            }}
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none";
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </Cell>
+                ))
+              ) : (
+                <Cell>
+                  <div
+                    style={{
+                      textAlign: "center",
+                      color: "var(--tg-theme-hint-color)",
+                      padding: "20px 0",
+                    }}
+                  >
+                    No comments yet. Be the first to share your experience!
+                  </div>
+                </Cell>
+              )}
+            </Section>
           </List>
         </div>
       </div>
