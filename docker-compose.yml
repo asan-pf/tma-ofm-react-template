@@ -34,7 +34,7 @@ services:
       PGRST_DB_SCHEMA: public
       PGRST_DB_ANON_ROLE: anon
       PGRST_SERVER_PORT: 3001
-      PGRST_JWT_SECRET: my-super-secret-jwt-token-with-at-least-32-chars-long
+      PGRST_JWT_SECRET: secret123456789012345678901234567890
       # Optional: enable detailed error messages during dev
       PGRST_LOG_LEVEL: info
     ports:

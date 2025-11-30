@@ -68,7 +68,7 @@ export function ProfilePage() {
             nickname:
               telegramUser.username ||
               `${telegramUser.first_name} ${telegramUser.last_name || ""
-                }`.trim(),
+                }`.trim() || "Anonymous",
             avatarUrl: null,
           }),
         });
