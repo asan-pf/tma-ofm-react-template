@@ -117,7 +117,7 @@ export function MapPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showTapActionSheet, setShowTapActionSheet] = useState(false);
   const [showTapHint, setShowTapHint] = useState(false);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [, setUserProfile] = useState<UserProfile | null>(null);
   const [isPlacementMode, setIsPlacementMode] = useState(false);
 
   const navigate = useNavigate();
