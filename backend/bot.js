@@ -76,6 +76,22 @@ bot.command('map', async (ctx) => {
   );
 });
 
+bot.command('add_location', async (ctx) => {
+  await ctx.reply(
+    '📍 Ready to add your place?\n\n' +
+    '1. Tap the button below to open the map\n' +
+    '2. Choose Locations tab or tap on the map\n' +
+    '3. Fill in the details and submit',
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '➕ Add Location', web_app: { url: FRONTEND_URL } }]
+        ]
+      }
+    }
+  );
+});
+
 // Webhook handler for Vercel
 export default async function handler(req, res) {
   if (req.method === 'POST') {

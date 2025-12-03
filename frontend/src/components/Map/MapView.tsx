@@ -18,11 +18,11 @@ interface MapViewProps {
   center: { lat: number; lng: number };
   locations: Location[];
   favoriteLocations: Location[];
-  pendingLocation: { lat: number; lng: number } | null;
   userLocation: { lat: number; lng: number } | null;
   setMapRef: (map: any) => void;
   onLocationClick: (location: Location) => void;
   onToggleFavorite: (locationId: number) => void;
+  onMapClick?: (lat: number, lng: number) => void;
   // Global POI props commented out to focus on local POIs
   // onGlobalPOIClick?: (poi: POI) => void;
   // selectedPOI?: POI | null;
@@ -38,6 +38,7 @@ export function MapView({
   userLocation,
   setMapRef,
   onLocationClick,
+  onMapClick,
   // Global POI props commented out to focus on local POIs
   // onGlobalPOIClick,
   // selectedPOI,
@@ -65,6 +66,7 @@ export function MapView({
       showUserLocation={!!userLocation}
       userLocation={userLocation}
       onMarkerClick={onLocationClick}
+      onMapClick={onMapClick}
       // Global POI props commented out to focus on local POIs
       // onGlobalPOIClick={onGlobalPOIClick}
       selectedLocationId={undefined} // You can add this to props if needed

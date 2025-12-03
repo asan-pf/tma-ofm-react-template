@@ -60,7 +60,7 @@ Get all approved locations.
     "longitude": -74.0060,
     "category": "restaurant-bar",
     "type": "permanent",
-    "working_hours": "9:00-18:00",
+    "schedules": "9:00-18:00",
     "website_url": null,
     "is_approved": true,
     "created_at": "2024-01-01T00:00:00.000Z",
@@ -81,7 +81,7 @@ Create a new location (requires approval).
   "longitude": -74.0060,
   "category": "grocery",
   "type": "permanent",
-  "workingHours": "9:00-18:00",
+  "schedules": "9:00-18:00",
   "websiteUrl": "https://example.com",
   "imageUrl": "https://example.com/image.jpg"
 }
@@ -105,6 +105,8 @@ Create a new location (requires approval).
   "user_id": 1
 }
 ```
+
+If the authenticated user has already created a location, the API responds with **409 Conflict**.
 
 #### GET /api/locations/:id
 Get a specific location by ID.

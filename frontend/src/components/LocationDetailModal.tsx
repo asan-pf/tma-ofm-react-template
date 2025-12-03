@@ -9,12 +9,11 @@ import {
 } from "@telegram-apps/telegram-ui";
 import {
   MapPin,
-  MessageCircle,
-  Star,
   User,
   Send,
   ChevronUp,
   X,
+  Globe,
 } from "lucide-react";
 import { StarRating } from "./StarRating";
 import { initDataState, useSignal } from "@telegram-apps/sdk-react";
@@ -28,6 +27,16 @@ interface Location {
   longitude: number;
   category: "grocery" | "restaurant-bar" | "other";
   created_at: string;
+  user_id?: number;
+  website_url?: string;
+  image_url?: string;
+  schedules?: string;
+  type?: "permanent" | "temporary";
+  users?: {
+    id: number;
+    nickname: string;
+    avatar_url: string | null;
+  };
 }
 
 interface Comment {
@@ -76,21 +85,11 @@ export function LocationDetailModal({
   const [startY, setStartY] = useState(0);
   const [currentY, setCurrentY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [activeTab, setActiveTab] = useState<"overview" | "reviews">("overview");
   const modalRef = useRef<HTMLDivElement>(null);
 
   const initData = useSignal(initDataState);
   const telegramUser = initData?.user;
-
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case "grocery":
-        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
-      case "restaurant-bar":
-        return "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400";
-      default:
-        return "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400";
-    }
-  };
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
@@ -113,6 +112,19 @@ export function LocationDetailModal({
       day: "numeric",
       year: "numeric",
     });
+  };
+
+  const getAllImages = () => {
+    const images: string[] = [];
+    if (location.image_url) {
+      images.push(location.image_url);
+    }
+    comments.forEach((comment) => {
+      if (comment.image_url) {
+        images.push(comment.image_url);
+      }
+    });
+    return images;
   };
 
   const loadComments = async () => {
@@ -407,343 +419,452 @@ export function LocationDetailModal({
           style={{
             flex: 1,
             overflow: 'auto',
-            padding: '8px 0',
+            display: 'flex',
+            flexDirection: 'column',
           }}
         >
-          <List>
-        {/* Header with Location Info and Favorite Button */}
-        <Section>
+          {/* Title and Category */}
           <div
             style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "16px",
-              background: "var(--tg-theme-secondary-bg-color)",
-              borderRadius: "12px",
-              margin: "8px",
+              padding: '20px 20px 16px',
+              borderBottom: '1px solid var(--tg-theme-separator-color)',
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <div
-                style={{
-                  background: getCategoryColor(location.category).includes("green")
-                    ? "#10B981"
-                    : getCategoryColor(location.category).includes("orange")
-                    ? "#F59E0B"
-                    : "#8B5CF6",
-                  borderRadius: "12px",
-                  padding: "12px",
-                  fontSize: "24px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  minWidth: "48px",
-                  height: "48px",
-                }}
-              >
-                {getCategoryIcon(location.category)}
-              </div>
-              <div>
-                <div
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+              <div style={{ flex: 1 }}>
+                <h2
                   style={{
-                    fontSize: "20px",
-                    fontWeight: "700",
-                    color: "var(--tg-theme-text-color)",
-                    marginBottom: "4px",
+                    margin: '0 0 8px 0',
+                    fontSize: '24px',
+                    fontWeight: '600',
+                    color: 'var(--tg-theme-text-color)',
+                    lineHeight: '1.2',
                   }}
                 >
                   {location.name}
-                </div>
+                </h2>
                 <div
                   style={{
-                    fontSize: "14px",
-                    color: "var(--tg-theme-hint-color)",
-                    textTransform: "capitalize",
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginBottom: '4px',
                   }}
                 >
-                  {formatCategory(location.category)}
-                </div>
-                <div
-                  style={{
-                    fontSize: "12px",
-                    color: "var(--tg-theme-hint-color)",
-                    marginTop: "2px",
-                  }}
-                >
-                  Added {formatDate(location.created_at)}
-                </div>
-              </div>
-            </div>
-
-            {/* Favorite Button */}
-            {onToggleFavorite && (
-              <button
-                onClick={handleFavoriteToggle}
-                style={{
-                  background: localIsFavorited ? "#FEE2E2" : "var(--tg-theme-bg-color)",
-                  border: `2px solid ${localIsFavorited ? "#EF4444" : "#D1D5DB"}`,
-                  borderRadius: "50%",
-                  width: "44px",
-                  height: "44px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: "pointer",
-                  fontSize: "20px",
-                  pointerEvents: "auto",
-                  touchAction: "manipulation",
-                  transition: "all 0.2s ease",
-                }}
-                title={localIsFavorited ? "Remove from favorites" : "Add to favorites"}
-              >
-                {localIsFavorited ? "❤️" : "🤍"}
-              </button>
-            )}
-          </div>
-        </Section>
-
-        {/* Location Details */}
-        <Section header="📍 Location Details">
-          <Cell
-            before={
-              <MapPin
-                size={20}
-                style={{ color: "var(--tg-theme-accent-text-color)" }}
-              />
-            }
-            subtitle={`${location.latitude.toFixed(
-              6
-            )}, ${location.longitude.toFixed(6)}`}
-            after={
-              <Button
-                size="s"
-                mode="plain"
-                onClick={() =>
-                  onLocationClick?.(location.latitude, location.longitude)
-                }
-              >
-                View
-              </Button>
-            }
-          >
-            Location
-          </Cell>
-
-          {location.description && (
-            <Cell
-              before={
-                <MessageCircle
-                  size={20}
-                  style={{ color: "var(--tg-theme-accent-text-color)" }}
-                />
-              }
-              multiline
-            >
-              {location.description}
-            </Cell>
-          )}
-        </Section>
-
-        {/* Rating Section */}
-        <Section header="⭐ Rating & Reviews">
-          <Cell before={<Star size={20} style={{ color: "#F59E0B" }} />}>
-            <div
-              style={{ display: "flex", flexDirection: "column", gap: "8px" }}
-            >
-              <StarRating
-                rating={rating.average}
-                readonly
-                size="md"
-                count={rating.count}
-              />
-
-              {telegramUser && (
-                <div>
-                  <div
+                  <span style={{ fontSize: '18px' }}>{getCategoryIcon(location.category)}</span>
+                  <span
                     style={{
-                      fontSize: "14px",
-                      marginBottom: "8px",
-                      color: "var(--tg-theme-text-color)",
+                      fontSize: '14px',
+                      color: 'var(--tg-theme-hint-color)',
                     }}
                   >
-                    Your Rating:
-                  </div>
-                  <StarRating
-                    rating={userRating}
-                    onRatingChange={submitRating}
-                    size="md"
-                  />
+                    {formatCategory(location.category)}
+                  </span>
                 </div>
-              )}
-            </div>
-          </Cell>
-        </Section>
-
-        {/* Comments Section */}
-        <Section header="💬 Comments">
-          {telegramUser && (
-            <Cell>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "12px",
-                  width: "100%",
-                }}
-              >
-                <Input
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  placeholder="Share your experience..."
-                  header=""
-                />
-                
-                <Input
-                  value={newCommentImage}
-                  onChange={(e) => setNewCommentImage(e.target.value)}
-                  placeholder="Image URL (optional)"
-                  header=""
-                  type="url"
-                />
-                
-                {/* Image Preview */}
-                {newCommentImage && (
-                  <div
-                    style={{
-                      position: "relative",
-                      display: "inline-block",
-                      alignSelf: "flex-start",
-                    }}
-                  >
-                    <img
-                      src={newCommentImage}
-                      alt="Preview"
-                      style={{
-                        maxWidth: "150px",
-                        maxHeight: "100px",
-                        objectFit: "cover",
-                        borderRadius: "8px",
-                        border: "2px solid var(--tg-theme-accent-text-color)",
-                      }}
-                      onError={(e) => {
-                        e.currentTarget.style.display = "none";
-                      }}
-                    />
-                    <button
-                      onClick={clearImage}
-                      style={{
-                        position: "absolute",
-                        top: "-8px",
-                        right: "-8px",
-                        background: "var(--tg-theme-destructive-text-color)",
-                        color: "white",
-                        border: "none",
-                        borderRadius: "50%",
-                        width: "24px",
-                        height: "24px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        cursor: "pointer",
-                        fontSize: "14px",
-                      }}
-                      title="Remove image"
-                    >
-                      <X size={14} />
-                    </button>
+                {rating.count > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                    <StarRating rating={rating.average} readonly size="sm" />
+                    <span style={{ fontSize: '13px', color: 'var(--tg-theme-hint-color)' }}>
+                      ({rating.count})
+                    </span>
                   </div>
                 )}
-                
-                <Button
-                  size="s"
-                  onClick={submitComment}
-                  disabled={!newComment.trim() || isSubmitting}
-                  style={{ alignSelf: "flex-start" }}
-                >
-                  {isSubmitting ? (
-                    "Posting..."
-                  ) : (
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
-                      }}
-                    >
-                      <Send size={14} />
-                      Post Comment
-                    </div>
-                  )}
-                </Button>
               </div>
-            </Cell>
-          )}
 
-          {isLoadingComments ? (
-            <Cell>Loading comments...</Cell>
-          ) : comments.length > 0 ? (
-            comments.map((comment) => (
-              <Cell
-                key={comment.id}
-                before={
-                  <Avatar
-                    size={28}
-                    src={comment.users?.avatar_url || undefined}
-                    fallbackIcon={<User size={16} />}
-                  />
-                }
-                subtitle={formatDate(comment.created_at)}
-                multiline
-              >
-                <div>
-                  <div style={{ fontWeight: "500", marginBottom: "4px" }}>
-                    {comment.users?.nickname || "Anonymous"}
-                  </div>
-                  <div
-                    style={{
-                      color: "var(--tg-theme-text-color)",
-                      lineHeight: "1.4",
-                    }}
-                  >
-                    {comment.content}
-                  </div>
-                  {comment.image_url && (
-                    <div style={{ marginTop: "8px" }}>
-                      <img
-                        src={comment.image_url}
-                        alt="Comment image"
-                        style={{
-                          maxWidth: "100%",
-                          height: "auto",
-                          borderRadius: "8px",
-                          maxHeight: "200px",
-                          objectFit: "cover",
-                        }}
-                        onError={(e) => {
-                          e.currentTarget.style.display = "none";
-                        }}
-                      />
-                    </div>
-                  )}
-                </div>
-              </Cell>
-            ))
-          ) : (
-            <Cell>
+              {/* Favorite Button */}
+              {onToggleFavorite && (
+                <button
+                  onClick={handleFavoriteToggle}
+                  style={{
+                    background: localIsFavorited ? '#FEE2E2' : 'var(--tg-theme-bg-color)',
+                    border: `2px solid ${localIsFavorited ? '#EF4444' : '#D1D5DB'}`,
+                    borderRadius: '50%',
+                    width: '40px',
+                    height: '40px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    fontSize: '18px',
+                    flexShrink: 0,
+                    marginLeft: '12px',
+                  }}
+                  title={localIsFavorited ? 'Remove from favorites' : 'Add to favorites'}
+                >
+                  {localIsFavorited ? '❤️' : '🤍'}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Image Gallery */}
+          {getAllImages().length > 0 && (
+            <div
+              style={{
+                padding: '0',
+                borderBottom: '1px solid var(--tg-theme-separator-color)',
+              }}
+            >
               <div
                 style={{
-                  textAlign: "center",
-                  color: "var(--tg-theme-hint-color)",
-                  padding: "20px 0",
+                  display: 'flex',
+                  overflowX: 'auto',
+                  gap: '8px',
+                  padding: '12px 20px',
+                  scrollbarWidth: 'none',
                 }}
               >
-                No comments yet. Be the first to share your experience!
+                {getAllImages().map((image, idx) => (
+                  <img
+                    key={idx}
+                    src={image}
+                    alt={`Photo ${idx + 1}`}
+                    style={{
+                      height: '120px',
+                      minWidth: '120px',
+                      objectFit: 'cover',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                    }}
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                ))}
               </div>
-            </Cell>
+            </div>
           )}
-        </Section>
-          </List>
+
+          {/* Tabs */}
+          <div
+            style={{
+              display: 'flex',
+              borderBottom: '2px solid var(--tg-theme-separator-color)',
+              padding: '0 20px',
+            }}
+          >
+            <button
+              onClick={() => setActiveTab('overview')}
+              style={{
+                flex: 1,
+                padding: '14px 0',
+                background: 'none',
+                border: 'none',
+                borderBottom: `3px solid ${
+                  activeTab === 'overview' ? 'var(--tg-theme-accent-text-color)' : 'transparent'
+                }`,
+                color:
+                  activeTab === 'overview'
+                    ? 'var(--tg-theme-accent-text-color)'
+                    : 'var(--tg-theme-hint-color)',
+                fontWeight: activeTab === 'overview' ? '600' : '500',
+                fontSize: '15px',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                marginBottom: '-2px',
+              }}
+            >
+              Overview
+            </button>
+            <button
+              onClick={() => setActiveTab('reviews')}
+              style={{
+                flex: 1,
+                padding: '14px 0',
+                background: 'none',
+                border: 'none',
+                borderBottom: `3px solid ${
+                  activeTab === 'reviews' ? 'var(--tg-theme-accent-text-color)' : 'transparent'
+                }`,
+                color:
+                  activeTab === 'reviews'
+                    ? 'var(--tg-theme-accent-text-color)'
+                    : 'var(--tg-theme-hint-color)',
+                fontWeight: activeTab === 'reviews' ? '600' : '500',
+                fontSize: '15px',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                marginBottom: '-2px',
+              }}
+            >
+              Reviews {rating.count > 0 && `(${rating.count})`}
+            </button>
+          </div>
+
+          {/* Tab Content */}
+          <div style={{ flex: 1, overflow: 'auto', padding: '0 0 20px' }}>
+            {activeTab === 'overview' ? (
+              <List>
+                {/* Description */}
+                {location.description && (
+                  <Section>
+                    <Cell
+                      multiline
+                      style={{
+                        fontSize: '14px',
+                        lineHeight: '1.6',
+                        color: 'var(--tg-theme-text-color)',
+                      }}
+                    >
+                      {location.description}
+                    </Cell>
+                  </Section>
+                )}
+
+                {/* Location Info */}
+                <Section header="Location">
+                  <Cell
+                    before={<MapPin size={18} style={{ color: 'var(--tg-theme-hint-color)' }} />}
+                    subtitle={`${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`}
+                    after={
+                      <Button
+                        size="s"
+                        mode="plain"
+                        onClick={() => onLocationClick?.(location.latitude, location.longitude)}
+                      >
+                        View
+                      </Button>
+                    }
+                  >
+                    Coordinates
+                  </Cell>
+                </Section>
+
+                {/* Website */}
+                {location.website_url && (
+                  <Section header="Website">
+                    <Cell
+                      before={<Globe size={18} style={{ color: 'var(--tg-theme-hint-color)' }} />}
+                      after={
+                        <Button
+                          size="s"
+                          mode="plain"
+                          onClick={() => window.open(location.website_url, '_blank')}
+                        >
+                          Visit
+                        </Button>
+                      }
+                    >
+                      {location.website_url.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                    </Cell>
+                  </Section>
+                )}
+
+                {/* Schedules */}
+                {location.schedules && (
+                  <Section header="Hours">
+                    <Cell
+                      multiline
+                      style={{
+                        fontSize: '14px',
+                        whiteSpace: 'pre-line',
+                        color: 'var(--tg-theme-text-color)',
+                      }}
+                    >
+                      {location.schedules}
+                    </Cell>
+                  </Section>
+                )}
+
+                {/* Additional Info */}
+                <Section header="Details">
+                  {location.type && (
+                    <Cell
+                      subtitle="Type"
+                      style={{ textTransform: 'capitalize' }}
+                    >
+                      {location.type}
+                    </Cell>
+                  )}
+                  <Cell subtitle="Added on">
+                    {formatDate(location.created_at)}
+                  </Cell>
+                  {location.users && (
+                    <Cell
+                      before={
+                        <Avatar
+                          size={28}
+                          src={location.users.avatar_url || undefined}
+                          fallbackIcon={<User size={16} />}
+                        />
+                      }
+                      subtitle="Created by"
+                    >
+                      {location.users.nickname}
+                    </Cell>
+                  )}
+                </Section>
+              </List>
+            ) : (
+              <List>
+                {/* Rating Section */}
+                <Section>
+                  <Cell>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '8px 0' }}>
+                      <div>
+                        <div style={{ fontSize: '32px', fontWeight: '700', marginBottom: '4px' }}>
+                          {rating.average.toFixed(1)}
+                        </div>
+                        <StarRating rating={rating.average} readonly size="md" />
+                        <div style={{ fontSize: '13px', color: 'var(--tg-theme-hint-color)', marginTop: '4px' }}>
+                          {rating.count} {rating.count === 1 ? 'review' : 'reviews'}
+                        </div>
+                      </div>
+
+                      {telegramUser && (
+                        <div style={{ paddingTop: '8px', borderTop: '1px solid var(--tg-theme-separator-color)' }}>
+                          <div style={{ fontSize: '14px', marginBottom: '8px', fontWeight: '500' }}>
+                            Rate this place
+                          </div>
+                          <StarRating rating={userRating} onRatingChange={submitRating} size="md" />
+                        </div>
+                      )}
+                    </div>
+                  </Cell>
+                </Section>
+
+                {/* Comments Section */}
+                <Section header="Reviews">
+                  {telegramUser && (
+                    <Cell>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
+                        <Input
+                          value={newComment}
+                          onChange={(e) => setNewComment(e.target.value)}
+                          placeholder="Share your experience..."
+                          header=""
+                        />
+
+                        <Input
+                          value={newCommentImage}
+                          onChange={(e) => setNewCommentImage(e.target.value)}
+                          placeholder="Image URL (optional)"
+                          header=""
+                          type="url"
+                        />
+
+                        {newCommentImage && (
+                          <div style={{ position: 'relative', display: 'inline-block', alignSelf: 'flex-start' }}>
+                            <img
+                              src={newCommentImage}
+                              alt="Preview"
+                              style={{
+                                maxWidth: '150px',
+                                maxHeight: '100px',
+                                objectFit: 'cover',
+                                borderRadius: '8px',
+                                border: '2px solid var(--tg-theme-accent-text-color)',
+                              }}
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                            <button
+                              onClick={clearImage}
+                              style={{
+                                position: 'absolute',
+                                top: '-8px',
+                                right: '-8px',
+                                background: 'var(--tg-theme-destructive-text-color)',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '50%',
+                                width: '24px',
+                                height: '24px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                fontSize: '14px',
+                              }}
+                              title="Remove image"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        )}
+
+                        <Button
+                          size="s"
+                          onClick={submitComment}
+                          disabled={!newComment.trim() || isSubmitting}
+                          style={{ alignSelf: 'flex-start' }}
+                        >
+                          {isSubmitting ? (
+                            'Posting...'
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <Send size={14} />
+                              Post Review
+                            </div>
+                          )}
+                        </Button>
+                      </div>
+                    </Cell>
+                  )}
+
+                  {isLoadingComments ? (
+                    <Cell>Loading reviews...</Cell>
+                  ) : comments.length > 0 ? (
+                    comments.map((comment) => (
+                      <Cell
+                        key={comment.id}
+                        before={
+                          <Avatar
+                            size={28}
+                            src={comment.users?.avatar_url || undefined}
+                            fallbackIcon={<User size={16} />}
+                          />
+                        }
+                        subtitle={formatDate(comment.created_at)}
+                        multiline
+                      >
+                        <div>
+                          <div style={{ fontWeight: '600', marginBottom: '6px', fontSize: '14px' }}>
+                            {comment.users?.nickname || 'Anonymous'}
+                          </div>
+                          <div style={{ color: 'var(--tg-theme-text-color)', lineHeight: '1.5', fontSize: '14px' }}>
+                            {comment.content}
+                          </div>
+                          {comment.image_url && (
+                            <div style={{ marginTop: '12px' }}>
+                              <img
+                                src={comment.image_url}
+                                alt="Review photo"
+                                style={{
+                                  maxWidth: '100%',
+                                  height: 'auto',
+                                  borderRadius: '8px',
+                                  maxHeight: '200px',
+                                  objectFit: 'cover',
+                                }}
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </Cell>
+                    ))
+                  ) : (
+                    <Cell>
+                      <div
+                        style={{
+                          textAlign: 'center',
+                          color: 'var(--tg-theme-hint-color)',
+                          padding: '20px 0',
+                          fontSize: '14px',
+                        }}
+                      >
+                        No reviews yet. Be the first to share your experience!
+                      </div>
+                    </Cell>
+                  )}
+                </Section>
+              </List>
+            )}
+          </div>
         </div>
       </div>
     </div>

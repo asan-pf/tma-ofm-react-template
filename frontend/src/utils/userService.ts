@@ -5,7 +5,7 @@ interface TelegramUser {
   username?: string;
 }
 
-interface UserProfile {
+export interface UserProfile {
   id: number;
   telegram_id: string;
   nickname: string;
