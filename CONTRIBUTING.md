@@ -6,19 +6,48 @@ Thanks for helping improve the OpenFreeMap Telegram Mini App! This guide explain
 
 We support two main workflows. Pick the one that matches the tools you already have.
 
-### Option A – One-command Docker stack
-1. Install Docker Desktop (or Docker Engine) and Docker Compose.
-2. Copy the backend environment template: `cp backend/.env.example backend/.env` and set `BOT_TOKEN` plus any overrides you need.
-3. Run everything with one command:
-   ```bash
-   docker compose up --build
-   ```
-   This boots Postgres, the API, the Vite frontend, and an Nginx proxy. Hot reloads are wired in, so contributors do not need separate `npm run dev` windows.
-4. To share the stack with Telegram, expose the Nginx port using your tunnel of choice:
-   ```bash
-   ngrok http http://localhost:8000
-   ```
-   Register the public URL with BotFather and you are ready to test the Mini App end-to-end.
+### Option A – Docker + Ngrok + JWT (Recommended)
+
+This is the easiest way to run the full stack (Frontend, Backend, Database, PostgREST, Ngrok) locally.
+
+1.  **Prerequisites**:
+    *   Install [Docker Desktop](https://www.docker.com/products/docker-desktop/).
+    *   Create an account on [Ngrok](https://ngrok.com/) and get your Authtoken.
+
+2.  **Setup Environment**:
+    *   Copy the example environment file:
+        ```bash
+        cp .env.example .env
+        ```
+    *   Create a `frontend/.env` file:
+        ```bash
+        echo "VITE_BACKEND_URL=https://your-ngrok-domain.ngrok-free.dev" > frontend/.env
+        ```
+
+3.  **Generate JWT Token**:
+    You need a secure JWT token for `SUPABASE_ANON_KEY`. Run this command in your terminal (Node.js required) to generate one:
+    ```bash
+    node -e "const crypto = require('crypto'); const secret = 'super-secret-jwt-token-for-local-dev-at-least-32-chars'; const header = Buffer.from(JSON.stringify({alg: 'HS256', typ: 'JWT'})).toString('base64url'); const payload = Buffer.from(JSON.stringify({role: 'anon', iss: 'supabase', iat: Math.floor(Date.now()/1000), exp: Math.floor(Date.now()/1000) + 3600*24*365})).toString('base64url'); const signature = crypto.createHmac('sha256', secret).update(header + '.' + payload).digest('base64url'); console.log(header + '.' + payload + '.' + signature);"
+    ```
+    *Copy the output token.*
+
+4.  **Configure `.env`**:
+    Open `.env` and fill in the following:
+    *   `SUPABASE_ANON_KEY`: Paste the JWT token you just generated.
+    *   `BOT_TOKEN`: Your Telegram Bot Token (from @BotFather).
+    *   `NGROK_AUTH_TOKEN`: Your Ngrok Authtoken.
+    *   `FRONTEND_URL`: Your Ngrok domain (e.g., `https://your-domain.ngrok-free.dev`).
+
+5.  **Run the App**:
+    Start all services:
+    ```bash
+    docker-compose up --build
+    ```
+
+6.  **Access**:
+    *   **Frontend**: Open your Ngrok URL (e.g., `https://your-domain.ngrok-free.dev`).
+    *   **Backend API**: Accessible at `https://your-domain.ngrok-free.dev/api/`.
+    *   **Telegram**: Use the Ngrok URL to configure your Bot's Web App or Webhook.
 
 ### Option B – Hosted Supabase + Node
 1. Create a Supabase project and obtain your `SUPABASE_URL` and `SUPABASE_ANON_KEY`.
