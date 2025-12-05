@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapPin } from "lucide-react";
 import { useGeolocation } from "@/hooks/useGeolocation";
@@ -10,12 +10,11 @@ import { MapView } from "@/components/Map/MapView";
 import { FavoritesView } from "@/components/Map/FavoritesView";
 import { SavedLocationsView } from "@/components/Map/SavedLocationsView";
 import { MapControls } from "@/components/Map/MapControls";
-import { MapCrosshair } from "@/components/Map/MapCrosshair";
 import { SearchModal } from "@/components/Map/SearchModal";
 import { AddLocationModal } from "@/components/Map/AddLocationModal";
-import { AddChoiceModal } from "@/components/Map/AddChoiceModal";
 import { SavedLocationsModal } from "@/components/SavedLocationsModal";
-import { UserService } from "@/utils/userService";
+import { MapTapActionSheet } from "@/components/Map/MapTapActionSheet";
+import { UserService, type UserProfile } from "@/utils/userService";
 // Global POI imports commented out to focus on local POIs
 // import { POI } from "@/utils/poiService";
 import "leaflet/dist/leaflet.css";
@@ -26,6 +25,8 @@ interface Location {
   name: string;
   description: string;
   image_url?: string;
+  website_url?: string;
+  schedules?: string;
   latitude: number;
   longitude: number;
   type?: "permanent" | "temporary";
@@ -42,6 +43,8 @@ interface AddLocationData {
   name: string;
   description: string;
   image_url: string;
+  website_url: string;
+  schedules: string;
   type: "permanent" | "temporary";
   category: "grocery" | "restaurant-bar" | "other";
 }
@@ -81,7 +84,6 @@ export function MapPage() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [favoriteLocations, setFavoriteLocations] = useState<Location[]>([]);
   const [showAddLocationModal, setShowAddLocationModal] = useState(false);
-  const [showAddChoiceModal, setShowAddChoiceModal] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showLocationDetail, setShowLocationDetail] = useState(false);
   const [showSavedLocationsModal, setShowSavedLocationsModal] = useState(false);
@@ -92,27 +94,31 @@ export function MapPage() {
   // const [showPOIDetail, setShowPOIDetail] = useState(false);
   // const [selectedPOI, setSelectedPOI] = useState<POI | null>(null);
   // const [favoritePOIs, setFavoritePOIs] = useState<POI[]>([]);
-  const [isAddLocationMode, setIsAddLocationMode] = useState(false);
   const [mapRef, setMapRef] = useState<any>(null);
   const [pendingMapFocus, setPendingMapFocus] = useState<{
     lat: number;
     lng: number;
   } | null>(null);
-  const [pendingLocation, setPendingLocation] = useState<{
-    lat: number;
-    lng: number;
-  } | null>(null);
+  const [mapTapLocation, setMapTapLocation] = useState<{ lat: number; lng: number } | null>(
+    null
+  );
   const [addLocationData, setAddLocationData] = useState<AddLocationData>({
     lat: 0,
     lng: 0,
     name: "",
     description: "",
     image_url: "",
+    website_url: "",
+    schedules: "",
     type: "permanent",
     category: "other",
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showTapActionSheet, setShowTapActionSheet] = useState(false);
+  const [showTapHint, setShowTapHint] = useState(false);
+  const [, setUserProfile] = useState<UserProfile | null>(null);
+  const [isPlacementMode, setIsPlacementMode] = useState(false);
 
   const navigate = useNavigate();
   const { latitude, longitude } = useGeolocation();
@@ -146,6 +152,34 @@ export function MapPage() {
   }, [telegramUser?.id]);
 
   useEffect(() => {
+    let isMounted = true;
+
+    const ensureUserProfile = async () => {
+      if (!telegramUser) {
+        if (isMounted) {
+          setUserProfile(null);
+        }
+        return;
+      }
+
+      try {
+        const profile = await UserService.getOrCreateUser(telegramUser);
+        if (isMounted) {
+          setUserProfile(profile);
+        }
+      } catch (error) {
+        console.error("Error ensuring user profile:", error);
+      }
+    };
+
+    ensureUserProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [telegramUser]);
+
+  useEffect(() => {
     if (mapRef && pendingMapFocus) {
       try {
         mapRef.setView([pendingMapFocus.lat, pendingMapFocus.lng], 16);
@@ -156,6 +190,19 @@ export function MapPage() {
       }
     }
   }, [mapRef, pendingMapFocus]);
+
+  const exitPlacementMode = useCallback(() => {
+    setIsPlacementMode(false);
+    setShowTapHint(false);
+    setShowTapActionSheet(false);
+    setMapTapLocation(null);
+  }, []);
+
+  useEffect(() => {
+    if (activeTab !== "explore") {
+      exitPlacementMode();
+    }
+  }, [activeTab, exitPlacementMode]);
 
   useEffect(() => {
     setLocations((prev) => {
@@ -274,7 +321,9 @@ export function MapPage() {
           telegramId: effectiveUser.id.toString(),
           name: addLocationData.name,
           description: addLocationData.description,
-          image_url: addLocationData.image_url || null,
+          imageUrl: addLocationData.image_url || null,
+          websiteUrl: addLocationData.website_url || null,
+          schedules: addLocationData.schedules || null,
           latitude: addLocationData.lat,
           longitude: addLocationData.lng,
           type: addLocationData.type,
@@ -284,13 +333,16 @@ export function MapPage() {
 
       if (response.ok) {
         setShowAddLocationModal(false);
-        setPendingLocation(null);
+        exitPlacementMode();
+        setMapTapLocation(null);
         setAddLocationData({
           lat: 0,
           lng: 0,
           name: "",
           description: "",
           image_url: "",
+          website_url: "",
+          schedules: "",
           type: "permanent",
           category: "other",
         });
@@ -468,44 +520,38 @@ export function MapPage() {
     setShowSearchModal(false);
   };
 
-  const handleAddLocationModeToggle = () => {
-    if (isAddLocationMode) {
-      setIsAddLocationMode(false);
-      setPendingLocation(null);
-    } else {
-      setShowAddChoiceModal(true);
+  const handleMapClick = (lat: number, lng: number) => {
+    if (
+      !isPlacementMode ||
+      showAddLocationModal ||
+      showSearchModal ||
+      showLocationDetail ||
+      showTapActionSheet
+    ) {
+      return;
     }
+
+    setShowTapHint(false);
+    setMapTapLocation({ lat, lng });
+    setShowTapActionSheet(true);
   };
 
-  const handleLocationChoice = () => {
-    setShowAddChoiceModal(false);
-    setIsAddLocationMode(true);
-    setPendingLocation(null);
-  };
+  const handleMapTapAdd = () => {
+    if (!mapTapLocation) return;
 
-  const handleEventChoice = () => {
-    setShowAddChoiceModal(false);
-    setIsAddLocationMode(true);
-    setPendingLocation(null);
+    setAddLocationData((prev) => ({
+      ...prev,
+      lat: mapTapLocation.lat,
+      lng: mapTapLocation.lng,
+    }));
+    setIsPlacementMode(false);
+    setShowAddLocationModal(true);
+    setShowTapActionSheet(false);
+    setMapTapLocation(null);
   };
 
   const handleSavedLocationClick = (location: Location) => {
     focusLocationOnMap(location, { closeSavedModal: true });
-  };
-
-  const handleMapCenterAdd = () => {
-    if (mapRef && isAddLocationMode) {
-      const center = mapRef.getCenter();
-      setPendingLocation({ lat: center.lat, lng: center.lng });
-      setAddLocationData((prev) => ({
-        ...prev,
-        lat: center.lat,
-        lng: center.lng,
-        name: "",
-      }));
-      setShowAddLocationModal(true);
-      setIsAddLocationMode(false);
-    }
   };
 
   if (isLoading) {
@@ -578,7 +624,6 @@ export function MapPage() {
                 center={dynamicMapCenter}
                 locations={locations}
                 favoriteLocations={favoriteLocations}
-                pendingLocation={pendingLocation}
                 userLocation={
                   latitude && longitude
                     ? { lat: latitude, lng: longitude }
@@ -586,6 +631,7 @@ export function MapPage() {
                 }
                 setMapRef={setMapRef}
                 onLocationClick={handleLocationClick}
+                onMapClick={handleMapClick}
                 onToggleFavorite={toggleFavorite}
                 // Global POI props commented out to focus on local POIs
                 // onGlobalPOIClick={handleGlobalPOIClick}
@@ -594,17 +640,11 @@ export function MapPage() {
                 hideBadges={true} // Always hide badges now since we have the saved tab
               />
 
-              <MapCrosshair isVisible={isAddLocationMode} />
-
               {!showLocationDetail &&
                 !showAddLocationModal &&
-                !showAddChoiceModal &&
                 !showSearchModal &&
                 !showSavedLocationsModal && (
                   <MapControls
-                    isAddLocationMode={isAddLocationMode}
-                    onAddLocationToggle={handleAddLocationModeToggle}
-                    onMapCenterAdd={handleMapCenterAdd}
                     onCurrentLocationClick={() => {
                       if (latitude && longitude) {
                         setDynamicMapCenter({ lat: latitude, lng: longitude });
@@ -613,6 +653,28 @@ export function MapPage() {
                     hasCurrentLocation={!!(latitude && longitude)}
                   />
                 )}
+
+              {showTapHint && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "20px",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    background: "rgba(15,23,42,0.85)",
+                    color: "white",
+                    padding: "12px 16px",
+                    borderRadius: "9999px",
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    zIndex: 1100,
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    boxShadow: "0 10px 25px rgba(0,0,0,0.3)",
+                  }}
+                >
+                  Tap anywhere on the map to place your location
+                </div>
+              )}
             </>
           ) : activeTab === "favorites" ? (
             <FavoritesView
@@ -625,22 +687,23 @@ export function MapPage() {
               locations={locations}
               onLocationClick={handleLocationClick}
               onToggleFavorite={toggleFavorite}
+              onAddLocationRequest={() => {
+                setActiveTab("explore");
+                setIsPlacementMode(true);
+                setShowTapHint(true);
+                setShowTapActionSheet(false);
+                setMapTapLocation(null);
+              }}
             />
           )}
         </div>
-
-        <AddChoiceModal
-          isOpen={showAddChoiceModal}
-          onClose={() => setShowAddChoiceModal(false)}
-          onLocationChoice={handleLocationChoice}
-          onEventChoice={handleEventChoice}
-        />
 
         <AddLocationModal
           isOpen={showAddLocationModal}
           onClose={() => {
             setShowAddLocationModal(false);
-            setPendingLocation(null);
+            setMapTapLocation(null);
+            exitPlacementMode();
           }}
           addLocationData={addLocationData}
           setAddLocationData={setAddLocationData}
@@ -708,6 +771,13 @@ export function MapPage() {
           onClose={() => setShowSavedLocationsModal(false)}
           onLocationClick={handleSavedLocationClick}
           onToggleFavorite={toggleFavorite}
+        />
+
+        <MapTapActionSheet
+          isOpen={showTapActionSheet}
+          coordinates={mapTapLocation}
+          onAddLocation={handleMapTapAdd}
+          onClose={exitPlacementMode}
         />
       </div>
     </>

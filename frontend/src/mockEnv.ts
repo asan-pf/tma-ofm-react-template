@@ -1,7 +1,8 @@
 import { mockTelegramEnv, isTMA, emitEvent } from '@telegram-apps/sdk-react';
 
 // Mock environment for development only - tree-shaken in production
-if (import.meta.env.DEV) {
+// Also enable if running on ngrok for testing production builds
+if (import.meta.env.DEV || window.location.hostname.includes('ngrok-free.dev') || window.location.hostname === 'localhost') {
   if (!await isTMA('complete')) {
     const themeParams = {
       accent_text_color: '#6ab2f2',
@@ -21,7 +22,7 @@ if (import.meta.env.DEV) {
     const noInsets = { left: 0, top: 0, bottom: 0, right: 0 } as const;
 
     mockTelegramEnv({
-      onEvent(e) {
+      onEvent(e: any) {
         // Handle Telegram Mini App events
         if (e[0] === 'web_app_request_theme') {
           return emitEvent('theme_changed', { theme_params: themeParams });

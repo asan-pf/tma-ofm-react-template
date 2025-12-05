@@ -7,6 +7,8 @@ interface AddLocationData {
   name: string;
   description: string;
   image_url: string;
+  website_url: string;
+  schedules: string;
   type: "permanent" | "temporary";
   category: "grocery" | "restaurant-bar" | "other";
 }
@@ -149,6 +151,33 @@ export function AddLocationModal({
 
               <div>
                 <Subheadline style={{ marginBottom: 8, color: "#e2e8f0" }}>
+                  Website Link
+                </Subheadline>
+                <input
+                  type="url"
+                  value={addLocationData.website_url}
+                  onChange={(e) =>
+                    setAddLocationData((prev) => ({
+                      ...prev,
+                      website_url: e.target.value,
+                    }))
+                  }
+                  placeholder="https://example.com"
+                  style={{
+                    width: "100%",
+                    padding: "12px 16px",
+                    border: "1px solid #475569",
+                    borderRadius: "12px",
+                    backgroundColor: "#475569",
+                    color: "#f1f5f9",
+                    fontSize: "16px",
+                    outline: "none",
+                  }}
+                />
+              </div>
+
+              <div>
+                <Subheadline style={{ marginBottom: 8, color: "#e2e8f0" }}>
                   Description
                 </Subheadline>
                 <textarea
@@ -199,6 +228,35 @@ export function AddLocationModal({
                     color: "#f1f5f9",
                     fontSize: "16px",
                     outline: "none",
+                  }}
+                />
+              </div>
+
+              <div>
+                <Subheadline style={{ marginBottom: 8, color: "#e2e8f0" }}>
+                  Schedules
+                </Subheadline>
+                <textarea
+                  value={addLocationData.schedules}
+                  onChange={(e) =>
+                    setAddLocationData((prev) => ({
+                      ...prev,
+                      schedules: e.target.value,
+                    }))
+                  }
+                  placeholder={"Mon-Fri 09:00-18:00\nSat-Sun 10:00-16:00"}
+                  rows={3}
+                  style={{
+                    width: "100%",
+                    padding: "12px 16px",
+                    border: "1px solid #475569",
+                    borderRadius: "12px",
+                    backgroundColor: "#475569",
+                    color: "#f1f5f9",
+                    fontSize: "16px",
+                    outline: "none",
+                    resize: "vertical",
+                    fontFamily: "inherit",
                   }}
                 />
               </div>

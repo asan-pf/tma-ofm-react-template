@@ -127,6 +127,9 @@ app.post('/api/locations', async (req, res) => {
       longitude,
       category,
       type = 'permanent',
+      websiteUrl,
+      imageUrl,
+      schedules
     } = req.body;
 
     if (typeof latitude !== 'number' || typeof longitude !== 'number' || !name || !category) {
@@ -145,6 +148,9 @@ app.post('/api/locations', async (req, res) => {
       type,
       user_id: userId,
       is_approved: true,
+      website_url: websiteUrl ?? null,
+      image_url: imageUrl ?? null,
+      schedules: schedules ?? null,
     };
 
     const { data, error } = await supabase

@@ -14,6 +14,9 @@ CREATE TABLE public.locations (
     description text,
     latitude double precision NOT NULL,
     longitude double precision NOT NULL,
+    website_url text,
+    image_url text,
+    schedules text,
     type character varying NOT NULL CHECK (
         type::text = ANY (
             ARRAY ['permanent'::character varying, 'temporary'::character varying]::text []
@@ -28,6 +31,10 @@ CREATE TABLE public.locations (
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT locations_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS locations_user_unique
+ON public.locations(user_id)
+WHERE user_id IS NOT NULL;
 
 CREATE TABLE public.comments (
     id SERIAL PRIMARY KEY,
