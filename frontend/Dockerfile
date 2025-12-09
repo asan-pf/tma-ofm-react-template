@@ -1,31 +1,13 @@
-# Frontend Dockerfile (multi-stage)
-FROM node:22-alpine AS build
+FROM node:22-alpine
+
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy only package files first to leverage caching of npm install
+COPY package.json package-lock.json* pnpm-lock.yaml* yarn.lock* ./
+RUN npm install
 
-# Install dependencies (use install to avoid lockfile requirement)
-RUN npm install --quiet
+# Source code comes from bind mount (./frontend:/app), so no need to COPY . here for dev
 
-# Copy source code
-COPY . .
+EXPOSE 5173
 
-# Build the application
-RUN npm run build
-
-# Serve with nginx
-FROM nginx:alpine
-
-
-# Remove default config
-RUN rm /etc/nginx/conf.d/default.conf || true
-
-# Copy built files to nginx
-COPY --from=build /app/dist /usr/share/nginx/html
-
-# Copy custom nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
