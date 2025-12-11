@@ -11,6 +11,7 @@ services:
     environment:
       NODE_ENV: development
       PORT: 3000
+      FRONTEND_URL: ${PUBLIC_URL}
     expose:
       - "3000"
 
@@ -19,6 +20,10 @@ services:
       context: ./frontend
       dockerfile: Dockerfile   # Node + npm, runs Vite
     container_name: ofm_vite
+    env_file:
+      - ./frontend/.env
+    environment:
+      VITE_BACKEND_URL: ${PUBLIC_URL}
     depends_on:
       - backend
     ports:
