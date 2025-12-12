@@ -1,13 +1,6 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-# echo ""
-# echo "Provide ngrok url:"
-# read -r PUBLIC_URL
-# echo "PUBLIC_URL: $PUBLIC_URL"
-# echo ""
-# echo "Choose an action:"
-# echo "1) Build images + start containers"
-# echo "2) Start 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Load env variables from .env file

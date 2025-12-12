@@ -48,6 +48,23 @@ docker compose up --build
 ```
 7. Set url provided by ngrok as your telegram bot button URL using `@BotFather`   
 
+## Automated docker setup with bash script 
+Before running script for a first time you will need to:
+1. set `BOT_TOKEN` in the `backend/.env` file (take your telegram bot token using `@BotFather`)
+2. make sure you have installed Ngrok and **jq** (utility to read json files)
+3. build docker compose images with `docker compose build` command
+To run script execute following commands in the CLI: 
+`chmod +x ./start-tma.sh`
+`./start-tma.sh`
+The script does following: 
+1. reads `BOT_TOKEN` from `backend/.env` file
+2. starts Ngrok at port 8000
+3. gets Ngrok url using `jq` utility
+4. calls telegram API using `curl` to set tma button url (button that user taps to launch your app)
+5. starts docker compose containers using `docker compose up` command 
+The line `set -euo pipefail` enables script mode, that will stop script execution if any of the stages fails.
+\* the script is tested on **Linux Ubuntu**
+
 ### Database Schema
 
 - Hosted Supabase: Run the SQL schema in `backend/database/schema.sql` in your Supabase project.
