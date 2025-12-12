@@ -22,9 +22,6 @@ BACKEND_URL=https://your-backend-url
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your_supabase_key
 
-# Local fallback (used automatically when SUPABASE_* are not set)
-LOCAL_SUPABASE_URL=http://localhost:8000
-LOCAL_SUPABASE_ANON_KEY=dev-local-noauth
 PORT=3000
 ```
 

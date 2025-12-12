@@ -15,80 +15,55 @@ A **Telegram Mini App** - **OpenFreeMap** integration. Share your favorite locat
 - User favorites system  
 - Profile management
 - Real-time location services
-
-## Tech Stack
-
-**Frontend:**
-- React with TypeScript
-- Leaflet for maps
-- Telegram UI components
-- Tailwind CSS
-- Vite build system
-
-**Backend:**
-- Node.js API
+- [Telegram UI components](https://github.com/telegram-mini-apps-dev/TelegramUI)
+- Vite - React - Express.js
 - Supabase PostgreSQL
-- Telegram Bot integration
 
-## Local Database via Docker (no Supabase required)
+## Local setup via Docker
 
-If `SUPABASE_URL` and `SUPABASE_ANON_KEY` are not provided, the backend can talk to a local Postgres through PostgREST that mimics the Supabase REST endpoint.
-
-Quick start:
-
-- From the repo root: `docker compose up --build`
-- This launches Postgres + PostgREST + a tiny proxy on `http://localhost:8000/rest/v1`.
-- The backend auto-falls back to `LOCAL_SUPABASE_URL=http://localhost:8000` with a dev key.
-- First-run initializes tables from `backend/database/schema.sql`.
-
-To force local mode, or customize:
-
-```env
-# backend/.env
-LOCAL_SUPABASE_URL=http://localhost:8000
-LOCAL_SUPABASE_ANON_KEY=dev-local-noauth
-```
-
-## Quick Start
-
-### Prerequisites
-- Node.js 18+
-- Telegram Bot Token
-- Supabase account
-
-### Frontend Setup
-
+1. Install Docker and [Docker Compose](https://docs.docker.com/compose/)
+2. Install [Ngrok](https://ngrok.com/)
+3. Create [Supabase](https://supabase.com/) account and project
+- in the project go to SQL Editor paste the content of `backend/database/schema.sql` and tap 'Run' button; it will create needed tables
+4. Set up telegram bot with `@BotFather`
+5. Start ngrok at port 8000 
 ```bash
-npm install
-npm run dev:https
+ngrok http 8000
 ```
-
-### Backend Setup
-
-```bash
-cd backend
-npm install
-cp .env.example .env
-# Configure environment variables (use hosted Supabase or rely on Docker local DB)
-npm run dev
-```
-
-### Environment Variables
-
-Create `.env` in `backend/`:
-
+5. Set environment variables
 ```env
-BOT_TOKEN=your_telegram_bot_token
-FRONTEND_URL=https://your-frontend-url
-BACKEND_URL=https://your-backend-url
-# Hosted Supabase (preferred when available)
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your_supabase_key
-
-# Local fallback (used automatically when SUPABASE_* are not set)
-LOCAL_SUPABASE_URL=http://localhost:8000
-LOCAL_SUPABASE_ANON_KEY=dev-local-noauth
+   # backend/.env
+   BOT_TOKEN=your_telegram_bot_token
+   FRONTEND_URL=https://xxx.ngrok-free.app
+   SUPABASE_URL=https://your-project.supabase.co
+   SUPABASE_ANON_KEY=your_public_key
+   ```
+  and in frontend folder:
+```env
+  VITE_BACKEND_URL=https://xxx.ngrok-free.app
 ```
+6. Launch docker compose with command:
+```bash
+docker compose up --build
+```
+7. Set url provided by ngrok as your telegram bot button URL using `@BotFather`   
+
+## Automated docker setup with bash script 
+Before running script for a first time you will need to:
+1. set `BOT_TOKEN` in the `backend/.env` file (take your telegram bot token using `@BotFather`)
+2. make sure you have installed Ngrok and **jq** (utility to read json files)
+3. build docker compose images with `docker compose build` command
+To run script execute following commands in the CLI: 
+`chmod +x ./start-tma.sh`
+`./start-tma.sh`
+The script does following: 
+1. reads `BOT_TOKEN` from `backend/.env` file
+2. starts Ngrok at port 8000
+3. gets Ngrok url using `jq` utility
+4. calls telegram API using `curl` to set tma button url (button that user taps to launch your app)
+5. starts docker compose containers using `docker compose up` command 
+The line `set -euo pipefail` enables script mode, that will stop script execution if any of the stages fails.
+\* the script is tested on **Linux Ubuntu**
 
 ### Database Schema
 
