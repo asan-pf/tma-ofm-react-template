@@ -14,6 +14,8 @@ import {
   ChevronUp,
   X,
   Globe,
+  Camera,
+  ImagePlus,
 } from "lucide-react";
 import { StarRating } from "./StarRating";
 import { initDataState, useSignal } from "@telegram-apps/sdk-react";
@@ -92,6 +94,7 @@ export function LocationDetailModal({
   const [isDragging, setIsDragging] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "reviews">("overview");
   const modalRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const initData = useSignal(initDataState);
   const telegramUser = initData?.user;
@@ -350,11 +353,15 @@ export function LocationDetailModal({
     
     // Prevent default scrolling when at the top and trying to expand
     if (deltaY < -50 && !isExpanded && modalRef.current) {
+      // Allow continuous scroll if expanded
+      if (isExpanded) return;
       e.preventDefault();
     }
     
     // Allow closing by dragging down when not expanded or when at top of scroll
     if (deltaY > 100) {
+      // Only prevent if we are scrolled down
+      if (modalRef.current && modalRef.current.scrollTop > 0) return;
       e.preventDefault();
     }
   };
@@ -611,12 +618,16 @@ export function LocationDetailModal({
             </div>
           )}
 
-          {/* Tabs */}
+          {/* Tabs - Sticky */}
           <div
             style={{
               display: 'flex',
               borderBottom: '2px solid var(--tg-theme-separator-color)',
               padding: '0 20px',
+              position: 'sticky',
+              top: 0,
+              zIndex: 10,
+              backgroundColor: 'var(--tg-theme-bg-color)',
             }}
           >
             <button
@@ -667,8 +678,8 @@ export function LocationDetailModal({
             </button>
           </div>
 
-          {/* Tab Content */}
-          <div style={{ flex: 1, overflow: 'auto', padding: '0 0 20px' }}>
+          {/* Tab Content - Continuous Scroll (No nested scroll) */}
+          <div style={{ flex: 1, padding: '0 0 20px' }}>
             {activeTab === 'overview' ? (
               <List>
                 {/* Description */}
@@ -836,40 +847,79 @@ export function LocationDetailModal({
                           header=""
                         />
 
-                        <div>
-                          <label
+                        {/* Modern Upload UI */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <div 
+                            onClick={() => fileInputRef.current?.click()}
                             style={{
-                              display: 'block',
-                              fontSize: '13px',
-                              marginBottom: '6px',
-                              color: 'var(--tg-theme-hint-color)',
+                              border: '2px dashed var(--tg-theme-separator-color)',
+                              borderRadius: '12px',
+                              padding: '24px 16px',
+                              textAlign: 'center',
+                              cursor: canUploadImages && !isSubmitting ? 'pointer' : 'default',
+                              backgroundColor: 'var(--tg-theme-secondary-bg-color)',
+                              transition: 'all 0.2s',
+                              opacity: canUploadImages && !isSubmitting ? 1 : 0.6,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              gap: '8px',
                             }}
                           >
-                            Upload photo
-                          </label>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            disabled={!canUploadImages || isSubmitting}
-                            onChange={(event) =>
-                              handleCommentFileChange(event.target.files?.[0] ?? null)
-                            }
-                            style={{ width: '100%' }}
-                          />
+                            <div style={{ 
+                              width: '48px', 
+                              height: '48px', 
+                              borderRadius: '50%', 
+                              backgroundColor: 'rgba(var(--tg-theme-accent-text-color-rgb, 0, 122, 255), 0.1)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              marginBottom: '4px'
+                            }}>
+                              <ImagePlus size={24} style={{ color: 'var(--tg-theme-accent-text-color)' }} />
+                            </div>
+                            <div style={{ fontSize: '15px', fontWeight: '600', color: 'var(--tg-theme-text-color)' }}>
+                              Add Photos
+                            </div>
+                            <div style={{ fontSize: '12px', color: 'var(--tg-theme-hint-color)' }}>
+                              Share what this place looks like
+                            </div>
+                            <input
+                              ref={fileInputRef}
+                              type="file"
+                              accept="image/*"
+                              disabled={!canUploadImages || isSubmitting}
+                              onChange={(event) =>
+                                handleCommentFileChange(event.target.files?.[0] ?? null)
+                              }
+                              hidden
+                            />
+                          </div>
+
                           {!canUploadImages && (
-                            <div style={{ fontSize: '12px', marginTop: '4px', color: 'var(--tg-theme-destructive-text-color)' }}>
+                            <div style={{ fontSize: '12px', color: 'var(--tg-theme-destructive-text-color)', padding: '0 4px' }}>
                               Configure VITE_SUPABASE_URL to enable image uploads.
                             </div>
                           )}
-                        </div>
 
-                        <Input
-                          value={newCommentImage}
-                          onChange={(e) => handleCommentImageUrlChange(e.target.value)}
-                          placeholder="Image URL (optional)"
-                          header=""
-                          type="url"
-                        />
+                          <div style={{ position: 'relative' }}>
+                            <Input
+                              value={newCommentImage}
+                              onChange={(e) => handleCommentImageUrlChange(e.target.value)}
+                              placeholder="Or paste an image URL..."
+                              header=""
+                              type="url"
+                              style={{ paddingLeft: '32px' }}
+                            />
+                            <Camera size={16} style={{ 
+                              position: 'absolute', 
+                              left: '12px', 
+                              top: '50%', 
+                              transform: 'translateY(-50%)',
+                              color: 'var(--tg-theme-hint-color)'
+                            }} />
+                          </div>
+                        </div>
 
                         {newCommentImage && (
                           <div style={{ position: 'relative', display: 'inline-block', alignSelf: 'flex-start' }}>
