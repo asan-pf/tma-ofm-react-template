@@ -14,8 +14,7 @@ import {
   ChevronUp,
   X,
   Globe,
-  Camera,
-  ImagePlus,
+  Paperclip,
 } from "lucide-react";
 import { StarRating } from "./StarRating";
 import { initDataState, useSignal } from "@telegram-apps/sdk-react";
@@ -220,13 +219,7 @@ export function LocationDetailModal({
     setNewCommentImage(URL.createObjectURL(file));
   };
 
-  const handleCommentImageUrlChange = (value: string) => {
-    if (commentImageFile) {
-      releaseCommentPreview();
-      setCommentImageFile(null);
-    }
-    setNewCommentImage(value);
-  };
+  // handleCommentImageUrlChange removed as URL input is gone
 
   const submitComment = async () => {
     if (!newComment.trim() || !telegramUser) return;
@@ -840,86 +833,54 @@ export function LocationDetailModal({
                   {telegramUser && (
                     <Cell>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
-                        <Input
-                          value={newComment}
-                          onChange={(e) => setNewComment(e.target.value)}
-                          placeholder="Share your experience..."
-                          header=""
-                        />
-
-                        {/* Modern Upload UI */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          <div 
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', position: 'relative' }}>
+                          <Input
+                            value={newComment}
+                            onChange={(e) => setNewComment(e.target.value)}
+                            placeholder="Share your experience..."
+                            header=""
+                            style={{ flex: 1, paddingRight: '44px' }}
+                          />
+                          <button
                             onClick={() => fileInputRef.current?.click()}
                             style={{
-                              border: '2px dashed var(--tg-theme-separator-color)',
-                              borderRadius: '12px',
-                              padding: '24px 16px',
-                              textAlign: 'center',
+                              position: 'absolute',
+                              right: '8px',
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              background: 'none',
+                              border: 'none',
+                              color: 'var(--tg-theme-accent-text-color)',
                               cursor: canUploadImages && !isSubmitting ? 'pointer' : 'default',
-                              backgroundColor: 'var(--tg-theme-secondary-bg-color)',
-                              transition: 'all 0.2s',
-                              opacity: canUploadImages && !isSubmitting ? 1 : 0.6,
-                              display: 'flex',
-                              flexDirection: 'column',
-                              alignItems: 'center',
-                              gap: '8px',
-                            }}
-                          >
-                            <div style={{ 
-                              width: '48px', 
-                              height: '48px', 
-                              borderRadius: '50%', 
-                              backgroundColor: 'rgba(var(--tg-theme-accent-text-color-rgb, 0, 122, 255), 0.1)',
+                              padding: '8px',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              marginBottom: '4px'
-                            }}>
-                              <ImagePlus size={24} style={{ color: 'var(--tg-theme-accent-text-color)' }} />
-                            </div>
-                            <div style={{ fontSize: '15px', fontWeight: '600', color: 'var(--tg-theme-text-color)' }}>
-                              Add Photos
-                            </div>
-                            <div style={{ fontSize: '12px', color: 'var(--tg-theme-hint-color)' }}>
-                              Share what this place looks like
-                            </div>
-                            <input
-                              ref={fileInputRef}
-                              type="file"
-                              accept="image/*"
-                              disabled={!canUploadImages || isSubmitting}
-                              onChange={(event) =>
-                                handleCommentFileChange(event.target.files?.[0] ?? null)
-                              }
-                              hidden
-                            />
-                          </div>
-
-                          {!canUploadImages && (
-                            <div style={{ fontSize: '12px', color: 'var(--tg-theme-destructive-text-color)', padding: '0 4px' }}>
-                              Configure VITE_SUPABASE_URL to enable image uploads.
-                            </div>
-                          )}
-
-                          <div style={{ position: 'relative' }}>
-                            <Input
-                              value={newCommentImage}
-                              onChange={(e) => handleCommentImageUrlChange(e.target.value)}
-                              placeholder="Or paste an image URL..."
-                              header=""
-                              type="url"
-                              style={{ paddingLeft: '32px' }}
-                            />
-                            <Camera size={16} style={{ 
-                              position: 'absolute', 
-                              left: '12px', 
-                              top: '50%', 
-                              transform: 'translateY(-50%)',
-                              color: 'var(--tg-theme-hint-color)'
-                            }} />
-                          </div>
+                              opacity: canUploadImages && !isSubmitting ? 1 : 0.5,
+                              zIndex: 2,
+                            }}
+                            title="Attach Photo"
+                            disabled={!canUploadImages || isSubmitting}
+                          >
+                            <Paperclip size={20} />
+                          </button>
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/*"
+                            disabled={!canUploadImages || isSubmitting}
+                            onChange={(event) =>
+                              handleCommentFileChange(event.target.files?.[0] ?? null)
+                            }
+                            hidden
+                          />
                         </div>
+
+                        {!canUploadImages && (
+                          <div style={{ fontSize: '11px', color: 'var(--tg-theme-destructive-text-color)', marginTop: '-8px' }}>
+                            Configure Supabase to enable images.
+                          </div>
+                        )}
 
                         {newCommentImage && (
                           <div style={{ position: 'relative', display: 'inline-block', alignSelf: 'flex-start' }}>

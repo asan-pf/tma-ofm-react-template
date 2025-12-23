@@ -9,12 +9,12 @@ export default async function handler(req, res) {
     'http://localhost:5173',
     'http://localhost:3000'
   ];
-  
+
   const origin = req.headers.origin;
   if (allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
-  
+
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -26,7 +26,7 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     try {
       const { location_id } = req.query;
-      
+
       const { data, error } = await supabase
         .from('comments')
         .select(`
@@ -50,14 +50,15 @@ export default async function handler(req, res) {
     }
   } else if (req.method === 'POST') {
     try {
-      const { location_id, user_id, content } = req.body;
-      
+      const { location_id, user_id, content, image_url } = req.body;
+
       const { data, error } = await supabase
         .from('comments')
         .insert([{
           location_id,
           user_id: user_id || null,
           content,
+          image_url: image_url || null,
           is_approved: true
         }])
         .select(`
