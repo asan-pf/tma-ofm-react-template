@@ -14,6 +14,7 @@ interface Location {
   type?: "permanent" | "temporary";
   category: "grocery" | "restaurant-bar" | "other";
   created_at: string;
+  image_url?: string;
 }
 
 interface FavoritesViewProps {
@@ -114,30 +115,51 @@ export function FavoritesView({
                 }}
                 onClick={() => onLocationClick(location)}
               >
-                <div
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "0.75rem",
+            }}
+          >
+            <div
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: 12,
+                overflow: "hidden",
+                flexShrink: 0,
+                border: "1px solid var(--tg-color-separator)",
+                background:
+                  location.image_url
+                    ? "var(--tg-color-bg)"
+                    : `${getCategoryColor(location.category)}22`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {location.image_url ? (
+                <img
+                  src={location.image_url}
+                  alt={location.name}
                   style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: "0.75rem",
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
                   }}
-                >
-                  <div
-                    style={{
-                      backgroundColor: getCategoryColor(location.category),
-                      borderRadius: "8px",
-                      padding: "8px",
-                      minWidth: "40px",
-                      height: "40px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: "18px",
-                    }}
-                  >
-                    {getCategoryIcon(location.category)}
-                  </div>
+                  onError={(event) => {
+                    event.currentTarget.style.display = "none";
+                  }}
+                />
+              ) : (
+                <span style={{ fontSize: "20px" }}>
+                  {getCategoryIcon(location.category)}
+                </span>
+              )}
+            </div>
 
-                  <div style={{ flex: 1 }}>
+            <div style={{ flex: 1 }}>
                     <div
                       style={{
                         display: "flex",

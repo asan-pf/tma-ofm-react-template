@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   List,
   Section,
@@ -18,6 +18,10 @@ import {
 import { StarRating } from "./StarRating";
 import { initDataState, useSignal } from "@telegram-apps/sdk-react";
 import { UserService } from "@/utils/userService";
+import {
+  uploadCommentImage,
+  isSupabaseConfigured,
+} from "@/utils/storageService";
 
 interface Location {
   id: number;
@@ -77,6 +81,7 @@ export function LocationDetailModal({
   const [rating, setRating] = useState<Rating>({ average: 0, count: 0 });
   const [newComment, setNewComment] = useState("");
   const [newCommentImage, setNewCommentImage] = useState("");
+  const [commentImageFile, setCommentImageFile] = useState<File | null>(null);
   const [userRating, setUserRating] = useState(0);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -90,6 +95,25 @@ export function LocationDetailModal({
 
   const initData = useSignal(initDataState);
   const telegramUser = initData?.user;
+  const canUploadImages = isSupabaseConfigured;
+  const structuredSchedule = useMemo(() => {
+    if (!location.schedules) return null;
+    try {
+      const parsed = JSON.parse(location.schedules);
+      if (!Array.isArray(parsed)) return null;
+      return parsed
+        .map((entry: any) => ({
+          day: String(entry.day ?? ""),
+          open: String(entry.open ?? ""),
+          close: String(entry.close ?? ""),
+          open24Hours: Boolean(entry.open24Hours),
+          closed: Boolean(entry.closed),
+        }))
+        .filter((entry) => entry.day);
+    } catch (error) {
+      return null;
+    }
+  }, [location.schedules]);
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
@@ -127,6 +151,20 @@ export function LocationDetailModal({
     return images;
   };
 
+  const releaseCommentPreview = () => {
+    if (commentImageFile && newCommentImage.startsWith("blob:")) {
+      URL.revokeObjectURL(newCommentImage);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (newCommentImage.startsWith("blob:")) {
+        URL.revokeObjectURL(newCommentImage);
+      }
+    };
+  }, [newCommentImage]);
+
   const loadComments = async () => {
     try {
       setIsLoadingComments(true);
@@ -163,7 +201,28 @@ export function LocationDetailModal({
   };
 
   const clearImage = () => {
+    releaseCommentPreview();
+    setCommentImageFile(null);
     setNewCommentImage("");
+  };
+
+  const handleCommentFileChange = (file: File | null) => {
+    releaseCommentPreview();
+    if (!file) {
+      setCommentImageFile(null);
+      setNewCommentImage("");
+      return;
+    }
+    setCommentImageFile(file);
+    setNewCommentImage(URL.createObjectURL(file));
+  };
+
+  const handleCommentImageUrlChange = (value: string) => {
+    if (commentImageFile) {
+      releaseCommentPreview();
+      setCommentImageFile(null);
+    }
+    setNewCommentImage(value);
   };
 
   const submitComment = async () => {
@@ -180,6 +239,18 @@ export function LocationDetailModal({
         throw new Error("Failed to get user");
       }
 
+      let uploadedCommentImage: string | null =
+        newCommentImage.trim() || null;
+
+      if (commentImageFile) {
+        try {
+          uploadedCommentImage = await uploadCommentImage(commentImageFile);
+        } catch (uploadError) {
+          console.error("Error uploading comment image:", uploadError);
+          throw new Error("Image upload failed");
+        }
+      }
+
       const response = await fetch(`${BACKEND_URL}/api/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -187,17 +258,22 @@ export function LocationDetailModal({
           location_id: location.id,
           user_id: user.id,
           content: newComment,
-          image_url: newCommentImage || null,
+          image_url: uploadedCommentImage,
         }),
       });
 
       if (response.ok) {
         setNewComment("");
-        setNewCommentImage("");
+        clearImage();
         loadComments(); // Refresh comments
       }
     } catch (error) {
       console.error("Error submitting comment:", error);
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Unable to submit your review right now."
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -653,16 +729,41 @@ export function LocationDetailModal({
                 {/* Schedules */}
                 {location.schedules && (
                   <Section header="Hours">
-                    <Cell
-                      multiline
-                      style={{
-                        fontSize: '14px',
-                        whiteSpace: 'pre-line',
-                        color: 'var(--tg-theme-text-color)',
-                      }}
-                    >
-                      {location.schedules}
-                    </Cell>
+                    {structuredSchedule ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {structuredSchedule.map((entry) => (
+                          <div
+                            key={entry.day}
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              fontSize: '14px',
+                              color: 'var(--tg-theme-text-color)',
+                            }}
+                          >
+                            <span style={{ fontWeight: 600 }}>{entry.day}</span>
+                            <span style={{ color: 'var(--tg-theme-hint-color)' }}>
+                              {entry.closed
+                                ? 'Closed'
+                                : entry.open24Hours
+                                  ? 'Open 24 hours'
+                                  : `${entry.open} - ${entry.close}`}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <Cell
+                        multiline
+                        style={{
+                          fontSize: '14px',
+                          whiteSpace: 'pre-line',
+                          color: 'var(--tg-theme-text-color)',
+                        }}
+                      >
+                        {location.schedules}
+                      </Cell>
+                    )}
                   </Section>
                 )}
 
@@ -735,9 +836,36 @@ export function LocationDetailModal({
                           header=""
                         />
 
+                        <div>
+                          <label
+                            style={{
+                              display: 'block',
+                              fontSize: '13px',
+                              marginBottom: '6px',
+                              color: 'var(--tg-theme-hint-color)',
+                            }}
+                          >
+                            Upload photo
+                          </label>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            disabled={!canUploadImages || isSubmitting}
+                            onChange={(event) =>
+                              handleCommentFileChange(event.target.files?.[0] ?? null)
+                            }
+                            style={{ width: '100%' }}
+                          />
+                          {!canUploadImages && (
+                            <div style={{ fontSize: '12px', marginTop: '4px', color: 'var(--tg-theme-destructive-text-color)' }}>
+                              Configure VITE_SUPABASE_URL to enable image uploads.
+                            </div>
+                          )}
+                        </div>
+
                         <Input
                           value={newCommentImage}
-                          onChange={(e) => setNewCommentImage(e.target.value)}
+                          onChange={(e) => handleCommentImageUrlChange(e.target.value)}
                           placeholder="Image URL (optional)"
                           header=""
                           type="url"
