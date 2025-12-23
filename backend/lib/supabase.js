@@ -1,17 +1,13 @@
 import 'dotenv/config';
 import { createClient } from '@supabase/supabase-js';
 
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+  throw new Error("Missing SUPABASE_URL or SUPABASE_ANON_KEY environment variables");
+}
+
 // Prefer explicit Supabase env; otherwise default to local PostgREST proxy
 let supabaseUrl = process.env.SUPABASE_URL;
 let supabaseKey = process.env.SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  // Fallback defaults for local dev via docker-compose (proxy at http://localhost:8000/rest/v1)
-  const localUrl = process.env.LOCAL_SUPABASE_URL || 'http://localhost:8000';
-  const localKey = process.env.LOCAL_SUPABASE_ANON_KEY || 'dev-local-noauth';
-  supabaseUrl = localUrl;
-  supabaseKey = localKey;
-}
 
 // Debug environment snapshot (truncated)
 console.log('Supabase config:', {
