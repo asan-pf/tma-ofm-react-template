@@ -16,52 +16,75 @@ export interface UserProfile {
 
 export class UserService {
   private static baseUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+  private static userProfileCache = new Map<string, Promise<UserProfile>>();
 
   /**
    * Get or create user - handles the duplicate key error gracefully
    * Now uses hashed IDs and random nicknames for privacy
    */
   static async getOrCreateUser(telegramUser: TelegramUser): Promise<UserProfile | null> {
+    if (!telegramUser?.id) {
+      return null;
+    }
+
+    const telegramId = telegramUser.id.toString();
+
+    if (this.userProfileCache.has(telegramId)) {
+      return await this.userProfileCache.get(telegramId)!;
+    }
+
+    const request = this.fetchOrCreateProfile(telegramUser, telegramId).catch((error) => {
+      this.userProfileCache.delete(telegramId);
+      throw error;
+    });
+
+    this.userProfileCache.set(telegramId, request);
+
     try {
-      const telegramId = telegramUser.id.toString();
-      
-      // First try to get existing user (backend will hash the ID)
-      try {
-        const response = await fetch(`${this.baseUrl}/api/users/${telegramUser.id}`);
-        if (response.ok) {
-          return await response.json();
-        }
-        // If 404, user doesn't exist, proceed to create
-      } catch (error) {
-        console.log('User not found, will create new user');
-      }
-
-      // Create new user (backend will hash ID and generate random nickname)
-      const createResponse = await fetch(`${this.baseUrl}/api/users`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          telegramId,
-          nickname: '', // Backend will generate random nickname
-          avatarUrl: null
-        })
-      });
-
-      if (createResponse.ok) {
-        return await createResponse.json();
-      } else if (createResponse.status === 409 || createResponse.status === 400) {
-        // User already exists (race condition), try to get it again
-        const getResponse = await fetch(`${this.baseUrl}/api/users/${telegramUser.id}`);
-        if (getResponse.ok) {
-          return await getResponse.json();
-        }
-      }
-
-      throw new Error('Failed to get or create user');
+      return await request;
     } catch (error) {
       console.error('Error in getOrCreateUser:', error);
       return null;
     }
+  }
+
+  private static async fetchOrCreateProfile(
+    telegramUser: TelegramUser,
+    telegramId: string
+  ): Promise<UserProfile> {
+    // First try to get existing user
+    try {
+      const response = await fetch(`${this.baseUrl}/api/users/${telegramUser.id}`);
+      if (response.ok) {
+        return await response.json();
+      }
+      // If 404, user doesn't exist, proceed to create
+    } catch (error) {
+      console.log('User not found, will create new user');
+    }
+
+    // Create new user (backend will hash ID and generate random nickname)
+    const createResponse = await fetch(`${this.baseUrl}/api/users`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        telegramId,
+        nickname: '', // Backend will generate random nickname
+        avatarUrl: null
+      })
+    });
+
+    if (createResponse.ok) {
+      return await createResponse.json();
+    } else if (createResponse.status === 409 || createResponse.status === 400) {
+      // User already exists (race condition), try to get it again
+      const getResponse = await fetch(`${this.baseUrl}/api/users/${telegramUser.id}`);
+      if (getResponse.ok) {
+        return await getResponse.json();
+      }
+    }
+
+    throw new Error('Failed to get or create user');
   }
 
   /**

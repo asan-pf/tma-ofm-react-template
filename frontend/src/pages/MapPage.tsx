@@ -65,6 +65,10 @@ const DEV_FALLBACK_TELEGRAM_USER: NormalizedTelegramUser = {
   username: "testuser",
 };
 
+const shouldUseDevFallbackUser =
+  import.meta.env.DEV &&
+  import.meta.env.VITE_USE_DEV_FALLBACK_USER === "true";
+
 const normalizeTelegramUser = (user: any): NormalizedTelegramUser | null => {
   if (!user) {
     return null;
@@ -125,7 +129,7 @@ export function MapPage() {
   const launchParams = retrieveLaunchParams();
   const telegramUser = normalizeTelegramUser(
     (launchParams?.initDataUnsafe as any)?.user ??
-      (import.meta.env.DEV ? DEV_FALLBACK_TELEGRAM_USER : null)
+      (shouldUseDevFallbackUser ? DEV_FALLBACK_TELEGRAM_USER : null)
   );
 
   const [dynamicMapCenter, setDynamicMapCenter] = useState({
@@ -305,7 +309,10 @@ export function MapPage() {
   };
 
   const handleAddLocation = async () => {
-    const effectiveUser = telegramUser ?? DEV_FALLBACK_TELEGRAM_USER;
+    if (!telegramUser) {
+      alert("Please open this mini app from Telegram to add a location.");
+      return;
+    }
 
     if (!addLocationData.name.trim()) return;
 
@@ -318,7 +325,7 @@ export function MapPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          telegramId: effectiveUser.id.toString(),
+          telegramId: telegramUser.id.toString(),
           name: addLocationData.name,
           description: addLocationData.description,
           imageUrl: addLocationData.image_url || null,
