@@ -15,6 +15,10 @@ import { AddLocationModal } from "@/components/Map/AddLocationModal";
 import { SavedLocationsModal } from "@/components/SavedLocationsModal";
 import { MapTapActionSheet } from "@/components/Map/MapTapActionSheet";
 import { UserService, type UserProfile } from "@/utils/userService";
+import {
+  uploadLocationImage,
+  isSupabaseConfigured,
+} from "@/utils/storageService";
 // Global POI imports commented out to focus on local POIs
 // import { POI } from "@/utils/poiService";
 import "leaflet/dist/leaflet.css";
@@ -47,6 +51,8 @@ interface AddLocationData {
   schedules: string;
   type: "permanent" | "temporary";
   category: "grocery" | "restaurant-bar" | "other";
+  image_file: File | null;
+  image_preview_url: string;
 }
 
 type TabType = "explore" | "favorites" | "saved";
@@ -102,7 +108,7 @@ export function MapPage() {
   const [mapTapLocation, setMapTapLocation] = useState<{ lat: number; lng: number } | null>(
     null
   );
-  const [addLocationData, setAddLocationData] = useState<AddLocationData>({
+  const initialAddLocationState: AddLocationData = {
     lat: 0,
     lng: 0,
     name: "",
@@ -112,7 +118,13 @@ export function MapPage() {
     schedules: "",
     type: "permanent",
     category: "other",
-  });
+    image_file: null,
+    image_preview_url: "",
+  };
+
+  const [addLocationData, setAddLocationData] = useState<AddLocationData>(
+    initialAddLocationState
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showTapActionSheet, setShowTapActionSheet] = useState(false);
@@ -304,6 +316,37 @@ export function MapPage() {
     }
   };
 
+  const releasePreviewUrl = (url?: string) => {
+    if (url && url.startsWith("blob:")) {
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  const handleLocationImageFileChange = (file: File | null) => {
+    setAddLocationData((prev) => {
+      releasePreviewUrl(prev.image_preview_url);
+      if (!file) {
+        return { ...prev, image_file: null, image_preview_url: "" };
+      }
+
+      const previewUrl = URL.createObjectURL(file);
+      return { ...prev, image_file: file, image_preview_url: previewUrl };
+    });
+  };
+
+  const resetAddLocationData = () => {
+    setAddLocationData((prev) => {
+      releasePreviewUrl(prev.image_preview_url);
+      return { ...initialAddLocationState };
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      releasePreviewUrl(addLocationData.image_preview_url);
+    };
+  }, [addLocationData.image_preview_url]);
+
   const handleAddLocation = async () => {
     const effectiveUser = telegramUser ?? DEV_FALLBACK_TELEGRAM_USER;
 
@@ -314,6 +357,21 @@ export function MapPage() {
       const BACKEND_URL =
         import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
 
+      let uploadedImageUrl: string | null =
+        addLocationData.image_url.trim() || null;
+
+      if (addLocationData.image_file) {
+        try {
+          uploadedImageUrl = await uploadLocationImage(
+            addLocationData.image_file
+          );
+        } catch (uploadError) {
+          console.error("Error uploading location image:", uploadError);
+          alert("Image upload failed. Please try again.");
+          return;
+        }
+      }
+
       const response = await fetch(`${BACKEND_URL}/api/locations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -321,7 +379,7 @@ export function MapPage() {
           telegramId: effectiveUser.id.toString(),
           name: addLocationData.name,
           description: addLocationData.description,
-          imageUrl: addLocationData.image_url || null,
+          imageUrl: uploadedImageUrl,
           websiteUrl: addLocationData.website_url || null,
           schedules: addLocationData.schedules || null,
           latitude: addLocationData.lat,
@@ -335,17 +393,7 @@ export function MapPage() {
         setShowAddLocationModal(false);
         exitPlacementMode();
         setMapTapLocation(null);
-        setAddLocationData({
-          lat: 0,
-          lng: 0,
-          name: "",
-          description: "",
-          image_url: "",
-          website_url: "",
-          schedules: "",
-          type: "permanent",
-          category: "other",
-        });
+        resetAddLocationData();
         loadLocations();
       } else {
         throw new Error("Failed to add location");
@@ -707,6 +755,9 @@ export function MapPage() {
           }}
           addLocationData={addLocationData}
           setAddLocationData={setAddLocationData}
+          canUploadImages={isSupabaseConfigured}
+          onImageFileChange={handleLocationImageFileChange}
+          onClearImageFile={() => handleLocationImageFileChange(null)}
           onSubmit={handleAddLocation}
           isSubmitting={isSubmitting}
         />

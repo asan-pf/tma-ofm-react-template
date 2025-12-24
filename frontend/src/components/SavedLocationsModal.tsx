@@ -26,6 +26,7 @@ interface Location {
   created_at: string;
   is_favorited?: boolean;
   rating?: number;
+  image_url?: string;
 }
 
 interface SavedLocationsModalProps {
@@ -75,9 +76,10 @@ export function SavedLocationsModal({
 
   // Filter locations based on search query and category
   const filteredLocations = locations.filter((location) => {
-    const matchesSearch = 
+    const descriptionValue = (location.description || "").toLowerCase();
+    const matchesSearch =
       location.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      location.description.toLowerCase().includes(searchQuery.toLowerCase());
+      descriptionValue.includes(searchQuery.toLowerCase());
     
     const matchesCategory = 
       selectedCategory === "all" || location.category === selectedCategory;
@@ -308,18 +310,41 @@ export function SavedLocationsModal({
                       gap: "12px",
                     }}
                   >
-                    {/* Category Icon */}
                     <div
                       style={{
-                        background: getCategoryColor(location.category),
-                        borderRadius: "10px",
-                        padding: "8px",
-                        fontSize: "16px",
-                        color: "white",
+                        width: 72,
+                        height: 72,
+                        borderRadius: 12,
+                        overflow: "hidden",
                         flexShrink: 0,
+                        border: "1px solid var(--tg-theme-section-separator-color)",
+                        background:
+                          location.image_url
+                            ? "var(--tg-theme-bg-color)"
+                            : `${getCategoryColor(location.category)}22`,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
                       }}
                     >
-                      {getCategoryIcon(location.category)}
+                      {location.image_url ? (
+                        <img
+                          src={location.image_url}
+                          alt={location.name}
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                          }}
+                          onError={(event) => {
+                            event.currentTarget.style.display = "none";
+                          }}
+                        />
+                      ) : (
+                        <span style={{ fontSize: "20px" }}>
+                          {getCategoryIcon(location.category)}
+                        </span>
+                      )}
                     </div>
 
                     {/* Location Details */}

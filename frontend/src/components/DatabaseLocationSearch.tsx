@@ -9,6 +9,7 @@ interface Location {
   longitude: number;
   category: 'grocery' | 'restaurant-bar' | 'other';
   created_at: string;
+  image_url?: string;
 }
 
 interface LocationWithRating extends Location {
@@ -72,11 +73,16 @@ export function DatabaseLocationSearch({
         const allLocations: Location[] = await response.json();
         
         // Filter locations based on query
-        const filteredLocations = allLocations.filter(location => 
-          location.name.toLowerCase().includes(query.toLowerCase()) ||
-          location.description.toLowerCase().includes(query.toLowerCase()) ||
-          getCategoryDisplayName(location.category).toLowerCase().includes(query.toLowerCase())
-        );
+        const filteredLocations = allLocations.filter((location) => {
+          const normalizedDescription = (location.description || '').toLowerCase();
+          return (
+            location.name.toLowerCase().includes(query.toLowerCase()) ||
+            normalizedDescription.includes(query.toLowerCase()) ||
+            getCategoryDisplayName(location.category)
+              .toLowerCase()
+              .includes(query.toLowerCase())
+          );
+        });
 
         // Load ratings for filtered locations
         const locationsWithRatings = await Promise.all(
@@ -373,18 +379,36 @@ export function DatabaseLocationSearch({
                     gap: '12px'
                   }}
                 >
-                  <div style={{
-                    background: getCategoryColor(location.category),
-                    borderRadius: '12px',
-                    padding: '8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '16px',
-                    minWidth: '36px',
-                    marginTop: '2px'
-                  }}>
-                    {getCategoryIcon(location.category)}
+                  <div
+                    style={{
+                      width: 64,
+                      height: 64,
+                      borderRadius: 10,
+                      overflow: 'hidden',
+                      flexShrink: 0,
+                      border: '1px solid var(--tg-theme-section-separator-color)',
+                      background: location.image_url
+                        ? 'var(--tg-theme-bg-color)'
+                        : `${getCategoryColor(location.category)}22`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {location.image_url ? (
+                      <img
+                        src={location.image_url}
+                        alt={location.name}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(event) => {
+                          event.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <span style={{ fontSize: '18px' }}>
+                        {getCategoryIcon(location.category)}
+                      </span>
+                    )}
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ 
@@ -423,10 +447,9 @@ export function DatabaseLocationSearch({
                         lineHeight: '1.3',
                         marginTop: '2px'
                       }}>
-                        {location.description.length > 60 
-                          ? `${location.description.substring(0, 60)}...` 
-                          : location.description
-                        }
+                        {location.description.length > 60
+                          ? `${location.description.substring(0, 60)}...`
+                          : location.description}
                       </div>
                     )}
                   </div>

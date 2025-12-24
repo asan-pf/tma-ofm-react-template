@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   List,
   Section,
@@ -14,10 +14,15 @@ import {
   ChevronUp,
   X,
   Globe,
+  Paperclip,
 } from "lucide-react";
 import { StarRating } from "./StarRating";
 import { initDataState, useSignal } from "@telegram-apps/sdk-react";
 import { UserService } from "@/utils/userService";
+import {
+  uploadCommentImage,
+  isSupabaseConfigured,
+} from "@/utils/storageService";
 
 interface Location {
   id: number;
@@ -77,6 +82,7 @@ export function LocationDetailModal({
   const [rating, setRating] = useState<Rating>({ average: 0, count: 0 });
   const [newComment, setNewComment] = useState("");
   const [newCommentImage, setNewCommentImage] = useState("");
+  const [commentImageFile, setCommentImageFile] = useState<File | null>(null);
   const [userRating, setUserRating] = useState(0);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -87,9 +93,29 @@ export function LocationDetailModal({
   const [isDragging, setIsDragging] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "reviews">("overview");
   const modalRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const initData = useSignal(initDataState);
   const telegramUser = initData?.user;
+  const canUploadImages = isSupabaseConfigured;
+  const structuredSchedule = useMemo(() => {
+    if (!location.schedules) return null;
+    try {
+      const parsed = JSON.parse(location.schedules);
+      if (!Array.isArray(parsed)) return null;
+      return parsed
+        .map((entry: any) => ({
+          day: String(entry.day ?? ""),
+          open: String(entry.open ?? ""),
+          close: String(entry.close ?? ""),
+          open24Hours: Boolean(entry.open24Hours),
+          closed: Boolean(entry.closed),
+        }))
+        .filter((entry) => entry.day);
+    } catch (error) {
+      return null;
+    }
+  }, [location.schedules]);
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
@@ -127,6 +153,20 @@ export function LocationDetailModal({
     return images;
   };
 
+  const releaseCommentPreview = () => {
+    if (commentImageFile && newCommentImage.startsWith("blob:")) {
+      URL.revokeObjectURL(newCommentImage);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (newCommentImage.startsWith("blob:")) {
+        URL.revokeObjectURL(newCommentImage);
+      }
+    };
+  }, [newCommentImage]);
+
   const loadComments = async () => {
     try {
       setIsLoadingComments(true);
@@ -163,8 +203,23 @@ export function LocationDetailModal({
   };
 
   const clearImage = () => {
+    releaseCommentPreview();
+    setCommentImageFile(null);
     setNewCommentImage("");
   };
+
+  const handleCommentFileChange = (file: File | null) => {
+    releaseCommentPreview();
+    if (!file) {
+      setCommentImageFile(null);
+      setNewCommentImage("");
+      return;
+    }
+    setCommentImageFile(file);
+    setNewCommentImage(URL.createObjectURL(file));
+  };
+
+  // handleCommentImageUrlChange removed as URL input is gone
 
   const submitComment = async () => {
     if (!newComment.trim() || !telegramUser) return;
@@ -180,6 +235,18 @@ export function LocationDetailModal({
         throw new Error("Failed to get user");
       }
 
+      let uploadedCommentImage: string | null =
+        newCommentImage.trim() || null;
+
+      if (commentImageFile) {
+        try {
+          uploadedCommentImage = await uploadCommentImage(commentImageFile);
+        } catch (uploadError) {
+          console.error("Error uploading comment image:", uploadError);
+          throw new Error("Image upload failed");
+        }
+      }
+
       const response = await fetch(`${BACKEND_URL}/api/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -187,17 +254,22 @@ export function LocationDetailModal({
           location_id: location.id,
           user_id: user.id,
           content: newComment,
-          image_url: newCommentImage || null,
+          image_url: uploadedCommentImage,
         }),
       });
 
       if (response.ok) {
         setNewComment("");
-        setNewCommentImage("");
+        clearImage();
         loadComments(); // Refresh comments
       }
     } catch (error) {
       console.error("Error submitting comment:", error);
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Unable to submit your review right now."
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -274,11 +346,15 @@ export function LocationDetailModal({
     
     // Prevent default scrolling when at the top and trying to expand
     if (deltaY < -50 && !isExpanded && modalRef.current) {
+      // Allow continuous scroll if expanded
+      if (isExpanded) return;
       e.preventDefault();
     }
     
     // Allow closing by dragging down when not expanded or when at top of scroll
     if (deltaY > 100) {
+      // Only prevent if we are scrolled down
+      if (modalRef.current && modalRef.current.scrollTop > 0) return;
       e.preventDefault();
     }
   };
@@ -535,12 +611,16 @@ export function LocationDetailModal({
             </div>
           )}
 
-          {/* Tabs */}
+          {/* Tabs - Sticky */}
           <div
             style={{
               display: 'flex',
               borderBottom: '2px solid var(--tg-theme-separator-color)',
               padding: '0 20px',
+              position: 'sticky',
+              top: 0,
+              zIndex: 10,
+              backgroundColor: 'var(--tg-theme-bg-color)',
             }}
           >
             <button
@@ -591,8 +671,8 @@ export function LocationDetailModal({
             </button>
           </div>
 
-          {/* Tab Content */}
-          <div style={{ flex: 1, overflow: 'auto', padding: '0 0 20px' }}>
+          {/* Tab Content - Continuous Scroll (No nested scroll) */}
+          <div style={{ flex: 1, padding: '0 0 20px' }}>
             {activeTab === 'overview' ? (
               <List>
                 {/* Description */}
@@ -653,16 +733,41 @@ export function LocationDetailModal({
                 {/* Schedules */}
                 {location.schedules && (
                   <Section header="Hours">
-                    <Cell
-                      multiline
-                      style={{
-                        fontSize: '14px',
-                        whiteSpace: 'pre-line',
-                        color: 'var(--tg-theme-text-color)',
-                      }}
-                    >
-                      {location.schedules}
-                    </Cell>
+                    {structuredSchedule ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {structuredSchedule.map((entry) => (
+                          <div
+                            key={entry.day}
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              fontSize: '14px',
+                              color: 'var(--tg-theme-text-color)',
+                            }}
+                          >
+                            <span style={{ fontWeight: 600 }}>{entry.day}</span>
+                            <span style={{ color: 'var(--tg-theme-hint-color)' }}>
+                              {entry.closed
+                                ? 'Closed'
+                                : entry.open24Hours
+                                  ? 'Open 24 hours'
+                                  : `${entry.open} - ${entry.close}`}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <Cell
+                        multiline
+                        style={{
+                          fontSize: '14px',
+                          whiteSpace: 'pre-line',
+                          color: 'var(--tg-theme-text-color)',
+                        }}
+                      >
+                        {location.schedules}
+                      </Cell>
+                    )}
                   </Section>
                 )}
 
@@ -728,20 +833,54 @@ export function LocationDetailModal({
                   {telegramUser && (
                     <Cell>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
-                        <Input
-                          value={newComment}
-                          onChange={(e) => setNewComment(e.target.value)}
-                          placeholder="Share your experience..."
-                          header=""
-                        />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', position: 'relative' }}>
+                          <Input
+                            value={newComment}
+                            onChange={(e) => setNewComment(e.target.value)}
+                            placeholder="Share your experience..."
+                            header=""
+                            style={{ flex: 1, paddingRight: '44px' }}
+                          />
+                          <button
+                            onClick={() => fileInputRef.current?.click()}
+                            style={{
+                              position: 'absolute',
+                              right: '8px',
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              background: 'none',
+                              border: 'none',
+                              color: 'var(--tg-theme-accent-text-color)',
+                              cursor: canUploadImages && !isSubmitting ? 'pointer' : 'default',
+                              padding: '8px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              opacity: canUploadImages && !isSubmitting ? 1 : 0.5,
+                              zIndex: 2,
+                            }}
+                            title="Attach Photo"
+                            disabled={!canUploadImages || isSubmitting}
+                          >
+                            <Paperclip size={20} />
+                          </button>
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/*"
+                            disabled={!canUploadImages || isSubmitting}
+                            onChange={(event) =>
+                              handleCommentFileChange(event.target.files?.[0] ?? null)
+                            }
+                            hidden
+                          />
+                        </div>
 
-                        <Input
-                          value={newCommentImage}
-                          onChange={(e) => setNewCommentImage(e.target.value)}
-                          placeholder="Image URL (optional)"
-                          header=""
-                          type="url"
-                        />
+                        {!canUploadImages && (
+                          <div style={{ fontSize: '11px', color: 'var(--tg-theme-destructive-text-color)', marginTop: '-8px' }}>
+                            Configure Supabase to enable images.
+                          </div>
+                        )}
 
                         {newCommentImage && (
                           <div style={{ position: 'relative', display: 'inline-block', alignSelf: 'flex-start' }}>

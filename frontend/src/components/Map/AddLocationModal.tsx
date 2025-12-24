@@ -1,5 +1,6 @@
 import { Plus, X } from "lucide-react";
 import { Title, Subheadline, Caption } from "@telegram-apps/telegram-ui";
+import { SchedulePicker } from "./SchedulePicker";
 
 interface AddLocationData {
   lat: number;
@@ -11,6 +12,8 @@ interface AddLocationData {
   schedules: string;
   type: "permanent" | "temporary";
   category: "grocery" | "restaurant-bar" | "other";
+  image_file: File | null;
+  image_preview_url: string;
 }
 
 interface AddLocationModalProps {
@@ -20,6 +23,9 @@ interface AddLocationModalProps {
   setAddLocationData: (
     data: AddLocationData | ((prev: AddLocationData) => AddLocationData)
   ) => void;
+  canUploadImages: boolean;
+  onImageFileChange: (file: File | null) => void;
+  onClearImageFile: () => void;
   onSubmit: () => void;
   isSubmitting: boolean;
 }
@@ -29,10 +35,16 @@ export function AddLocationModal({
   onClose,
   addLocationData,
   setAddLocationData,
+  canUploadImages,
+  onImageFileChange,
+  onClearImageFile,
   onSubmit,
   isSubmitting,
 }: AddLocationModalProps) {
   if (!isOpen) return null;
+
+  const previewImage =
+    addLocationData.image_preview_url || addLocationData.image_url;
 
   return (
     <div
@@ -207,6 +219,35 @@ export function AddLocationModal({
 
               <div>
                 <Subheadline style={{ marginBottom: 8, color: "#e2e8f0" }}>
+                  Upload Photo
+                </Subheadline>
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={!canUploadImages || isSubmitting}
+                  onChange={(event) =>
+                    onImageFileChange(event.target.files?.[0] ?? null)
+                  }
+                  style={{
+                    width: "100%",
+                    color: "#f1f5f9",
+                    fontSize: "14px",
+                  }}
+                />
+                {!canUploadImages && (
+                  <Caption style={{ marginTop: 4, color: "#f87171" }}>
+                    Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to enable uploads.
+                  </Caption>
+                )}
+                {addLocationData.image_file && (
+                  <Caption style={{ marginTop: 4, color: "#cbd5e1" }}>
+                    Uploaded photos override manual image URLs.
+                  </Caption>
+                )}
+              </div>
+
+              <div>
+                <Subheadline style={{ marginBottom: 8, color: "#e2e8f0" }}>
                   Image URL (Optional)
                 </Subheadline>
                 <input
@@ -234,32 +275,61 @@ export function AddLocationModal({
 
               <div>
                 <Subheadline style={{ marginBottom: 8, color: "#e2e8f0" }}>
-                  Schedules
+                  Schedule
                 </Subheadline>
-                <textarea
+                <SchedulePicker
                   value={addLocationData.schedules}
-                  onChange={(e) =>
+                  onChange={(scheduleString) =>
                     setAddLocationData((prev) => ({
                       ...prev,
-                      schedules: e.target.value,
+                      schedules: scheduleString,
                     }))
                   }
-                  placeholder={"Mon-Fri 09:00-18:00\nSat-Sun 10:00-16:00"}
-                  rows={3}
-                  style={{
-                    width: "100%",
-                    padding: "12px 16px",
-                    border: "1px solid #475569",
-                    borderRadius: "12px",
-                    backgroundColor: "#475569",
-                    color: "#f1f5f9",
-                    fontSize: "16px",
-                    outline: "none",
-                    resize: "vertical",
-                    fontFamily: "inherit",
-                  }}
                 />
               </div>
+
+              {previewImage && (
+                <div
+                  style={{
+                    marginTop: 8,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                  }}
+                >
+                  <img
+                    src={previewImage}
+                    alt="Location preview"
+                    style={{
+                      width: 96,
+                      height: 96,
+                      objectFit: "cover",
+                      borderRadius: 12,
+                      border: "1px solid #64748b",
+                    }}
+                    onError={(event) => {
+                      event.currentTarget.style.display = "none";
+                    }}
+                  />
+                  {addLocationData.image_file && (
+                    <button
+                      type="button"
+                      onClick={onClearImageFile}
+                      style={{
+                        padding: "8px 12px",
+                        borderRadius: 8,
+                        border: "1px solid #f87171",
+                        color: "#f87171",
+                        background: "transparent",
+                        cursor: "pointer",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Remove Upload
+                    </button>
+                  )}
+                </div>
+              )}
 
               <div
                 style={{
