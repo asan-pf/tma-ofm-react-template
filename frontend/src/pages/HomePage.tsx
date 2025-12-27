@@ -5,15 +5,15 @@ import { useGeolocation } from "@/hooks/useGeolocation";
 import { retrieveLaunchParams } from "@telegram-apps/sdk-react";
 import { LocationDetailModal } from "@/components/LocationDetailModal";
 // import { POIDetailModal } from "@/components/POIDetailModal";
-import { MapHeader } from "@/components/Map/MapHeader";
-import { MapView } from "@/components/Map/MapView";
-import { FavoritesView } from "@/components/Map/FavoritesView";
-import { SavedLocationsView } from "@/components/Map/SavedLocationsView";
-import { MapControls } from "@/components/Map/MapControls";
-import { SearchModal } from "@/components/Map/SearchModal";
-import { AddLocationModal } from "@/components/Map/AddLocationModal";
+import { HomeHeader } from "@/components/Home/HomeHeader";
+import { HomeMap } from "@/components/Home/HomeMap";
+import { FavoriteLocationsList } from "@/components/Home/FavoriteLocationsList";
+import { SavedLocationsList } from "@/components/Home/SavedLocationsList";
+import { HomeControls } from "@/components/Home/HomeControls";
+import { LocationSearchModal } from "@/components/Home/LocationSearchModal";
+import { AddLocationModal } from "@/components/Home/AddLocationModal";
 import { SavedLocationsModal } from "@/components/SavedLocationsModal";
-import { MapTapActionSheet } from "@/components/Map/MapTapActionSheet";
+import { TapLocationSheet } from "@/components/Home/TapLocationSheet";
 import { UserService, type UserProfile } from "@/utils/userService";
 // Global POI imports commented out to focus on local POIs
 // import { POI } from "@/utils/poiService";
@@ -82,13 +82,13 @@ const normalizeTelegramUser = (user: any): NormalizedTelegramUser | null => {
   };
 };
 
-export function MapPage() {
+export function HomePage() {
   const [activeTab, setActiveTab] = useState<TabType>("explore");
   const [searchTab, setSearchTab] = useState<SearchTabType>("db");
   const [locations, setLocations] = useState<Location[]>([]);
   const [favoriteLocations, setFavoriteLocations] = useState<Location[]>([]);
   const [showAddLocationModal, setShowAddLocationModal] = useState(false);
-  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showLocationSearchModal, setShowLocationSearchModal] = useState(false);
   const [showLocationDetail, setShowLocationDetail] = useState(false);
   const [showSavedLocationsModal, setShowSavedLocationsModal] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(
@@ -119,7 +119,7 @@ export function MapPage() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showTapActionSheet, setShowTapActionSheet] = useState(false);
+  const [showTapLocationSheet, setShowTapLocationSheet] = useState(false);
   const [showTapHint, setShowTapHint] = useState(false);
   const [, setUserProfile] = useState<UserProfile | null>(null);
   const [isPlacementMode, setIsPlacementMode] = useState(false);
@@ -198,7 +198,7 @@ export function MapPage() {
   const exitPlacementMode = useCallback(() => {
     setIsPlacementMode(false);
     setShowTapHint(false);
-    setShowTapActionSheet(false);
+    setShowTapLocationSheet(false);
     setMapTapLocation(null);
   }, []);
 
@@ -507,7 +507,7 @@ export function MapPage() {
 
   const handleSearchLocationSelect = (location: Location) => {
     focusLocationOnMap(location);
-    setShowSearchModal(false);
+    setShowLocationSearchModal(false);
   };
 
   const handleGlobalLocationSelect = (
@@ -524,23 +524,23 @@ export function MapPage() {
 
     setSelectedLocation(null);
     setShowLocationDetail(false);
-    setShowSearchModal(false);
+    setShowLocationSearchModal(false);
   };
 
   const handleMapClick = (lat: number, lng: number) => {
     if (
       !isPlacementMode ||
       showAddLocationModal ||
-      showSearchModal ||
+      showLocationSearchModal ||
       showLocationDetail ||
-      showTapActionSheet
+      showTapLocationSheet
     ) {
       return;
     }
 
     setShowTapHint(false);
     setMapTapLocation({ lat, lng });
-    setShowTapActionSheet(true);
+    setShowTapLocationSheet(true);
   };
 
   const handleMapTapAdd = () => {
@@ -553,7 +553,7 @@ export function MapPage() {
     }));
     setIsPlacementMode(false);
     setShowAddLocationModal(true);
-    setShowTapActionSheet(false);
+    setShowTapLocationSheet(false);
     setMapTapLocation(null);
   };
 
@@ -617,17 +617,17 @@ export function MapPage() {
           backgroundColor: "var(--tg-color-bg)",
         }}
       >
-        <MapHeader
+        <HomeHeader
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           onProfileClick={() => navigate("/profile")}
-          onSearchClick={() => setShowSearchModal(true)}
+          onSearchClick={() => setShowLocationSearchModal(true)}
         />
 
         <div className="flex-1 relative">
           {activeTab === "explore" ? (
             <>
-              <MapView
+              <HomeMap
                 center={dynamicMapCenter}
                 locations={locations}
                 favoriteLocations={favoriteLocations}
@@ -649,9 +649,9 @@ export function MapPage() {
 
               {!showLocationDetail &&
                 !showAddLocationModal &&
-                !showSearchModal &&
+                !showLocationSearchModal &&
                 !showSavedLocationsModal && (
-                  <MapControls
+                  <HomeControls
                     onCurrentLocationClick={() => {
                       if (latitude && longitude) {
                         setDynamicMapCenter({ lat: latitude, lng: longitude });
@@ -684,13 +684,13 @@ export function MapPage() {
               )}
             </>
           ) : activeTab === "favorites" ? (
-            <FavoritesView
+            <FavoriteLocationsList
               favoriteLocations={favoriteLocations}
               onLocationClick={handleLocationClick}
               onToggleFavorite={toggleFavorite}
             />
           ) : (
-            <SavedLocationsView
+            <SavedLocationsList
               locations={locations}
               onLocationClick={handleLocationClick}
               onToggleFavorite={toggleFavorite}
@@ -698,7 +698,7 @@ export function MapPage() {
                 setActiveTab("explore");
                 setIsPlacementMode(true);
                 setShowTapHint(true);
-                setShowTapActionSheet(false);
+                setShowTapLocationSheet(false);
                 setMapTapLocation(null);
               }}
             />
@@ -718,9 +718,9 @@ export function MapPage() {
           isSubmitting={isSubmitting}
         />
 
-        <SearchModal
-          isOpen={showSearchModal}
-          onClose={() => setShowSearchModal(false)}
+        <LocationSearchModal
+          isOpen={showLocationSearchModal}
+          onClose={() => setShowLocationSearchModal(false)}
           searchTab={searchTab}
           setSearchTab={setSearchTab}
           onDatabaseLocationSelect={handleSearchLocationSelect}
@@ -780,8 +780,8 @@ export function MapPage() {
           onToggleFavorite={toggleFavorite}
         />
 
-        <MapTapActionSheet
-          isOpen={showTapActionSheet}
+        <TapLocationSheet
+          isOpen={showTapLocationSheet}
           coordinates={mapTapLocation}
           onAddLocation={handleMapTapAdd}
           onClose={exitPlacementMode}

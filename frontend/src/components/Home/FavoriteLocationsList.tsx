@@ -16,17 +16,17 @@ interface Location {
   created_at: string;
 }
 
-interface FavoritesViewProps {
+interface FavoriteLocationsListProps {
   favoriteLocations: Location[];
   onLocationClick: (location: Location) => void;
   onToggleFavorite: (locationId: number) => void;
 }
 
-export function FavoritesView({
+export function FavoriteLocationsList({
   favoriteLocations,
   onLocationClick,
   onToggleFavorite,
-}: FavoritesViewProps) {
+}: FavoriteLocationsListProps) {
   const getCategoryColor = (category: string) => {
     switch (category) {
       case "grocery":
@@ -153,7 +153,7 @@ export function FavoritesView({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          console.log('FavoritesView: Removing favorite for location:', location.id);
+                          console.log('FavoriteLocationsList: Removing favorite for location:', location.id);
                           onToggleFavorite(location.id);
                         }}
                         style={{

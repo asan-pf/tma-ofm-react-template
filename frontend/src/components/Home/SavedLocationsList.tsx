@@ -16,18 +16,18 @@ interface Location {
   created_at: string;
 }
 
-interface SavedLocationsViewProps {
+interface SavedLocationsListProps {
   locations: Location[];
   onLocationClick: (location: Location) => void;
   onToggleFavorite: (locationId: number) => void;
   onAddLocationRequest?: () => void;
 }
 
-export function SavedLocationsView({
+export function SavedLocationsList({
   locations,
   onLocationClick,
   onAddLocationRequest,
-}: SavedLocationsViewProps) {
+}: SavedLocationsListProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
