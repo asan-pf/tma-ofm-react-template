@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapPin } from "lucide-react";
 import { useGeolocation } from "@/hooks/useGeolocation";
@@ -123,12 +123,26 @@ export function HomePage() {
   const [showTapHint, setShowTapHint] = useState(false);
   const [, setUserProfile] = useState<UserProfile | null>(null);
   const [isPlacementMode, setIsPlacementMode] = useState(false);
+  const [toast, setToast] = useState<
+    { message: string; type: "info" | "success" | "error" } | null
+  >(null);
+  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toastColors: Record<"info" | "success" | "error", string> = {
+    info: "rgba(59, 130, 246, 0.95)",
+    success: "rgba(34, 197, 94, 0.95)",
+    error: "rgba(239, 68, 68, 0.95)",
+  };
 
   const navigate = useNavigate();
   const { latitude, longitude } = useGeolocation();
   const launchParams = retrieveLaunchParams();
-  const telegramUser = normalizeTelegramUser(
+  const telegramInitUser =
     (launchParams?.initDataUnsafe as any)?.user ??
+    (typeof window !== "undefined"
+      ? (window as any)?.Telegram?.WebApp?.initDataUnsafe?.user
+      : null);
+  const telegramUser = normalizeTelegramUser(
+    telegramInitUser ??
       (shouldUseDevFallbackUser ? DEV_FALLBACK_TELEGRAM_USER : null)
   );
 
@@ -154,6 +168,28 @@ export function HomePage() {
       setFavoriteLocations([]);
     }
   }, [telegramUser?.id]);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const showToast = useCallback(
+    (message: string, type: "info" | "success" | "error" = "info") => {
+      setToast({ message, type });
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
+      toastTimeoutRef.current = setTimeout(() => {
+        setToast(null);
+        toastTimeoutRef.current = null;
+      }, 2500);
+    },
+    []
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -409,12 +445,18 @@ export function HomePage() {
   };
 
   const toggleFavorite = async (locationId: number) => {
-    if (!telegramUser) return;
+    if (!telegramUser) {
+      showToast("Open this mini app in Telegram to save favorites.", "error");
+      return;
+    }
+
+    showToast("Saving to favorites...", "info");
 
     try {
       const userProfile = await UserService.getOrCreateUser(telegramUser);
       if (!userProfile) {
         console.warn("Unable to ensure user profile before toggling favorites");
+        showToast("Could not verify your profile. Try again.", "error");
         return;
       }
 
@@ -439,6 +481,9 @@ export function HomePage() {
               loc.id === locationId ? { ...loc, is_favorited: false } : loc
             )
           );
+          showToast("Removed from favorites", "success");
+        } else {
+          showToast("Unable to remove favorite", "error");
         }
       } else {
         const response = await fetch(
@@ -471,10 +516,14 @@ export function HomePage() {
           );
 
           loadFavorites();
+          showToast("Saved to favorites", "success");
+        } else {
+          showToast("Unable to save favorite", "error");
         }
       }
     } catch (error) {
       console.error("Error toggling favorite:", error);
+      showToast("Failed to update favorites. Please retry.", "error");
     }
   };
 
@@ -787,6 +836,30 @@ export function HomePage() {
           onClose={exitPlacementMode}
         />
       </div>
+
+      {toast && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: "32px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            backgroundColor: toastColors[toast.type],
+            color: "white",
+            padding: "12px 20px",
+            borderRadius: "9999px",
+            boxShadow: "0 15px 30px rgba(0,0,0,0.25)",
+            fontWeight: 600,
+            fontSize: "14px",
+            zIndex: 3000,
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}
+        >
+          {toast.message}
+        </div>
+      )}
     </>
   );
 }
