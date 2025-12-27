@@ -1,14 +1,14 @@
 import { Navigation2 } from "lucide-react";
 
-interface MapControlsProps {
+interface HomeControlsProps {
   onCurrentLocationClick: () => void;
   hasCurrentLocation: boolean;
 }
 
-export function MapControls({
+export function HomeControls({
   onCurrentLocationClick,
   hasCurrentLocation,
-}: MapControlsProps) {
+}: HomeControlsProps) {
   if (!hasCurrentLocation) {
     return null;
   }

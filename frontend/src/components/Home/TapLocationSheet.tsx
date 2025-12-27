@@ -1,18 +1,18 @@
 import { MapPin, X } from "lucide-react";
 
-interface MapTapActionSheetProps {
+interface TapLocationSheetProps {
   isOpen: boolean;
   coordinates: { lat: number; lng: number } | null;
   onAddLocation: () => void;
   onClose: () => void;
 }
 
-export function MapTapActionSheet({
+export function TapLocationSheet({
   isOpen,
   coordinates,
   onAddLocation,
   onClose,
-}: MapTapActionSheetProps) {
+}: TapLocationSheetProps) {
   if (!isOpen || !coordinates) {
     return null;
   }

@@ -1,19 +1,19 @@
 import { MapPin, Heart, User, Search, Bookmark } from "lucide-react";
 
-interface MapHeaderProps {
+interface HomeHeaderProps {
   activeTab: "explore" | "favorites" | "saved";
   setActiveTab: (tab: "explore" | "favorites" | "saved") => void;
   onProfileClick: () => void;
   onSearchClick: () => void;
 }
 
-export function MapHeader({
+export function HomeHeader({
   activeTab,
   setActiveTab,
   onProfileClick,
   onSearchClick,
-}: MapHeaderProps) {
-  const tabButton = (tab: MapHeaderProps["activeTab"], label: string, Icon: typeof MapPin) => {
+}: HomeHeaderProps) {
+  const tabButton = (tab: HomeHeaderProps["activeTab"], label: string, Icon: typeof MapPin) => {
     const isActive = activeTab === tab;
     return (
       <button

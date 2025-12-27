@@ -13,7 +13,7 @@ interface Location {
   created_at: string;
 }
 
-interface SearchModalProps {
+interface LocationSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   searchTab: "db" | "global";
@@ -23,7 +23,7 @@ interface SearchModalProps {
   currentLocation: { lat: number; lng: number } | null;
 }
 
-export function SearchModal({
+export function LocationSearchModal({
   isOpen,
   onClose,
   searchTab,
@@ -31,7 +31,7 @@ export function SearchModal({
   onDatabaseLocationSelect,
   onGlobalLocationSelect,
   currentLocation,
-}: SearchModalProps) {
+}: LocationSearchModalProps) {
   if (!isOpen) return null;
 
   return (

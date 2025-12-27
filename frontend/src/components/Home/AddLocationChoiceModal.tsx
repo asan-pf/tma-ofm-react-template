@@ -1,18 +1,18 @@
 import { MapPin, Calendar } from "lucide-react";
 
-interface AddChoiceModalProps {
+interface AddLocationChoiceModalProps {
   isOpen: boolean;
   onClose: () => void;
   onLocationChoice: () => void;
   onEventChoice: () => void;
 }
 
-export function AddChoiceModal({
+export function AddLocationChoiceModal({
   isOpen,
   onClose,
   onLocationChoice,
   onEventChoice,
-}: AddChoiceModalProps) {
+}: AddLocationChoiceModalProps) {
   if (!isOpen) return null;
 
   return (

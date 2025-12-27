@@ -14,7 +14,7 @@ interface Location {
   created_at: string;
 }
 
-interface MapViewProps {
+interface HomeMapProps {
   center: { lat: number; lng: number };
   locations: Location[];
   favoriteLocations: Location[];
@@ -32,7 +32,7 @@ interface MapViewProps {
 }
 
 
-export function MapView({
+export function HomeMap({
   center,
   locations,
   userLocation,
@@ -45,9 +45,9 @@ export function MapView({
   showPOIs = true,
   hideBadges = false,
   onSavedLocationsBadgeClick,
-}: MapViewProps) {
+}: HomeMapProps) {
   // Always use the center prop - this allows user to freely navigate
-  // The parent component (MapPage) handles initial GPS positioning
+  // The parent component (HomePage) handles initial GPS positioning
   const mapCenter = center;
 
   useEffect(() => {
