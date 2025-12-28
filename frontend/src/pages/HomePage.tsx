@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapPin } from "lucide-react";
 import { useGeolocation } from "@/hooks/useGeolocation";
-import { retrieveLaunchParams } from "@telegram-apps/sdk-react";
+import { initDataState, useSignal } from "@telegram-apps/sdk-react";
 import { LocationDetailModal } from "@/components/LocationDetailModal";
 // import { POIDetailModal } from "@/components/POIDetailModal";
 import { HomeHeader } from "@/components/Home/HomeHeader";
@@ -135,16 +135,14 @@ export function HomePage() {
 
   const navigate = useNavigate();
   const { latitude, longitude } = useGeolocation();
-  const launchParams = retrieveLaunchParams();
+  const initData = useSignal(initDataState);
   const telegramInitUser =
-    (launchParams?.initDataUnsafe as any)?.user ??
+    initData?.user ??
     (typeof window !== "undefined"
       ? (window as any)?.Telegram?.WebApp?.initDataUnsafe?.user
-      : null);
-  const telegramUser = normalizeTelegramUser(
-    telegramInitUser ??
-      (shouldUseDevFallbackUser ? DEV_FALLBACK_TELEGRAM_USER : null)
-  );
+      : null) ??
+    (shouldUseDevFallbackUser ? DEV_FALLBACK_TELEGRAM_USER : null);
+  const telegramUser = normalizeTelegramUser(telegramInitUser);
 
   const [dynamicMapCenter, setDynamicMapCenter] = useState({
     lat: latitude || 48.8566,
