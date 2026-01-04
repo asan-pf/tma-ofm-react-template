@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapPin } from "lucide-react";
 import { useGeolocation } from "@/hooks/useGeolocation";
@@ -14,6 +14,7 @@ import { LocationSearchModal } from "@/components/Home/LocationSearchModal";
 import { AddLocationModal } from "@/components/Home/AddLocationModal";
 import { SavedLocationsModal } from "@/components/SavedLocationsModal";
 import { TapLocationSheet } from "@/components/Home/TapLocationSheet";
+import { CategoryFilters } from "@/components/Home/CategoryFilters";
 import { UserService, type UserProfile } from "@/utils/userService";
 // Global POI imports commented out to focus on local POIs
 // import { POI } from "@/utils/poiService";
@@ -87,6 +88,7 @@ export function HomePage() {
   const [searchTab, setSearchTab] = useState<SearchTabType>("db");
   const [locations, setLocations] = useState<Location[]>([]);
   const [favoriteLocations, setFavoriteLocations] = useState<Location[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [showAddLocationModal, setShowAddLocationModal] = useState(false);
   const [showLocationSearchModal, setShowLocationSearchModal] = useState(false);
   const [showLocationDetail, setShowLocationDetail] = useState(false);
@@ -235,6 +237,29 @@ export function HomePage() {
     setShowTapLocationSheet(false);
     setMapTapLocation(null);
   }, []);
+
+  const handleCategoryToggle = useCallback((category: string) => {
+    if (category === "all") {
+      setSelectedCategories([]);
+    } else {
+      setSelectedCategories((prev) => {
+        if (prev.includes(category)) {
+          return prev.filter((c) => c !== category);
+        } else {
+          return [...prev, category];
+        }
+      });
+    }
+  }, []);
+
+  const filteredLocations = useMemo(() => {
+    if (selectedCategories.length === 0) {
+      return locations;
+    }
+    return locations.filter((location) =>
+      selectedCategories.includes(location.category)
+    );
+  }, [locations, selectedCategories]);
 
   useEffect(() => {
     if (activeTab !== "explore") {
@@ -669,6 +694,8 @@ export function HomePage() {
           setActiveTab={setActiveTab}
           onProfileClick={() => navigate("/profile")}
           onSearchClick={() => setShowLocationSearchModal(true)}
+          selectedCategories={selectedCategories}
+          onCategoryToggle={handleCategoryToggle}
         />
 
         <div className="flex-1 relative">
@@ -676,7 +703,7 @@ export function HomePage() {
             <>
               <HomeMap
                 center={dynamicMapCenter}
-                locations={locations}
+                locations={filteredLocations}
                 favoriteLocations={favoriteLocations}
                 userLocation={
                   latitude && longitude

@@ -1,10 +1,13 @@
 import { MapPin, Heart, User, Search, Bookmark } from "lucide-react";
+import { CategoryFilters } from "./CategoryFilters";
 
 interface HomeHeaderProps {
   activeTab: "explore" | "favorites" | "saved";
   setActiveTab: (tab: "explore" | "favorites" | "saved") => void;
   onProfileClick: () => void;
   onSearchClick: () => void;
+  selectedCategories?: string[];
+  onCategoryToggle?: (category: string) => void;
 }
 
 export function HomeHeader({
@@ -12,6 +15,8 @@ export function HomeHeader({
   setActiveTab,
   onProfileClick,
   onSearchClick,
+  selectedCategories = [],
+  onCategoryToggle = () => {},
 }: HomeHeaderProps) {
   const tabButton = (tab: HomeHeaderProps["activeTab"], label: string, Icon: typeof MapPin) => {
     const isActive = activeTab === tab;
@@ -46,16 +51,22 @@ export function HomeHeader({
       </div>
 
       {activeTab === "explore" && (
-        <div className="map-header-search-row">
-          <button
-            onClick={onSearchClick}
-            className="map-header-search"
-            aria-label="Search locations"
-          >
-            <Search size={20} />
-            <span>Search for places, locations...</span>
-          </button>
-        </div>
+        <>
+          <div className="map-header-search-row">
+            <button
+              onClick={onSearchClick}
+              className="map-header-search"
+              aria-label="Search locations"
+            >
+              <Search size={20} />
+              <span>Search for places, locations...</span>
+            </button>
+          </div>
+          <CategoryFilters
+            selectedCategories={selectedCategories}
+            onCategoryToggle={onCategoryToggle}
+          />
+        </>
       )}
     </div>
   );
