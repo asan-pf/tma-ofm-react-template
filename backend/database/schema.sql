@@ -17,11 +17,6 @@ CREATE TABLE public.locations (
     website_url text,
     image_url text,
     schedules text,
-    type character varying NOT NULL CHECK (
-        type::text = ANY (
-            ARRAY ['permanent'::character varying, 'temporary'::character varying]::text []
-        )
-    ),
     category character varying NOT NULL CHECK (
         category::text = ANY (
             ARRAY ['grocery'::character varying, 'restaurant-bar'::character varying, 'other'::character varying]::text []

@@ -73,7 +73,6 @@ export default async function handler(req, res) {
           longitude,
           category,
           user_id: userId,
-          type: 'permanent',
           is_approved: false,
           website_url: websiteUrl ?? null,
           image_url: imageUrl ?? null,

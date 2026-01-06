@@ -30,7 +30,6 @@ interface Location {
   schedules?: string;
   latitude: number;
   longitude: number;
-  type?: "permanent" | "temporary";
   category: "grocery" | "restaurant-bar" | "other";
   is_approved?: boolean;
   created_at: string;
@@ -46,7 +45,6 @@ interface AddLocationData {
   image_url: string;
   website_url: string;
   schedules: string;
-  type: "permanent" | "temporary";
   category: "grocery" | "restaurant-bar" | "other";
 }
 
@@ -116,7 +114,6 @@ export function HomePage() {
     image_url: "",
     website_url: "",
     schedules: "",
-    type: "permanent",
     category: "other",
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -409,7 +406,6 @@ export function HomePage() {
           image_url: "",
           website_url: "",
           schedules: "",
-          type: "permanent",
           category: "other",
         });
         loadLocations();

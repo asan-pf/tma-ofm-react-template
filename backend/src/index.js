@@ -126,7 +126,6 @@ app.post('/api/locations', async (req, res) => {
       latitude,
       longitude,
       category,
-      type = 'permanent',
       websiteUrl,
       imageUrl,
       schedules
@@ -145,7 +144,6 @@ app.post('/api/locations', async (req, res) => {
       latitude,
       longitude,
       category,
-      type,
       user_id: userId,
       is_approved: true,
       website_url: websiteUrl ?? null,
@@ -188,7 +186,6 @@ app.get('/api/users/:telegramId/favorites', async (req, res) => {
           latitude,
           longitude,
           category,
-          type,
           created_at,
           user_id
         )
@@ -253,7 +250,6 @@ app.post('/api/users/:telegramId/favorites', async (req, res) => {
           latitude,
           longitude,
           category,
-          type,
           created_at,
           user_id
         )

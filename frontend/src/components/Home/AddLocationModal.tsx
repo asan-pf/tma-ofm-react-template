@@ -9,7 +9,6 @@ interface AddLocationData {
   image_url: string;
   website_url: string;
   schedules: string;
-  type: "permanent" | "temporary";
   category: "grocery" | "restaurant-bar" | "other";
 }
 
@@ -261,69 +260,33 @@ export function AddLocationModal({
                 />
               </div>
 
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 16,
-                }}
-              >
-                <div>
-                  <Subheadline style={{ marginBottom: 8, color: "#e2e8f0" }}>
-                    Category
-                  </Subheadline>
-                  <select
-                    value={addLocationData.category}
-                    onChange={(e) =>
-                      setAddLocationData((prev) => ({
-                        ...prev,
-                        category: e.target.value as any,
-                      }))
-                    }
-                    style={{
-                      width: "100%",
-                      padding: "12px 16px",
-                      border: "1px solid #475569",
-                      borderRadius: "12px",
-                      backgroundColor: "#475569",
-                      color: "#f1f5f9",
-                      fontSize: "16px",
-                      outline: "none",
-                    }}
-                  >
-                    <option value="grocery">Grocery</option>
-                    <option value="restaurant-bar">Restaurant/Bar</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-
-                <div>
-                  <Subheadline style={{ marginBottom: 8, color: "#e2e8f0" }}>
-                    Type
-                  </Subheadline>
-                  <select
-                    value={addLocationData.type}
-                    onChange={(e) =>
-                      setAddLocationData((prev) => ({
-                        ...prev,
-                        type: e.target.value as any,
-                      }))
-                    }
-                    style={{
-                      width: "100%",
-                      padding: "12px 16px",
-                      border: "1px solid #475569",
-                      borderRadius: "12px",
-                      backgroundColor: "#475569",
-                      color: "#f1f5f9",
-                      fontSize: "16px",
-                      outline: "none",
-                    }}
-                  >
-                    <option value="permanent">Permanent</option>
-                    <option value="temporary">Temporary</option>
-                  </select>
-                </div>
+              <div>
+                <Subheadline style={{ marginBottom: 8, color: "#e2e8f0" }}>
+                  Category
+                </Subheadline>
+                <select
+                  value={addLocationData.category}
+                  onChange={(e) =>
+                    setAddLocationData((prev) => ({
+                      ...prev,
+                      category: e.target.value as any,
+                    }))
+                  }
+                  style={{
+                    width: "100%",
+                    padding: "12px 16px",
+                    border: "1px solid #475569",
+                    borderRadius: "12px",
+                    backgroundColor: "#475569",
+                    color: "#f1f5f9",
+                    fontSize: "16px",
+                    outline: "none",
+                  }}
+                >
+                  <option value="grocery">Grocery</option>
+                  <option value="restaurant-bar">Restaurant/Bar</option>
+                  <option value="other">Other</option>
+                </select>
               </div>
 
               <div
