@@ -11,7 +11,6 @@ interface Location {
   description: string;
   latitude: number;
   longitude: number;
-  type?: "permanent" | "temporary";
   category: "grocery" | "restaurant-bar" | "other";
   created_at: string;
 }
@@ -201,18 +200,6 @@ export function FavoriteLocationsList({
                         }}
                       >
                         {location.category.replace("-", " ")}
-                      </span>
-
-                      <span
-                        style={{
-                          backgroundColor: "var(--tg-color-separator)",
-                          color: "var(--tg-color-text-secondary)",
-                          fontSize: "12px",
-                          padding: "2px 8px",
-                          borderRadius: "6px",
-                        }}
-                      >
-                        {location.type}
                       </span>
 
                       <Caption

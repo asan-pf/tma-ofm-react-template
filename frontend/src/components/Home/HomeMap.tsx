@@ -9,7 +9,6 @@ interface Location {
   description: string;
   latitude: number;
   longitude: number;
-  type?: "permanent" | "temporary";
   category: "grocery" | "restaurant-bar" | "other";
   created_at: string;
 }

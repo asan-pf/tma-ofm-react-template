@@ -38,7 +38,6 @@ export default async function handler(req, res) {
             description,
             latitude,
             longitude,
-            type,
             category,
             is_approved,
             created_at

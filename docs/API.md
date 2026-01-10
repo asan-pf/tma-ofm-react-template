@@ -59,7 +59,6 @@ Get all approved locations.
     "latitude": 40.7128,
     "longitude": -74.0060,
     "category": "restaurant-bar",
-    "type": "permanent",
     "schedules": "9:00-18:00",
     "website_url": null,
     "is_approved": true,
@@ -80,15 +79,13 @@ Create a new location (requires approval).
   "latitude": 40.7128,
   "longitude": -74.0060,
   "category": "grocery",
-  "type": "permanent",
   "schedules": "9:00-18:00",
   "websiteUrl": "https://example.com",
   "imageUrl": "https://example.com/image.jpg"
 }
 ```
 
-**Categories:** `grocery`, `restaurant-bar`, `bike-rent`, `clothing`, `other`  
-**Types:** `permanent`, `temporary`
+**Categories:** `grocery`, `restaurant-bar`, `bike-rent`, `clothing`, `other`
 
 **Response:**
 ```json
@@ -99,7 +96,6 @@ Create a new location (requires approval).
   "latitude": 40.7128,
   "longitude": -74.0060,
   "category": "grocery",
-  "type": "permanent",
   "is_approved": false,
   "created_at": "2024-01-01T00:00:00.000Z",
   "user_id": 1
@@ -120,7 +116,6 @@ Get a specific location by ID.
   "latitude": 40.7128,
   "longitude": -74.0060,
   "category": "restaurant-bar",
-  "type": "permanent",
   "is_approved": true,
   "created_at": "2024-01-01T00:00:00.000Z",
   "user_id": 1

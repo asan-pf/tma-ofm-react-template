@@ -6,7 +6,6 @@ export { HomeControls } from './HomeControls';
 export { TapLocationSheet } from './TapLocationSheet';
 export { LocationSearchModal } from './LocationSearchModal';
 export { AddLocationModal } from './AddLocationModal';
-export { AddLocationChoiceModal } from './AddLocationChoiceModal';
 export { LeafletMap } from './LeafletMap';
 export { MapCrosshair } from './MapCrosshair';
 export { CategoryFilters } from './CategoryFilters';

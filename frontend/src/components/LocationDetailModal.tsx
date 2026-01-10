@@ -31,7 +31,6 @@ interface Location {
   website_url?: string;
   image_url?: string;
   schedules?: string;
-  type?: "permanent" | "temporary";
   users?: {
     id: number;
     nickname: string;
@@ -668,14 +667,6 @@ export function LocationDetailModal({
 
                 {/* Additional Info */}
                 <Section header="Details">
-                  {location.type && (
-                    <Cell
-                      subtitle="Type"
-                      style={{ textTransform: 'capitalize' }}
-                    >
-                      {location.type}
-                    </Cell>
-                  )}
                   <Cell subtitle="Added on">
                     {formatDate(location.created_at)}
                   </Cell>
