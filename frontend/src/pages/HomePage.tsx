@@ -389,7 +389,6 @@ export function HomePage() {
           schedules: addLocationData.schedules || null,
           latitude: addLocationData.lat,
           longitude: addLocationData.lng,
-          type: addLocationData.type,
           category: addLocationData.category,
         }),
       });
