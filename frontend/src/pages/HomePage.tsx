@@ -14,7 +14,6 @@ import { LocationSearchModal } from "@/components/Home/LocationSearchModal";
 import { AddLocationModal } from "@/components/Home/AddLocationModal";
 import { SavedLocationsModal } from "@/components/SavedLocationsModal";
 import { TapLocationSheet } from "@/components/Home/TapLocationSheet";
-import { CategoryFilters } from "@/components/Home/CategoryFilters";
 import { UserService, type UserProfile } from "@/utils/userService";
 // Global POI imports commented out to focus on local POIs
 // import { POI } from "@/utils/poiService";
