@@ -3,7 +3,9 @@ CREATE TABLE public.users (
     telegram_id character varying NOT NULL UNIQUE,
     nickname character varying NOT NULL,
     avatar_url text,
-    role character varying DEFAULT 'user'::character varying,
+    role character varying DEFAULT 'user'::character varying CHECK (
+        role::text = ANY (ARRAY ['user'::character varying, 'mod'::character varying]::text [])
+    ),
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
 );
 
