@@ -119,7 +119,7 @@ export function HomePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showTapLocationSheet, setShowTapLocationSheet] = useState(false);
   const [showTapHint, setShowTapHint] = useState(false);
-  const [, setUserProfile] = useState<UserProfile | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isPlacementMode, setIsPlacementMode] = useState(false);
   const [toast, setToast] = useState<
     { message: string; type: "info" | "success" | "error" } | null
@@ -256,6 +256,19 @@ export function HomePage() {
       selectedCategories.includes(location.category)
     );
   }, [locations, selectedCategories]);
+
+  const handleLocationDeleted = useCallback(
+    (locationId: number) => {
+      setLocations((prev) => prev.filter((location) => location.id !== locationId));
+      setFavoriteLocations((prev) =>
+        prev.filter((location) => location.id !== locationId)
+      );
+      setShowLocationDetail(false);
+      setSelectedLocation(null);
+      showToast("Location removed", "success");
+    },
+    [showToast]
+  );
 
   useEffect(() => {
     if (activeTab !== "explore") {
@@ -813,6 +826,8 @@ export function HomePage() {
             isFavorited={favoriteLocations.some(
               (fav) => fav.id === selectedLocation.id
             )}
+            currentUser={userProfile}
+            onLocationDeleted={handleLocationDeleted}
           />
         )}
 

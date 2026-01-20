@@ -219,15 +219,42 @@ export function ProfilePage() {
 
       <div className="profile-content">
         <div className="profile-card">
-          <div className="profile-card__header">
-            <Title level="3">Account Details</Title>
-            <Caption>Keep your profile information up to date</Caption>
-          </div>
+        <div className="profile-card__header">
+          <Title level="3">Account Details</Title>
+          <Caption>Keep your profile information up to date</Caption>
+        </div>
 
-          <div className="profile-field">
-            <label>Display Name</label>
-            {isEditing ? (
-              <input
+        {profile.role === "mod" && (
+          <div
+            className="profile-field"
+            style={{
+              border: "1px solid rgba(239, 68, 68, 0.18)",
+              background: "rgba(239, 68, 68, 0.08)",
+              borderRadius: "12px",
+              padding: "12px",
+            }}
+          >
+            <label style={{ display: "block", marginBottom: "6px" }}>
+              Moderator Access
+            </label>
+            <p
+              style={{
+                margin: 0,
+                color: "var(--tg-theme-text-color)",
+                fontSize: "14px",
+                lineHeight: 1.5,
+              }}
+            >
+              You can remove inaccurate locations and comments directly from the
+              map after reviewing them.
+            </p>
+          </div>
+        )}
+
+        <div className="profile-field">
+          <label>Display Name</label>
+          {isEditing ? (
+            <input
                 type="text"
                 value={editData.nickname}
                 onChange={(e) =>

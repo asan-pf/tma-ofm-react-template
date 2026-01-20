@@ -14,10 +14,11 @@ import {
   ChevronUp,
   X,
   Globe,
+  Trash2,
 } from "lucide-react";
 import { StarRating } from "./StarRating";
 import { initDataState, useSignal } from "@telegram-apps/sdk-react";
-import { UserService } from "@/utils/userService";
+import { UserService, type UserProfile } from "@/utils/userService";
 
 interface Location {
   id: number;
@@ -62,6 +63,8 @@ interface LocationDetailModalProps {
   onLocationClick?: (lat: number, lng: number) => void;
   onToggleFavorite?: (locationId: number) => void;
   isFavorited?: boolean;
+  currentUser?: UserProfile | null;
+  onLocationDeleted?: (locationId: number) => void;
 }
 
 export function LocationDetailModal({
@@ -71,6 +74,8 @@ export function LocationDetailModal({
   onLocationClick,
   onToggleFavorite,
   isFavorited = false,
+  currentUser,
+  onLocationDeleted,
 }: LocationDetailModalProps) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [rating, setRating] = useState<Rating>({ average: 0, count: 0 });
@@ -85,10 +90,13 @@ export function LocationDetailModal({
   const [currentY, setCurrentY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "reviews">("overview");
+  const [isDeletingLocation, setIsDeletingLocation] = useState(false);
+  const [deletingCommentId, setDeletingCommentId] = useState<number | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
   const initData = useSignal(initDataState);
   const telegramUser = initData?.user;
+  const isModerator = currentUser?.role === "mod";
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
@@ -256,6 +264,82 @@ export function LocationDetailModal({
     onToggleFavorite(location.id);
   };
 
+  const handleDeleteLocation = async () => {
+    if (!isModerator || !currentUser) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Delete this location? This action cannot be undone."
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setIsDeletingLocation(true);
+      const BACKEND_URL =
+        import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+
+      const response = await fetch(
+        `${BACKEND_URL}/api/locations?id=${location.id}`,
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: currentUser.id }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to delete location");
+      }
+
+      onLocationDeleted?.(location.id);
+    } catch (error) {
+      console.error("Error deleting location:", error);
+      alert("Failed to delete location. Please try again.");
+    } finally {
+      setIsDeletingLocation(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: number) => {
+    if (!isModerator || !currentUser) {
+      return;
+    }
+
+    const confirmed = window.confirm("Delete this comment?");
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingCommentId(commentId);
+      const BACKEND_URL =
+        import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+
+      const response = await fetch(
+        `${BACKEND_URL}/api/comments?id=${commentId}`,
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: currentUser.id }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to delete comment");
+      }
+
+      setComments((prev) => prev.filter((comment) => comment.id !== commentId));
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+      alert("Failed to delete comment. Please try again.");
+    } finally {
+      setDeletingCommentId(null);
+    }
+  };
+
   const handleTouchStart = (e: React.TouchEvent) => {
     const touch = e.touches[0];
     setStartY(touch.clientY);
@@ -394,6 +478,25 @@ export function LocationDetailModal({
                 title="Expand"
               >
                 <ChevronUp size={20} />
+              </button>
+            )}
+            {isModerator && (
+              <button
+                onClick={handleDeleteLocation}
+                disabled={isDeletingLocation}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: isDeletingLocation
+                    ? 'var(--tg-theme-hint-color)'
+                    : 'var(--tg-theme-destructive-text-color, #ef4444)',
+                  cursor: isDeletingLocation ? 'not-allowed' : 'pointer',
+                  padding: '4px',
+                  borderRadius: '50%',
+                }}
+                title="Delete location"
+              >
+                {isDeletingLocation ? '…' : <Trash2 size={20} />}
               </button>
             )}
             <button
@@ -811,8 +914,40 @@ export function LocationDetailModal({
                         multiline
                       >
                         <div>
-                          <div style={{ fontWeight: '600', marginBottom: '6px', fontSize: '14px' }}>
-                            {comment.users?.nickname || 'Anonymous'}
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'flex-start',
+                              justifyContent: 'space-between',
+                              gap: '12px',
+                              marginBottom: '6px',
+                            }}
+                          >
+                            <div style={{ fontWeight: '600', fontSize: '14px' }}>
+                              {comment.users?.nickname || 'Anonymous'}
+                            </div>
+                            {isModerator && (
+                              <button
+                                onClick={() => handleDeleteComment(comment.id)}
+                                disabled={deletingCommentId === comment.id}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color:
+                                    deletingCommentId === comment.id
+                                      ? 'var(--tg-theme-hint-color)'
+                                      : 'var(--tg-theme-destructive-text-color, #ef4444)',
+                                  cursor:
+                                    deletingCommentId === comment.id ? 'not-allowed' : 'pointer',
+                                  padding: 0,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                }}
+                                title="Delete comment"
+                              >
+                                {deletingCommentId === comment.id ? '…' : <Trash2 size={16} />}
+                              </button>
+                            )}
                           </div>
                           <div style={{ color: 'var(--tg-theme-text-color)', lineHeight: '1.5', fontSize: '14px' }}>
                             {comment.content}
