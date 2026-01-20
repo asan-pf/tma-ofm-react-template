@@ -28,6 +28,28 @@ async function findUserByTelegramId(telegramId) {
 
   return data?.[0] ?? null;
 }
+
+async function ensureModerator(userId) {
+  if (!userId) {
+    return { ok: false, status: 400, message: 'Missing moderator userId' };
+  }
+
+  const { data: user, error } = await supabase
+    .from('users')
+    .select('id, role')
+    .eq('id', userId)
+    .single();
+
+  if (error) {
+    return { ok: false, status: 500, message: 'Failed to verify user role' };
+  }
+
+  if (user.role !== 'mod') {
+    return { ok: false, status: 403, message: 'Only moderators can perform this action' };
+  }
+
+  return { ok: true };
+}
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -162,6 +184,70 @@ app.post('/api/locations', async (req, res) => {
     res.status(201).json(data);
   } catch (error) {
     console.error('Error creating location:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.delete('/api/locations', async (req, res) => {
+  try {
+    const id = req.query.id ?? req.body?.id;
+    const { userId } = req.body ?? {};
+
+    if (!id) {
+      return res.status(400).json({ error: 'Missing location id' });
+    }
+
+    const modCheck = await ensureModerator(userId);
+    if (!modCheck.ok) {
+      return res.status(modCheck.status).json({ error: modCheck.message });
+    }
+
+    const locationId = Number(id);
+    if (Number.isNaN(locationId)) {
+      return res.status(400).json({ error: 'Invalid location id' });
+    }
+
+    const { data: location, error: fetchError } = await supabase
+      .from('locations')
+      .select('id')
+      .eq('id', locationId)
+      .single();
+
+    if (fetchError) {
+      if (fetchError.code === 'PGRST116') {
+        return res.status(404).json({ error: 'Location not found' });
+      }
+      throw fetchError;
+    }
+
+    if (!location) {
+      return res.status(404).json({ error: 'Location not found' });
+    }
+
+    const cleanupTables = ['comments', 'ratings', 'favorites'];
+    for (const table of cleanupTables) {
+      const { error: cleanupError } = await supabase
+        .from(table)
+        .delete()
+        .eq('location_id', locationId);
+
+      if (cleanupError) {
+        throw cleanupError;
+      }
+    }
+
+    const { error: deleteError } = await supabase
+      .from('locations')
+      .delete()
+      .eq('id', locationId);
+
+    if (deleteError) {
+      throw deleteError;
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting location:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -353,6 +439,58 @@ app.post('/api/comments', async (req, res) => {
     res.status(201).json(data);
   } catch (error) {
     console.error('Error creating comment:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.delete('/api/comments', async (req, res) => {
+  try {
+    const id = req.query.id ?? req.body?.id;
+    const { userId } = req.body ?? {};
+
+    if (!id) {
+      return res.status(400).json({ error: 'Missing comment id' });
+    }
+
+    const modCheck = await ensureModerator(userId);
+    if (!modCheck.ok) {
+      return res.status(modCheck.status).json({ error: modCheck.message });
+    }
+
+    const commentId = Number(id);
+    if (Number.isNaN(commentId)) {
+      return res.status(400).json({ error: 'Invalid comment id' });
+    }
+
+    const { data: comment, error: fetchError } = await supabase
+      .from('comments')
+      .select('id')
+      .eq('id', commentId)
+      .single();
+
+    if (fetchError) {
+      if (fetchError.code === 'PGRST116') {
+        return res.status(404).json({ error: 'Comment not found' });
+      }
+      throw fetchError;
+    }
+
+    if (!comment) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+
+    const { error: deleteError } = await supabase
+      .from('comments')
+      .delete()
+      .eq('id', commentId);
+
+    if (deleteError) {
+      throw deleteError;
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting comment:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
